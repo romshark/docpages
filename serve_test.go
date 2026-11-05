@@ -100,13 +100,24 @@ func TestHandlerRepository(t *testing.T) {
 		ctype string
 		body  string
 	}{
-		"/_repository/LICENSE":             {200, "text/plain; charset=utf-8", "MIT License"},
-		"/_repository/example/cli/main.go": {200, "text/plain; charset=utf-8", "package main"},
-		"/_repository/example/logo.png":    {200, "image/png", "PNG"},
-		"/_repository/example/": {200, "text/html; charset=utf-8",
-			`<ul><li><a href="cli/">cli/</a></li><li><a href="logo.png">logo.png</a></li></ul>`},
-		"/_repository/example/cli/": {200, "text/html; charset=utf-8",
-			`<li><a href="../">../</a></li><li><a href="main.go">main.go</a></li>`},
+		"/_repository/LICENSE": {
+			200, "text/plain; charset=utf-8", "MIT License",
+		},
+		"/_repository/example/cli/main.go": {
+			200, "text/plain; charset=utf-8", "package main",
+		},
+		"/_repository/example/logo.png": {
+			200, "image/png", "PNG",
+		},
+		"/_repository/example/": {
+			200, "text/html; charset=utf-8",
+			`<ul><li><a href="cli/">cli/</a></li>` +
+				`<li><a href="logo.png">logo.png</a></li></ul>`,
+		},
+		"/_repository/example/cli/": {
+			200, "text/html; charset=utf-8",
+			`<li><a href="../">../</a></li><li><a href="main.go">main.go</a></li>`,
+		},
 		"/_repository/example/.env":        {404, "", ""},
 		"/_repository/example/outside.txt": {404, "", ""},
 		"/_repository/secret.txt":          {404, "", ""},

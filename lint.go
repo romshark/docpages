@@ -189,9 +189,11 @@ func lintParagraph(p *ast.Paragraph, src []byte) []lintError {
 		}
 	}
 	if rows >= 2 && tableRow.Match(src[segs[0].Start:segs[0].Stop]) {
-		errs = append(errs, lintError{segs[0].Start,
+		errs = append(errs, lintError{
+			segs[0].Start,
 			`lines that start with "|" but make no table, which needs a delimiter ` +
-				`row below its first row, as | --- | --- |, with as many cells`})
+				`row below its first row, as | --- | --- |, with as many cells`,
+		})
 	}
 	return errs
 }
