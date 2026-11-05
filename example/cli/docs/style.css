@@ -1,0 +1,113 @@
+/* The look of a man page in a terminal: monospace text, headings in capitals
+   with the text indented below them, options in bold and square corners.
+   Black on white with blue links in the light theme, gray on black with green
+   links in the dark one. The tokens keep the light-dark() pairs of docpages,
+   so the theme switch still works. */
+:root {
+  --bg: light-dark(#ffffff, #000000);
+  --bg-card: light-dark(#f2f2f2, #111111);
+  --bg-code: light-dark(#f2f2f2, #111111);
+  --border: light-dark(#bdbdbd, #333333);
+  --text: light-dark(#000000, #d0d0d0);
+  --text-muted: light-dark(#555555, #8a8a8a);
+  --accent: light-dark(#0000ee, #33ff66);
+  --accent-hover: light-dark(#000099, #99ffb3);
+  --font-sans: var(--font-mono);
+
+  /* The tokens of Morpheus, whose components draw the menus, the search
+     dialog, the buttons and the navigation in their shadow DOM, which the
+     rules below do not reach: square corners, no shadows, no lift on hover
+     and no animation, as in a terminal. */
+  --page-radius: 0px;
+  --neo-link-radius: 0px;
+  --neo-button-shadow: none;
+  --neo-button-hover-shadow: none;
+  --neo-button-active-shadow: none;
+  --neo-button-hover-lift: 0px;
+  --neo-button-active-lift: 0px;
+  --neo-popover-shadow: none;
+  --neo-dialog-shadow: none;
+  --neo-duration-scale: 0;
+}
+
+/* The rules of docpages that round corners are more specific than any one
+   rule here could override them all. */
+*,
+*::before,
+*::after {
+  border-radius: 0 !important;
+}
+
+/* The selected option of the version menu and the theme switch, in reverse
+   video. docpages sets these tokens on the menus and not on :root. */
+.version-select,
+.theme-select {
+  --neo-select-option-selected-bg: var(--text);
+  --neo-select-option-selected-color: var(--bg);
+}
+
+/* The contents that open below the bar of a narrow screen. */
+.toc-inline .toc {
+  box-shadow: none;
+}
+
+/* The block cursor of the inlined logo. */
+.logo-svg .cursor {
+  fill: var(--accent);
+}
+
+.nav-group-title {
+  text-transform: uppercase;
+}
+
+.docs-content {
+  font-size: 0.9375rem;
+
+  :is(h1, h2) {
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-size: 1.25rem;
+  }
+
+  h2 {
+    font-size: 1rem;
+    margin-block: 1.75rem 0.5rem;
+    padding: 0;
+    border: 0;
+  }
+
+  /* The text below the headings, indented as in a man page. */
+  > :not(h1, h2) {
+    margin-inline-start: 4ch;
+  }
+
+  /* Commands and options in bold, as man shows them. */
+  code {
+    font-size: inherit;
+    font-weight: 700;
+    background: none;
+    border: 0;
+    padding: 0;
+  }
+
+  pre code {
+    font-weight: 400;
+  }
+
+  a {
+    text-decoration-color: currentColor;
+  }
+
+  .callout {
+    border: 1px solid var(--callout);
+    background: none;
+  }
+
+  .callout-title {
+    text-transform: uppercase;
+  }
+}

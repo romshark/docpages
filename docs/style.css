@@ -1,0 +1,90 @@
+/* The look of the docs of docpages: heavy rounded headings, soft rounded
+   corners, pill links and an emerald accent on warm paper. The colors keep the
+   light-dark() pairs of docpages, so the theme switch still works. */
+:root {
+  --bg: light-dark(#fcfbf8, #111412);
+  --bg-card: light-dark(#f2efe6, #1a1e1b);
+  --bg-code: light-dark(#f0f5f1, #161c18);
+  --border: light-dark(#e2ddd0, #2b322d);
+  --text: light-dark(#1c1f1b, #e6ebe6);
+  --text-muted: light-dark(#5d6459, #98a297);
+  --accent: light-dark(#0b7a53, #45d39a);
+  --accent-hover: light-dark(#075c3e, #7be3b6);
+  --font-display: ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+
+  /* The corners of the menus and dialogs of Morpheus. */
+  --page-radius: 0.75rem;
+}
+
+/* The images of these docs are screenshots of pages, whose background would
+   run into that of the page without a border. */
+.docs-content :is(img, video) {
+  border: 1px solid var(--border);
+  border-radius: var(--page-radius);
+}
+
+/* The links of the header as pills, the current one filled, as high as the
+   controls of the header. */
+.site-header .header-link {
+  display: inline-flex;
+  align-items: center;
+  block-size: var(--control-height);
+  padding: 0 0.75rem;
+  border-radius: 999px;
+
+  &[aria-current="page"] {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
+  }
+}
+
+.nav-group-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+}
+
+.docs-content {
+  :is(h1, h2, h3) {
+    font-family: var(--font-display);
+    font-weight: 800;
+  }
+
+  h1 {
+    font-size: 2.5rem;
+    letter-spacing: -0.03em;
+  }
+
+  /* A short bar of the accent above each section in place of a rule below. */
+  h2 {
+    padding-block-end: 0;
+    border-block-end: 0;
+
+    &::before {
+      content: "";
+      display: block;
+      inline-size: 2rem;
+      block-size: 0.3rem;
+      margin-block-end: 0.6rem;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+  }
+
+  code {
+    border-color: transparent;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--accent) 10%, var(--bg-code));
+  }
+
+  :is(pre, .callout) {
+    border-radius: 14px;
+  }
+
+  .code-title {
+    border-radius: 14px 14px 0 0;
+  }
+
+  .callout {
+    border: 1px solid color-mix(in srgb, var(--callout) 35%, transparent);
+  }
+}

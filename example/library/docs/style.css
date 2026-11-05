@@ -1,0 +1,50 @@
+/* A technical look: monospace headings written as Markdown, square corners
+   and a violet accent. The tokens keep the light-dark() pairs of docpages,
+   so the theme switch still works. */
+:root {
+  --bg: light-dark(#ffffff, #0b0b10);
+  --bg-card: light-dark(#f5f4fa, #15141d);
+  --bg-code: light-dark(#f5f4fa, #15141d);
+  --border: light-dark(#dcd9ea, #2a2838);
+  --text: light-dark(#1b1a24, #e4e2f0);
+  --text-muted: light-dark(#5e5b70, #9592a8);
+  --accent: light-dark(#6d3fd6, #a98bff);
+  --accent-hover: light-dark(#5428b8, #c3afff);
+}
+
+/* The name of the project, which shows without a logo.svg. */
+.logo-text {
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+
+.nav-group-title {
+  font-family: var(--font-mono);
+  text-transform: lowercase;
+}
+
+.docs-content {
+  :is(h1, h2, h3) {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+
+  h1 {
+    font-size: 1.75rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+    border-block-end: 0;
+
+    &::before {
+      content: "## ";
+      color: var(--accent);
+    }
+  }
+
+  :is(pre, code, .code-title, .callout, .details) {
+    border-radius: 0;
+  }
+}

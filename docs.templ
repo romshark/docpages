@@ -1,0 +1,459 @@
+package docpages
+
+import (
+	"mime"
+	"path"
+	"strconv"
+
+	"github.com/romshark/morpheus/neo"
+)
+
+// docsPage is the page that v shows.
+templ docsPage(v docView) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ v.doc.page.title } - { v.chrome.name }</title>
+			<meta name="description" content={ v.doc.description }/>
+			if !v.indexed {
+				<meta name="robots" content="noindex"/>
+			}
+			@favicon(v.base(), v.chrome.favicon)
+			<link
+				rel="alternate"
+				type="text/markdown"
+				href={ v.base() + v.doc.page.markdownFile() }
+			/>
+			@themeScript()
+			<link rel="stylesheet" href={ v.base() + "morpheus/morpheus.min.css" }/>
+			@morpheusIconBase(v.base())
+			<link rel="stylesheet" href={ v.base() + "docpages.css" }/>
+			if v.chrome.style {
+				<link rel="stylesheet" href={ v.base() + "style.css" }/>
+			}
+			<script type="module" src={ v.base() + "morpheus/morpheus.min.js" }></script>
+			<script type="module" src={ v.base() + "docpages.js" }></script>
+			if v.chrome.reload != "" {
+				@reloadScript(v.base()+"../"+reloadPath, v.chrome.reload)
+			}
+		</head>
+		<body class="docs-page" data-site-root={ v.base() } data-version={ v.edition.version }>
+			@skipLink()
+			@siteHeader(&v) {
+				@neo.ButtonAttrs(neo.ButtonOpts{
+					Variant: neo.Set(neo.ButtonVariantGhost),
+				}, templ.Attributes{
+					"id":            "docs-nav-toggle",
+					"class":         "menu-button",
+					"aria-controls": "docs-nav",
+				}) {
+					@icon("menu")
+					Menu
+				}
+			}
+			<div class="docs">
+				// A column next to the text on a wide screen, and on a narrow one
+				// an overlay that the Menu button opens.
+				@neo.SidebarAttrs(neo.SidebarOpts{
+					AriaLabel:         neo.Set("Documentation"),
+					OverlayBreakpoint: neo.Set("56.25rem"),
+				}, templ.Attributes{"id": "docs-nav", "class": "docs-nav"}) {
+					<nav { neo.SidebarContent()... } aria-label="Documentation">
+						@docsNav(v.nav)
+					</nav>
+				}
+				// The footer sits here so the navigation reaches the end of the page.
+				<div class="docs-column">
+					<main class="docs-main" id="main-content" tabindex="-1">
+						if v.note != "" {
+							@versionNote(v.note)
+						}
+						// The contents of the page, while the screen is too narrow for
+						// their column. A bar that sticks below the header and opens
+						// the list over the text. It shows the title of the page until
+						// docs.js writes the title of the current section in its place.
+						if len(v.toc) > 0 {
+							<details class="toc-inline">
+								<summary>
+									<span class="toc-inline-current">
+										{ v.doc.title }
+									</span>
+									@icon("chevron-down")
+								</summary>
+								@docsContents(v.toc)
+							</details>
+						}
+						@pageLinks(&v)
+						<article class="docs-content">
+							@templ.Raw(v.doc.body)
+						</article>
+						<footer class="docs-page-footer">
+							@pageLinks(&v)
+							if v.prev.Href != "" || v.next.Href != "" {
+								<nav class="pager" aria-label="Previous and next page">
+									if v.prev.Href != "" {
+										<a
+											class="pager-prev"
+											href={ v.prev.Href }
+											rel="prev"
+										>
+											<span class="pager-label">Previous</span>
+											{ v.prev.Title }
+										</a>
+									}
+									if v.next.Href != "" {
+										<a
+											class="pager-next"
+											href={ v.next.Href }
+											rel="next"
+										>
+											<span class="pager-label">Next</span>
+											{ v.next.Title }
+										</a>
+									}
+								</nav>
+							}
+						</footer>
+					</main>
+					@siteFooter(&v)
+				</div>
+				if len(v.toc) > 0 {
+					<aside class="docs-toc" aria-labelledby="docs-toc-title">
+						<p class="toc-title" id="docs-toc-title">On this page</p>
+						@docsContents(v.toc)
+					</aside>
+				}
+			</div>
+		</body>
+	</html>
+}
+
+templ pageLinks(v *docView) {
+	<p class="page-meta">
+		<a class="icon-link" href={ v.base() + v.doc.page.markdownFile() }>
+			@icon("markdown")
+			Raw Markdown
+		</a>
+		<a class="icon-link" href={ templ.SafeURL(v.sourceURL()) }>
+			@hostIcon(v.chrome.host)
+			View this page on { v.chrome.host.name }
+		</a>
+	</p>
+}
+
+// favicon links the icon of the browser tab, the file name in the root of the
+// version, base relative to the page. No-op for an empty name.
+templ favicon(base, name string) {
+	if name != "" {
+		<link
+			rel="icon"
+			href={ base + name }
+			type={ mime.TypeByExtension(path.Ext(name)) }
+		/>
+	}
+}
+
+// morpheusIconBase points <neo-icon> at morpheus/icons/ of the version,
+// base relative to the page, replacing the /static/icons of morpheus.min.css.
+// <neo-icon> resolves the URL against the page.
+templ morpheusIconBase(base string) {
+	@templ.Raw(`<style>:root{--neo-icon-base:"` + base + `morpheus/icons"}</style>`)
+}
+
+// skipLink is the first element of every page. It shows only while it has the
+// focus, which the first Tab gives it, and leads past the header and the
+// navigation to the <main> element, as WCAG 2.4.1 requires.
+templ skipLink() {
+	<a class="skip-link" href="#main-content">Skip to content</a>
+}
+
+// siteHeader is the header of the page of v: the logo, the menu of the versions
+// that the site serves, the links of the site, the search and the theme
+// controls. The children come first in the navigation, as the Menu button.
+templ siteHeader(v *docView) {
+	<header class="site-header">
+		<div class="brand">
+			<a class="logo" href={ v.home() } aria-label={ v.chrome.name + " home" }>
+				if v.chrome.logo != "" {
+					@templ.Raw(v.chrome.logo)
+				} else {
+					<span class="logo-text">{ v.chrome.name }</span>
+				}
+			</a>
+			@versionSelect(v.versions)
+		</div>
+		<nav aria-label="Site">
+			{ children... }
+			for _, l := range v.header {
+				@headerLink(l)
+			}
+			<a class="header-repository icon-link" href={ templ.SafeURL(v.chrome.host.repoURL) }>
+				@hostIcon(v.chrome.host)
+				{ v.chrome.host.name }
+			</a>
+			@searchDialog(v.suggested)
+			@themeSelect()
+			@themeSwitch()
+		</nav>
+	</header>
+}
+
+// versionSelect is the menu of the versions that the site serves. docs.js opens
+// the same page in the version picked.
+templ versionSelect(versions []versionLink) {
+	@neo.SelectAttrs(neo.SelectOpts{
+		Value:             neo.Set(currentVersion(versions)),
+		Size:              neo.Set("sm"),
+		AriaLabel:         neo.Set("Documentation version"),
+		PopoverFitContent: neo.Set(true),
+	}, templ.Attributes{"class": "version-select"}) {
+		for _, l := range versions {
+			@neo.OptionAttrs(neo.OptionOpts{Value: neo.Set(l.Version)}, templ.Attributes{
+				"data-href":     l.Href,
+				"data-fallback": l.Fallback,
+			}) {
+				{ l.Version }
+			}
+		}
+	}
+}
+
+// versionNote shows note, the HTML of the note of the edition of a page.
+templ versionNote(note string) {
+	<p class="version-note" role="note">
+		@templ.Raw(note)
+	</p>
+}
+
+// hostIcon is the icon of the links to the repository on h: the mark of GitHub
+// on the default host, the icon of the host setting, or none.
+templ hostIcon(h *host) {
+	if h.icon != "" {
+		@templ.Raw(h.icon)
+	} else if h.github {
+		@icon("github")
+	}
+}
+
+// headerLink is the link l of the header, with its icon before its title.
+templ headerLink(l headerEntry) {
+	<a
+		class={ "header-link", templ.KV("icon-link", l.Icon != "") }
+		href={ l.Href }
+		if l.Current {
+			aria-current="page"
+		}
+	>
+		if l.Icon != "" {
+			@templ.Raw(l.Icon)
+		}
+		{ l.Title }
+	</a>
+}
+
+// siteFooter is the footer of the page of v: the repository,
+// the links of the front matter, llms.txt and the license.
+templ siteFooter(v *docView) {
+	<footer class="site-footer">
+		<nav class="footer-links" aria-label="Project">
+			<a class="icon-link" href={ templ.SafeURL(v.chrome.host.repoURL) }>
+				@hostIcon(v.chrome.host)
+				{ v.chrome.host.name }
+			</a>
+			for _, l := range v.footer {
+				<a class="icon-link" href={ l.Href }>
+					@templ.Raw(l.Icon)
+					{ l.Title }
+				</a>
+			}
+			<a class="icon-link" href={ v.base() + "llms.txt" }>
+				@icon("file")
+				llms.txt
+			</a>
+		</nav>
+		if v.chrome.license != "" {
+			<span>{ v.chrome.license }</span>
+		}
+	</footer>
+}
+
+// searchDialog is the search button of the header and the dialog that it
+// opens. docs.js searches search.json and lists the results in the dialog.
+// While the field is empty, the dialog lists the suggested pages instead.
+templ searchDialog(suggested []suggestion) {
+	@neo.DialogAttrs(neo.DialogOpts{}, templ.Attributes{"class": "search"}) {
+		<button
+			type="button"
+			class="search-button"
+			aria-keyshortcuts="/ Control+K Meta+K"
+			{ neo.DialogTrigger()... }
+		>
+			@icon("search")
+			<span class="search-label">Search</span>
+			<kbd>/</kbd>
+		</button>
+		<dialog class="search-dialog" aria-label="Search the documentation">
+			<div class="search-box" role="search">
+				@icon("search")
+				<input
+					type="search"
+					class="search-input"
+					placeholder="Search the documentation"
+					aria-label="Search the documentation"
+					role="combobox"
+					aria-expanded={ strconv.FormatBool(len(suggested) > 0) }
+					aria-controls="search-results"
+					aria-autocomplete="list"
+					autocomplete="off"
+					spellcheck="false"
+				/>
+			</div>
+			// The dialog grows and shrinks smoothly with what it lists.
+			@neo.ElasticAttrs(neo.ElasticOpts{}, templ.Attributes{"class": "search-body"}) {
+				<p class="search-heading" hidden?={ len(suggested) == 0 }>Suggested</p>
+				<ul
+					class="search-results"
+					id="search-results"
+					role="listbox"
+					aria-label="Suggested pages"
+				>
+					// goldmark writes no "_" into the ID of a heading, which keeps
+					// these IDs apart from the heading IDs of the page.
+					for i, s := range suggested {
+						<li
+							id={ "search_suggestion_" + strconv.Itoa(i) }
+							role="option"
+							aria-selected="false"
+						>
+							<a href={ s.Href } tabindex="-1">
+								<span class="result-page">{ s.Group }</span>
+								<span class="result-section">{ s.Title }</span>
+							</a>
+						</li>
+					}
+				</ul>
+				<p class="search-status" role="status"></p>
+			}
+			<p class="search-keys" aria-hidden="true">
+				<span><kbd>&uarr;</kbd><kbd>&darr;</kbd> select</span>
+				<span><kbd>&crarr;</kbd> open</span>
+				<span><kbd>esc</kbd> close</span>
+			</p>
+		</dialog>
+	}
+}
+
+// docsNav lists the groups of the navigation.
+templ docsNav(groups []navGroup) {
+	for _, g := range groups {
+		<div class="nav-group">
+			<p class="nav-group-title">
+				@templ.Raw(g.Icon)
+				{ g.Title }
+			</p>
+			<ul>
+				for _, e := range g.Entries {
+					<li>
+						if e.External {
+							<a href={ templ.SafeURL(e.Href) } class="nav-external">
+								{ e.Title }
+								@icon("arrow-up-right")
+							</a>
+						} else if e.Current {
+							<a href={ e.Href } aria-current="page">{ e.Title }</a>
+						} else {
+							<a href={ e.Href }>{ e.Title }</a>
+						}
+					</li>
+				}
+			</ul>
+		</div>
+	}
+}
+
+// docsContents lists the contents of a page.
+templ docsContents(toc []tocEntry) {
+	<ul class="toc">
+		for _, e := range toc {
+			<li class={ "level-" + strconv.Itoa(e.Level) }>
+				<a href={ e.Href }>{ e.Title }</a>
+			</li>
+		}
+	</ul>
+}
+
+// copyButton copies the text of the element with the given ID, a code block.
+templ copyButton(id string) {
+	@neo.Clipcopy(neo.ClipcopyOpts{For: neo.Set(id)}) {
+		<button type="button" class="copy-button" aria-label="Copy the code">
+			@neo.ClipcopyIdle() {
+				Copy
+			}
+			@neo.ClipcopyCopied() {
+				Copied
+			}
+		</button>
+	}
+}
+
+// docsIndex is the index.html of the output directory, which opens the first
+// page of the edition in dir, relative to it. GitHub Pages serves files
+// without redirects.
+templ docsIndex(dir string, c *chrome) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta http-equiv="refresh" content={ "0; url=" + dir }/>
+			<title>{ c.name } documentation</title>
+			@favicon(dir, c.favicon)
+		</head>
+		<body>
+			<a href={ dir }>{ c.name } documentation</a>
+		</body>
+	</html>
+}
+
+// reloadScript reloads the page when the event stream at url, which [Handler]
+// serves, reports a state other than state, the state that the page shows.
+// The stream reconnects after a restart of the server.
+//
+// The page holds the stream only while it shows. A browser opens at most 6
+// connections to a server over HTTP/1.1, and the pages that it keeps for the
+// back button and those of hidden tabs would take them all, which leaves the
+// next page waiting. The stream reports the state when it opens, which reloads
+// a page that a file changed under while it did not show.
+templ reloadScript(url, state string) {
+	<script data-url={ url } data-state={ state }>
+		(() => {
+			const { url, state } = document.currentScript.dataset;
+			let source = null;
+			const open = () => {
+				if (source === null && !document.hidden) {
+					source = new EventSource(url);
+					source.onmessage = (e) => {
+						if (e.data !== state) {
+							location.reload();
+						}
+					};
+				}
+			};
+			const close = () => {
+				source?.close();
+				source = null;
+			};
+			addEventListener("pagehide", close);
+			addEventListener("pageshow", open);
+			document.addEventListener("visibilitychange", () => {
+				if (document.hidden) {
+					close();
+				} else {
+					open();
+				}
+			});
+			open();
+		})();
+	</script>
+}
