@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"net/url"
 	"path"
 	"regexp"
 	"slices"
@@ -15,7 +14,6 @@ import (
 
 	"github.com/yuin/goldmark/v2/ast"
 	"github.com/yuin/goldmark/v2/extension"
-	"github.com/yuin/goldmark/v2/parser"
 	"github.com/yuin/goldmark/v2/renderer/html"
 	"github.com/yuin/goldmark/v2/text"
 )
@@ -104,7 +102,7 @@ func (e *edition) noteHTML(i int, editions []*edition) (string, error) {
 		return "", nil
 	}
 	src := []byte(e.note)
-	doc := parser.New(parser.WithExtensions(extension.NewGFMParser())).Parse(src)
+	doc := newParser().Parse(src)
 	para, ok := doc.FirstChild().(*ast.Paragraph)
 	if !ok || para.NextSibling() != nil {
 		return "", errors.New("a note is 1 paragraph")
@@ -117,8 +115,7 @@ func (e *edition) noteHTML(i int, editions []*edition) (string, error) {
 		raw := string(l.Destination.Value(src))
 		dest, ok, err := e.editionLink(i, raw, editions)
 		if !ok && err == nil {
-			dest, err = e.links.resolveOn(i, 0, raw, e.pages[i].base(),
-				func(p page) string { return p.path })
+			dest, err = e.links.resolveOn(i, 0, raw, e.pages[i].base(), page.urlPath)
 		}
 		if err != nil {
 			return ast.WalkStop, err
@@ -143,8 +140,8 @@ func (e *edition) noteHTML(i int, editions []*edition) (string, error) {
 // whether dest leads to such a page: a file in the docs directory of that
 // edition that the page shows.
 func (e *edition) editionLink(i int, dest string, editions []*edition) (string, bool, error) {
-	u, err := url.Parse(dest)
-	if err != nil || u.Scheme != "" || u.Host != "" || u.Path == "" {
+	u, ok := repoLink(dest)
+	if !ok {
 		return "", false, nil
 	}
 	file := repoPath(e.pages[0].file, u.Path)

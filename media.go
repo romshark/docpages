@@ -88,14 +88,7 @@ func (s *site) mediaURL(from int, dest, base string) (string, error) {
 		}
 		s.media[file] = c
 	}
-	r := base + (&url.URL{Path: c.name}).EscapedPath()
-	if u.RawQuery != "" {
-		r += "?" + u.RawQuery
-	}
-	if u.Fragment != "" {
-		r += "#" + u.Fragment
-	}
-	return r, nil
+	return withQueryFragment(base+(&url.URL{Path: c.name}).EscapedPath(), u), nil
 }
 
 // rewriteMedia returns the raw HTML raw with each URL of the src, srcset and

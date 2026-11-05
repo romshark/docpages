@@ -217,9 +217,7 @@ func read(
 		}
 	}
 	for _, l := range slices.Concat(c.header, c.footer) {
-		if _, err := main.links.resolve(0, l.URL, "", func(p page) string {
-			return p.path
-		}); err != nil {
+		if _, err := main.links.resolve(0, l.URL, "", page.urlPath); err != nil {
 			return nil, fmt.Errorf("%s: link %q of the front matter: %w",
 				path.Join(dir, readmeName), l.Title, err)
 		}
@@ -340,8 +338,14 @@ func (s *Site) Write(out string) error {
 			}
 		}
 	}
+	return writeFiles(out, files)
+}
+
+// writeFiles writes files, by their slash-separated path relative to dir,
+// into dir, creating the directories that they need.
+func writeFiles(dir string, files map[string][]byte) error {
 	for name, content := range files {
-		p := filepath.Join(out, filepath.FromSlash(name))
+		p := filepath.Join(dir, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			return err
 		}
@@ -405,8 +409,7 @@ func (s *Site) chromeLink(e *edition, i int, dest string) (string, int) {
 	to := main.links.target(0, dest)
 	if to < 0 {
 		// read checked the links, which leaves no error here.
-		href, _ := main.links.resolve(0, dest, base,
-			func(p page) string { return p.path })
+		href, _ := main.links.resolve(0, dest, base, page.urlPath)
 		return href, -1
 	}
 	p := main.pages[to].path

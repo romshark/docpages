@@ -56,6 +56,11 @@ func (p page) markdownFile() string {
 	return strings.TrimSuffix(p.outFile(), ".html") + ".md"
 }
 
+// urlPath returns the URL path of p, relative to the root of the version.
+// It is what a link of a page leads to, as [page.markdownFile] is what a link
+// of a Markdown copy leads to.
+func (p page) urlPath() string { return p.path }
+
 // base returns the URL of the root of the version relative to p.
 func (p page) base() string {
 	if n := strings.Count(p.path, "/"); n > 0 {
@@ -306,19 +311,14 @@ func isAbsURL(u string) bool {
 // of a heading with "_" or a non-ASCII letter differently from GitHub, which
 // would leave a link that works on GitHub dead on the site.
 func convertDocs(pages []page, srcs [][]byte, s *site) ([]doc, error) {
-	p := parser.New(
-		parser.WithAutoHeadingID(),
-		parser.WithExtensions(extension.NewGFMParser()),
-	)
+	p := newParser(parser.WithAutoHeadingID())
 	s.pages = pages
 	s.ids = make([]map[string]bool, len(pages))
 	docs := make([]doc, len(pages))
 	nodes := make([]ast.Node, len(pages))
 	// Links are resolved after all files are parsed because a link can name a
 	// heading of a page that is parsed later.
-	links := make([][]*ast.Link, len(pages))
-	images := make([][]*ast.Image, len(pages))
-	raws := make([][]ast.Node, len(pages)) // The raw HTML, inline and blocks.
+	pageRefs := make([]refs, len(pages))
 	for i, src := range srcs {
 		if pages[i].external() {
 			continue
@@ -343,24 +343,18 @@ func convertDocs(pages []page, srcs [][]byte, s *site) ([]doc, error) {
 			if !entering {
 				return ast.WalkContinue, nil
 			}
-			switch n := n.(type) {
-			case *ast.Heading:
-				attr, _ := n.Attribute("id")
+			if h, ok := n.(*ast.Heading); ok {
+				attr, _ := h.Attribute("id")
 				id := attr.Value(src)
 				s.ids[i][id] = true
-				title := plainText(n, src)
+				title := plainText(h, src)
 				d.sections = append(d.sections,
-					section{ID: id, Title: title, Level: n.Level})
-				if n.Level == 1 && d.title == "" {
+					section{ID: id, Title: title, Level: h.Level})
+				if h.Level == 1 && d.title == "" {
 					d.title = title
 				}
-			case *ast.Link:
-				links[i] = append(links[i], n)
-			case *ast.Image:
-				images[i] = append(images[i], n)
-			case *ast.RawHTML, *ast.HTMLBlock:
-				raws[i] = append(raws[i], n)
 			}
+			pageRefs[i].add(n)
 			return ast.WalkContinue, nil
 		})
 		d.depth = tocDepth(d.sections)
@@ -385,25 +379,13 @@ func convertDocs(pages []page, srcs [][]byte, s *site) ([]doc, error) {
 		// of the root of the version. The copies are rewritten from the
 		// destinations as written, which the HTML below replaces.
 		copyAt := func(base string) ([]byte, error) {
-			linkEdits, err := destEdits(src, linkDests(links[i]),
+			return pageRefs[i].rewrite(src,
 				func(dest string) (string, error) {
 					return s.resolve(i, dest, base, page.markdownFile)
+				},
+				func(dest string) (string, error) {
+					return s.mediaURL(i, dest, base)
 				})
-			if err != nil {
-				return nil, err
-			}
-			media := func(dest string) (string, error) {
-				return s.mediaURL(i, dest, base)
-			}
-			imageEdits, err := destEdits(src, imageDests(images[i]), media)
-			if err != nil {
-				return nil, err
-			}
-			rawEdits, err := rawHTMLEdits(src, raws[i], media)
-			if err != nil {
-				return nil, err
-			}
-			return applyEdits(src, slices.Concat(linkEdits, imageEdits, rawEdits)), nil
 		}
 		var err error
 		if d.markdown, err = copyAt(pages[i].base()); err != nil {
@@ -412,7 +394,7 @@ func convertDocs(pages []page, srcs [][]byte, s *site) ([]doc, error) {
 		if d.markdownFromRoot, err = copyAt(""); err != nil {
 			return nil, fmt.Errorf("%s: %w", pages[i].file, err)
 		}
-		for _, l := range links[i] {
+		for _, l := range pageRefs[i].links {
 			dest, err := s.resolveLink(i, l.Destination.Value(src))
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", pages[i].file, err)
@@ -422,7 +404,7 @@ func convertDocs(pages []page, srcs [][]byte, s *site) ([]doc, error) {
 		media := func(dest string) (string, error) {
 			return s.mediaURL(i, dest, pages[i].base())
 		}
-		for _, img := range images[i] {
+		for _, img := range pageRefs[i].images {
 			dest, err := media(img.Destination.Value(src))
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", pages[i].file, err)
@@ -500,9 +482,7 @@ type site struct {
 
 // resolveLink returns the URL that the link dest has on the page with index from.
 func (s *site) resolveLink(from int, dest string) (string, error) {
-	return s.resolve(from, dest, s.pages[from].base(), func(p page) string {
-		return p.path
-	})
+	return s.resolve(from, dest, s.pages[from].base(), page.urlPath)
 }
 
 // resolve returns the URL that the link dest of the file of pages[from] has on
@@ -556,11 +536,22 @@ func (s *site) resolveOn(
 // target returns the index of the page that the link dest of the file of
 // pages[from] leads to, or -1 for a link that leads to no page.
 func (s *site) target(from int, dest string) int {
-	u, err := url.Parse(dest)
-	if err != nil || u.Scheme != "" || u.Host != "" || u.Path == "" {
+	u, ok := repoLink(dest)
+	if !ok {
 		return -1
 	}
 	return s.pageOf(repoPath(s.pages[from].file, u.Path))
+}
+
+// repoLink returns the link dest parsed, and whether it names a file or a
+// directory of the repository: whether it parses and has a path but neither
+// a scheme nor a host.
+func repoLink(dest string) (*url.URL, bool) {
+	u, err := url.Parse(dest)
+	if err != nil || u.Scheme != "" || u.Host != "" || u.Path == "" {
+		return nil, false
+	}
+	return u, true
 }
 
 // pageOf returns the index of the page that shows file, or -1.
@@ -598,6 +589,11 @@ func (s *site) fileURL(file string, dir bool, base string, u *url.URL) string {
 	} else {
 		r = s.host.url(s.ref, file, dir)
 	}
+	return withQueryFragment(r, u)
+}
+
+// withQueryFragment returns the URL r with the query and the fragment of u.
+func withQueryFragment(r string, u *url.URL) string {
 	if u.RawQuery != "" {
 		r += "?" + u.RawQuery
 	}
@@ -613,22 +609,82 @@ type edit struct {
 	text string
 }
 
-// linkDests returns the destinations of links.
-func linkDests(links []*ast.Link) []text.SingleLineValue {
-	var dests []text.SingleLineValue
-	for _, l := range links {
-		dests = append(dests, l.Destination)
-	}
-	return dests
+// newParser returns a parser of GitHub Flavored Markdown with opts. The pages,
+// their notes and the copies of [Snapshot] are all parsed alike, which keeps
+// their links and their raw HTML at the same places.
+func newParser(opts ...parser.Option) parser.Parser {
+	return parser.New(append(opts, parser.WithExtensions(extension.NewGFMParser()))...)
 }
 
-// imageDests returns the destinations of images.
-func imageDests(images []*ast.Image) []text.SingleLineValue {
-	var dests []text.SingleLineValue
-	for _, img := range images {
-		dests = append(dests, img.Destination)
+// refs are the nodes of a Markdown file that name other files: its links,
+// its images and its raw HTML, inline and blocks, whose media elements do.
+type refs struct {
+	links  []*ast.Link
+	images []*ast.Image
+	raws   []ast.Node
+}
+
+// collectRefs returns the refs of the tree n.
+func collectRefs(n ast.Node) refs {
+	var r refs
+	_ = ast.Walk(n, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if entering {
+			r.add(n)
+		}
+		return ast.WalkContinue, nil
+	})
+	return r
+}
+
+// add adds n to r if it is a link, an image or raw HTML.
+func (r *refs) add(n ast.Node) {
+	switch n := n.(type) {
+	case *ast.Link:
+		r.links = append(r.links, n)
+	case *ast.Image:
+		r.images = append(r.images, n)
+	case *ast.RawHTML, *ast.HTMLBlock:
+		r.raws = append(r.raws, n)
 	}
-	return dests
+}
+
+// rewrite returns src, the Markdown that r was parsed from, with the
+// destination of each link replaced by what link returns for it, and that of
+// each image and each URL of the media elements of the raw HTML by what media
+// returns for it.
+//
+// A reference definition that a link and an image share holds 1 destination
+// for both, which takes what media returns: the image needs the media file,
+// and the link can lead to it as well.
+func (r refs) rewrite(
+	src []byte, link, media func(string) (string, error),
+) ([]byte, error) {
+	var links, images []text.SingleLineValue
+	for _, l := range r.links {
+		links = append(links, l.Destination)
+	}
+	for _, img := range r.images {
+		images = append(images, img.Destination)
+	}
+	linkEdits, err := destEdits(src, links, link)
+	if err != nil {
+		return nil, err
+	}
+	imageEdits, err := destEdits(src, images, media)
+	if err != nil {
+		return nil, err
+	}
+	shared := make(map[int]bool, len(imageEdits))
+	for _, e := range imageEdits {
+		shared[e.Start] = true
+	}
+	linkEdits = slices.DeleteFunc(linkEdits,
+		func(e edit) bool { return shared[e.Start] })
+	rawEdits, err := rawHTMLEdits(src, r.raws, media)
+	if err != nil {
+		return nil, err
+	}
+	return applyEdits(src, slices.Concat(linkEdits, imageEdits, rawEdits)), nil
 }
 
 // destEdits returns the edits of src that replace each of dests, the

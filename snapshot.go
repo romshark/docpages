@@ -13,8 +13,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/yuin/goldmark/v2/ast"
-	"github.com/yuin/goldmark/v2/extension"
 	"github.com/yuin/goldmark/v2/parser"
 	"go.yaml.in/yaml/v3"
 )
@@ -42,14 +40,8 @@ func Snapshot(o Options, tag string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for name, content := range files {
-		p := filepath.Join(o.Root, filepath.FromSlash(name))
-		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-			return "", err
-		}
-		if err := os.WriteFile(p, content, 0o644); err != nil {
-			return "", err
-		}
+	if err := writeFiles(o.Root, files); err != nil {
+		return "", err
 	}
 	return target, nil
 }
@@ -81,7 +73,7 @@ func snapshot(
 		target: target,
 		main:   s.main().links,
 		atTag:  &site{ref: tag, host: s.chrome.host},
-		parser: parser.New(parser.WithExtensions(extension.NewGFMParser())),
+		parser: newParser(),
 		files:  make(map[string][]byte),
 		queued: make(map[string]bool),
 	}
@@ -204,43 +196,16 @@ func (c *snapshotter) markdown(file string, data []byte) ([]byte, error) {
 			head = append(head, '\n')
 		}
 	}
-	var links []*ast.Link
-	var images []*ast.Image
-	var raws []ast.Node
-	_ = ast.Walk(c.parser.Parse(body),
-		func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-			if !entering {
-				return ast.WalkContinue, nil
-			}
-			switch n := n.(type) {
-			case *ast.Link:
-				links = append(links, n)
-			case *ast.Image:
-				images = append(images, n)
-			case *ast.RawHTML, *ast.HTMLBlock:
-				raws = append(raws, n)
-			}
-			return ast.WalkContinue, nil
-		})
-	linkEdits, err := destEdits(body, linkDests(links),
+	body, err = collectRefs(c.parser.Parse(body)).rewrite(body,
 		func(dest string) (string, error) {
 			return c.link(file, origin, dest), nil
+		},
+		func(dest string) (string, error) {
+			return c.media(file, origin, dest), nil
 		})
 	if err != nil {
 		return nil, err
 	}
-	media := func(dest string) (string, error) {
-		return c.media(file, origin, dest), nil
-	}
-	imageEdits, err := destEdits(body, imageDests(images), media)
-	if err != nil {
-		return nil, err
-	}
-	rawEdits, err := rawHTMLEdits(body, raws, media)
-	if err != nil {
-		return nil, err
-	}
-	body = applyEdits(body, slices.Concat(linkEdits, imageEdits, rawEdits))
 	return slices.Concat(head, body), nil
 }
 
@@ -255,8 +220,8 @@ func (c *snapshotter) inside(file string) bool {
 // media file, which a file of the docs directory keeps its place in the copy
 // and another file of the repository takes its path in [mediaDir] of it.
 func (c *snapshotter) media(file, origin, dest string) string {
-	u, err := url.Parse(dest)
-	if err != nil || u.Scheme != "" || u.Host != "" || u.Path == "" {
+	u, ok := repoLink(dest)
+	if !ok {
 		return dest
 	}
 	t := repoPath(origin, u.Path)
@@ -276,8 +241,8 @@ func (c *snapshotter) media(file, origin, dest string) string {
 // a page shows, as a source, to the copy of that page. A link to another file
 // of the repository becomes its URL at the release tag in the repository.
 func (c *snapshotter) link(file, origin, dest string) string {
-	u, err := url.Parse(dest)
-	if err != nil || u.Scheme != "" || u.Host != "" || u.Path == "" {
+	u, ok := repoLink(dest)
+	if !ok {
 		return dest
 	}
 	t := repoPath(origin, u.Path)

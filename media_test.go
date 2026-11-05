@@ -65,6 +65,33 @@ func TestMedia(t *testing.T) {
 	require.Contains(t, string(files["main/llms-full.txt"]), "![Shot]("+shot+")")
 }
 
+// TestMediaSharedReference tests that a link and an image that share a
+// reference definition each lead where they would alone on the page, and that
+// the definition in the Markdown copy, which holds 1 destination for both,
+// leads to the copy of the media file, which the link can open too.
+func TestMediaSharedReference(t *testing.T) {
+	fsys := testRepoFS()
+	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte("# Testing\n\n" +
+		"See [the shot][shot] and ![The shot][shot].\n\n" +
+		"[shot]: img/shot.png\n")}
+	fsys["docs/2-guides/img/shot.png"] = &fstest.MapFile{Data: []byte("shot")}
+	s, err := read(fsys, "docs", noRemote, false)
+	require.NoError(t, err)
+	shot := mediaName("shot", "shot.png")
+
+	html := pageHTML(t, s, "guides/testing")
+	require.Contains(t, html, `<a href="`+blob+`docs/2-guides/img/shot.png">the shot</a>`)
+	require.Contains(t, html, `<img src="../`+shot+`" alt="The shot">`)
+
+	files, err := s.Files()
+	require.NoError(t, err)
+	require.Equal(t, "# Testing\n\n"+
+		"See [the shot][shot] and ![The shot][shot].\n\n"+
+		"[shot]: ../"+shot+"\n",
+		string(files["main/guides/testing.md"]))
+	require.Contains(t, string(files["main/llms-full.txt"]), "[shot]: "+shot+"\n")
+}
+
 // TestMediaErr tests that a media file that the repository lacks and a media
 // file of a release outside its directory fail the build.
 func TestMediaErr(t *testing.T) {
@@ -73,8 +100,8 @@ func TestMediaErr(t *testing.T) {
 		Data: []byte("# Testing\n\n![None](img/none.png)\n"),
 	}
 	_, err := read(fsys, "docs", noRemote, false)
-	require.ErrorContains(t, err,
-		`docs/2-guides/10-testing.md: media "img/none.png": no file docs/2-guides/img/none.png`)
+	require.ErrorContains(t, err, `docs/2-guides/10-testing.md: `+
+		`media "img/none.png": no file docs/2-guides/img/none.png`)
 
 	fsys = withReleases(t, testRepoFS(), "v1.2.0")
 	fsys["assets/logo.png"] = &fstest.MapFile{Data: []byte("logo")}
@@ -139,4 +166,23 @@ func TestSnapshotMedia(t *testing.T) {
 	require.NoError(t, err)
 	html := editionPageHTML(t, s, "v1.2", "guides/testing")
 	require.Contains(t, html, `<img src="../`+mediaName("logo", "logo.png")+`" width="10">`)
+}
+
+// TestSnapshotMediaSharedReference tests that a snapshot gives a reference definition
+// that a link and an image share the destination of the image, the copy of
+// the media file, rather than the URL at the tag that the link alone would take.
+func TestSnapshotMediaSharedReference(t *testing.T) {
+	fsys := testRepoFS()
+	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte("# Testing\n\n" +
+		"See [the logo][logo] and ![The logo][logo].\n\n" +
+		"[logo]: ../../assets/logo.png\n")}
+	fsys["assets/logo.png"] = &fstest.MapFile{Data: []byte("logo")}
+	_, files, err := snapshot(fsys, "docs", "v1.2.3", noRemote)
+	require.NoError(t, err)
+	const v = "docs/versions/v1.2/"
+	require.Equal(t, "logo", string(files[v+"media/assets/logo.png"]))
+	require.Equal(t, "# Testing\n\n"+
+		"See [the logo][logo] and ![The logo][logo].\n\n"+
+		"[logo]: ../media/assets/logo.png\n",
+		string(files[v+"2-guides/10-testing.md"]))
 }
