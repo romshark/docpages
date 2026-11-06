@@ -630,16 +630,19 @@ func TestSearchEntries(t *testing.T) {
 	}, docs[0].search)
 }
 
-// TestTruncate tests that a long text is cut at a space and a short one stays.
+// TestTruncate tests that a long text is cut at a space, and without one before
+// the character that holds byte n, and that a short one stays.
 func TestTruncate(t *testing.T) {
 	for name, tt := range map[string]struct {
 		s    string
 		n    int
 		want string
 	}{
-		"short":    {s: "a b", n: 5, want: "a b"},
-		"at space": {s: "aaa bbb ccc", n: 9, want: "aaa bbb"},
-		"no space": {s: "aaaaaa", n: 3, want: "aaa"},
+		"short":         {s: "a b", n: 5, want: "a b"},
+		"at space":      {s: "aaa bbb ccc", n: 9, want: "aaa bbb"},
+		"no space":      {s: "aaaaaa", n: 3, want: "aaa"},
+		"in a rune":     {s: "a日本語", n: 5, want: "a日"},
+		"at a rune end": {s: "a日本語", n: 4, want: "a日"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			require.Equal(t, tt.want, truncate(tt.s, tt.n))

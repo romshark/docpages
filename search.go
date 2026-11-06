@@ -3,6 +3,7 @@ package docpages
 import (
 	"encoding/json"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/yuin/goldmark/v2/ast"
 )
@@ -59,12 +60,16 @@ func searchEntries(d doc, node ast.Node, src []byte) []searchEntry {
 }
 
 // truncate returns s cut at the last space before n bytes, or s if it is not longer.
+// Without a space it cuts before the character that holds byte n, as in CJK text.
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
 	}
 	if i := strings.LastIndexByte(s[:n], ' '); i > 0 {
 		return s[:i]
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
 	}
 	return s[:n]
 }
