@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"fmt"
+	"hash/fnv"
 	"html"
 	"io/fs"
 	"mime"
@@ -56,8 +57,20 @@ func Handler(o Options) http.Handler {
 		if name == "" || strings.HasSuffix(name, "/") {
 			name += "index.html"
 		}
+		// The page holds the state of the files that it was read from.
+		// A read records the sources of the pages, which the state counts,
+		// and a file can change during a read, which is why the read repeats
+		// while the state changes under it.
 		state := w.state()
 		files, err := w.files(o, state)
+		for range 2 {
+			next := w.state()
+			if next == state {
+				break
+			}
+			state = next
+			files, err = w.files(o, state)
+		}
 		if err != nil {
 			reload := strings.Repeat("../", strings.Count(name, "/")) + reloadPath
 			rw.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -145,37 +158,44 @@ func (w *watcher) files(o Options, state string) (map[string][]byte, error) {
 }
 
 // state returns the state of the files of the docs directory and of the
-// sources of its pages: the number of files and their latest modification time.
+// sources of its pages, a hash of their paths, sizes and modification times.
+// A rename keeps the size and the modification time, and changes the path.
+// Names that start with "." are left out, as the site leaves them out,
+// which keeps .git out of a docs directory at the root of the repository.
 func (w *watcher) state() string {
-	var n int
-	var latest time.Time
-	consider := func(info fs.FileInfo) {
-		n++
-		if info.ModTime().After(latest) {
-			latest = info.ModTime()
-		}
+	h := fnv.New64a()
+	consider := func(file string, info fs.FileInfo) {
+		_, _ = fmt.Fprintf(h, "%s\x00%d\x00%d\x00",
+			file, info.Size(), info.ModTime().UnixNano())
 	}
-	_ = filepath.WalkDir(filepath.Join(w.root, w.dir),
-		func(_ string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() {
-				return nil
-			}
-			if info, err := d.Info(); err == nil {
-				consider(info)
+	start := filepath.Join(w.root, w.dir)
+	_ = filepath.WalkDir(start, func(p string, d fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			return nil
+		case p != start && strings.HasPrefix(d.Name(), "."):
+			if d.IsDir() {
+				return filepath.SkipDir
 			}
 			return nil
-		})
+		case d.IsDir():
+			return nil
+		}
+		if info, err := d.Info(); err == nil {
+			consider(p, info)
+		}
+		return nil
+	})
 	w.lock.Lock()
 	sources := w.sources
 	w.lock.Unlock()
 	for _, f := range sources {
-		if info, err := os.Stat(
-			filepath.Join(w.root, filepath.FromSlash(f)),
-		); err == nil {
-			consider(info)
+		p := filepath.Join(w.root, filepath.FromSlash(f))
+		if info, err := os.Stat(p); err == nil {
+			consider(p, info)
 		}
 	}
-	return fmt.Sprintf("%d-%d", n, latest.UnixNano())
+	return fmt.Sprintf("%x", h.Sum64())
 }
 
 // serveEvents writes the state of the files as an event of a server-sent

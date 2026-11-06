@@ -156,13 +156,15 @@ func TestHandlerRepository(t *testing.T) {
 	require.Equal(t, "example/", rec.Header().Get("Location"))
 }
 
-// TestHandlerEvents tests that the event stream reports the state of the
-// files at first and again after a file of the docs directory changes.
+// TestHandlerEvents tests that the event stream reports at first the state that
+// a page holds, which counts the sources of the pages outside the docs
+// directory, and another state after a file of the docs directory changes.
 func TestHandlerEvents(t *testing.T) {
 	root := writeTestRepo(t)
 	h := Handler(Options{Root: root, Dir: "docs"})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
+	_, body := get(t, h, "/main/")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -190,7 +192,6 @@ func TestHandlerEvents(t *testing.T) {
 		}
 	}
 	first := next()
-	_, body := get(t, h, "/main/")
 	require.Contains(t, body, `data-state="`+first+`"`)
 
 	// The modification time of the file is the state, which a coarse clock
@@ -200,4 +201,23 @@ func TestHandlerEvents(t *testing.T) {
 	require.NoError(t, os.WriteFile(p, []byte("# Testing\n\nChanged.\n"), 0o644))
 	require.NoError(t, os.Chtimes(p, future, future))
 	require.NotEqual(t, first, next())
+}
+
+// TestWatcherState tests that the state of the files changes when a file is
+// renamed, as to reorder the pages, and not when a hidden file changes, as a
+// file of .git in a docs directory at the root of the repository.
+func TestWatcherState(t *testing.T) {
+	root := writeTestRepo(t)
+	w := &watcher{root: root, dir: "docs"}
+	state := w.state()
+
+	hidden := filepath.Join(root, "docs", ".cache", "index")
+	require.NoError(t, os.MkdirAll(filepath.Dir(hidden), 0o755))
+	require.NoError(t, os.WriteFile(hidden, []byte("x"), 0o644))
+	require.Equal(t, state, w.state())
+
+	guides := filepath.Join(root, "docs", "2-guides")
+	require.NoError(t, os.Rename(
+		filepath.Join(guides, "10-testing.md"), filepath.Join(guides, "11-testing.md")))
+	require.NotEqual(t, state, w.state())
 }
