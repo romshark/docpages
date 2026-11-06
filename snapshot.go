@@ -253,7 +253,11 @@ func (c *snapshotter) link(file, origin, dest string) string {
 	}
 	if to := c.main.pageOf(t); to >= 0 {
 		p := c.main.pages[to]
-		return relativeLink(file, cmp.Or(p.stub, p.file), u)
+		// A link to a directory leads to the page of its README.md, a file,
+		// which takes no "/" after it.
+		f := *u
+		f.Path = strings.TrimSuffix(f.Path, "/")
+		return relativeLink(file, cmp.Or(p.stub, p.file), &f)
 	}
 	if inside {
 		c.need(t)

@@ -87,6 +87,35 @@ func TestSnapshotWrite(t *testing.T) {
 	require.Equal(t, "v1.2", s.latest().version)
 }
 
+// TestSnapshotDirectoryLink tests that a snapshot gives a link to a directory
+// whose README.md a page shows the file of that page without a "/" after it.
+// The directories are 1 outside the docs directory, which a page shows as its
+// source, and a group, which a source links.
+func TestSnapshotDirectoryLink(t *testing.T) {
+	fsys := testRepoFS()
+	fsys["examples/README.md"] = &fstest.MapFile{Data: []byte("# Examples of Demo\n")}
+	fsys["docs/4-more/2-samples.md"] = &fstest.MapFile{
+		Data: []byte("---\nsource: ../../examples/README.md\n---\n"),
+	}
+	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{
+		Data: []byte("# Testing\n\nSee [the examples](../../examples/).\n"),
+	}
+	fsys["SPECIFICATION.md"] = &fstest.MapFile{
+		Data: []byte("# Demo Specification\n\nSee [the guides](docs/2-guides/).\n\n" +
+			"## Pages\n\n### Actions\n"),
+	}
+	_, files, err := snapshot(fsys, "docs", "v1.2.3", noRemote)
+	require.NoError(t, err)
+	const v = "docs/versions/v1.2/"
+	require.Equal(t, "# Testing\n\nSee [the examples](../4-more/2-samples.md).\n",
+		string(files[v+"2-guides/10-testing.md"]))
+	require.Contains(t, string(files[v+"3-reference/1-specification.md"]),
+		"See [the guides](../2-guides/README.md).")
+
+	_, err = read(withReleases(t, fsys, "v1.2.3"), "docs", noRemote, false)
+	require.NoError(t, err)
+}
+
 // TestSnapshotFileWithSpace tests that a snapshot gives a link to a file of the
 // repository whose name holds a space its escaped URL at the tag,
 // which the release then shows as a link.
