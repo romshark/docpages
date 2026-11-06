@@ -37,9 +37,13 @@ var (
 	// without the space after its marker, as -item or 1.item. A * is left
 	// out, which starts emphasis as often.
 	unspacedItem = regexp.MustCompile(`^\s*([-+]|[0-9]{1,9}[.)])\pL`)
+	// versionX matches a line that starts with a version whose minor version is x,
+	// as 2.x, which [unspacedItem] would take for an item.
+	versionX = regexp.MustCompile(`^\s*[0-9]+\.[xX]\b`)
 	// orderedItem matches a line of a paragraph that starts as an item of an
-	// ordered list.
-	orderedItem = regexp.MustCompile(`^\s*([0-9]{1,9})[.)][ \t]+\S`)
+	// ordered list. A number of 4 digits or more, as the year in "2019.
+	// It grew.", starts a sentence rather than a list.
+	orderedItem = regexp.MustCompile(`^\s*([0-9]{1,3})[.)][ \t]+\S`)
 )
 
 // lintMarkdown returns the mistakes in the Markdown of the tree n of src that
@@ -175,7 +179,8 @@ func lintParagraph(p *ast.Paragraph, src []byte) []lintError {
 		if tableRow.MatchString(line) {
 			rows++
 		}
-		if m := unspacedItem.FindStringSubmatch(line); m != nil {
+		if m := unspacedItem.FindStringSubmatch(line); m != nil &&
+			!versionX.MatchString(line) {
 			errs = append(errs, lintError{seg.Start, fmt.Sprintf(
 				"%q starts as a list item without the space after %q, which makes it text",
 				excerpt(line), m[1])})
@@ -183,8 +188,9 @@ func lintParagraph(p *ast.Paragraph, src []byte) []lintError {
 		if m := orderedItem.FindStringSubmatch(line); m != nil && i > 0 {
 			if n, _ := strconv.Atoi(m[1]); n != 1 {
 				errs = append(errs, lintError{seg.Start, fmt.Sprintf(
-					"%q starts a list at %d right below a paragraph, which makes it text: "+
-						"put a blank line above it", excerpt(line), n)})
+					"%q starts a list at %d right below a paragraph, "+
+						"which makes it text: put a blank line above it",
+					excerpt(line), n)})
 			}
 		}
 	}

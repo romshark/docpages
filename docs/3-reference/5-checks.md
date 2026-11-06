@@ -51,7 +51,8 @@ page until you fix it.
   `| --- | --- |` below its first row, with as many cells.
 - A list item that CommonMark reads as text: `-item` or `1.item`, without the
   space after the marker, and a list that starts at another number than 1
-  right below a paragraph.
+  right below a paragraph. A version as `2.x` and a year as `2019.` at the
+  start of a line pass.
 
 ## Stylesheet
 

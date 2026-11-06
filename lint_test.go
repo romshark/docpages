@@ -28,6 +28,7 @@ func TestLint(t *testing.T) {
 			"| A | B |\n| --- | --- |\n| 1 | 2 |\n\n" +
 			"- One\n- Two\n\n1. One\n2. Two\n\n" +
 			"*Emphasis* at the start\n-- a dash, and 2 in\n2.5 seconds.\n\n" +
+			"2.x is the current version, and the project started in\n2019. It grew.\n\n" +
 			"<details open>\n<summary>More <code>here</code></summary>\n\nText.\n\n</details>\n\n" +
 			"<video controls muted><track kind=\"captions\" src=\"https://example.com/c.vtt\">" +
 			"</video>\n"},
