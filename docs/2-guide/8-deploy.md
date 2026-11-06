@@ -18,7 +18,8 @@ A build first deletes what the last one wrote in `site/`: the version folders,
 
 Pages link each other without `.html`, as `get-started/install` for
 `get-started/install.html`. GitHub Pages serves these as they are. Other hosts
-may need a rule that serves `/a/b` from `/a/b.html`.
+may need a rule that serves `/a/b` from `/a/b.html`. The rule must also cover a
+name with a dot, as `/guide/v1.2-notes` for `/guide/v1.2-notes.html`.
 
 ## Below a landing page
 

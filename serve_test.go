@@ -41,11 +41,19 @@ func get(t *testing.T, h http.Handler, path string) (int, string) {
 // error as a page that reloads too.
 func TestHandler(t *testing.T) {
 	root := writeTestRepo(t)
+	notes := filepath.Join(root, "docs", "2-guides", "11-v1.2-notes.md")
+	require.NoError(t, os.WriteFile(notes, []byte("# Notes of v1.2\n"), 0o644))
 	h := Handler(Options{Root: root, Dir: "docs"})
 
 	code, body := get(t, h, "/main/guides/events")
 	require.Equal(t, http.StatusOK, code)
 	require.Contains(t, body, `<script data-url="../../_reload" data-state="`)
+
+	// The extension of guides/v1.2-notes is .2-notes, and GitHub Pages serves
+	// the page as it serves https://semver.org/spec/v2.0.0.
+	code, body = get(t, h, "/main/guides/v1.2-notes")
+	require.Equal(t, http.StatusOK, code)
+	require.Contains(t, body, "<title>Notes of v1.2 - Demo</title>")
 
 	code, body = get(t, h, "/main/")
 	require.Equal(t, http.StatusOK, code)

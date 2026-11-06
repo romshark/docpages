@@ -34,10 +34,10 @@ const pollInterval = 250 * time.Millisecond
 // output directory, as [Site.Write] writes them. It reads the docs directory
 // on every request for a file, which shows a change without a restart, and the
 // pages reload when a file that the site reads changes. It serves the
-// stylesheet unminified. Paths resolve as on GitHub Pages: a path that ends in
-// "/" serves its index.html, and a path without an extension the file with
-// ".html" appended. An error, such as a link to a missing heading, is a page,
-// which reloads too.
+// stylesheet unminified. Paths resolve as on GitHub Pages. A path that ends in
+// "/" serves its index.html, and a path that names no file serves the file with
+// ".html" appended, also a path with a dot, as guide/v1.2-notes. An error, such
+// as a link to a missing heading, is a page, which reloads too.
 //
 // A link to a file of the repository that no page shows leads to the file in
 // the working tree, not on the host, which has only what was pushed. Handler
@@ -53,11 +53,8 @@ func Handler(o Options) http.Handler {
 	})
 	mux.HandleFunc("GET /", func(rw http.ResponseWriter, r *http.Request) {
 		name := strings.TrimPrefix(r.URL.Path, "/")
-		switch {
-		case name == "" || strings.HasSuffix(name, "/"):
+		if name == "" || strings.HasSuffix(name, "/") {
 			name += "index.html"
-		case path.Ext(name) == "":
-			name += ".html"
 		}
 		state := w.state()
 		files, err := w.files(o, state)
@@ -71,6 +68,10 @@ func Handler(o Options) http.Handler {
 			return
 		}
 		content, ok := files[name]
+		if !ok {
+			name += ".html"
+			content, ok = files[name]
+		}
 		if !ok {
 			http.NotFound(rw, r)
 			return
