@@ -24,7 +24,7 @@ func llmsTxt(name string, pages []page, groups []group, docs []doc) []byte {
 			continue
 		}
 		fmt.Fprintf(&b, "- [%s](%s): %s\n",
-			p.title, p.markdownFile(), docs[i].description)
+			p.title, p.markdownURL(), docs[i].description)
 	}
 	return b.Bytes()
 }

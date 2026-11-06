@@ -555,6 +555,32 @@ func TestSiteLinks(t *testing.T) {
 		`link "4-more/1-examples.md#missing" names no heading`)
 }
 
+// TestPageNameWithSpace tests that the Markdown copies, llms-full.txt and
+// llms.txt link a page whose name holds a space by its escaped URL, because a
+// Markdown link ends at a space.
+func TestPageNameWithSpace(t *testing.T) {
+	fsys := fstest.MapFS{
+		"docs/README.md": {
+			Data: []byte("---\nrepository: https://github.com/o/demo\n---\n\n" +
+				"# Intro\n\nSee [the first steps](1-guide/1-first%20steps.md).\n"),
+		},
+		"docs/1-guide/1-first steps.md": {
+			Data: []byte("# First steps\n\nRun it.\n"),
+		},
+	}
+	s, err := read(fsys, "docs", noRemote, false)
+	require.NoError(t, err)
+	files, err := s.Files()
+	require.NoError(t, err)
+	require.Contains(t, files, "main/guide/first steps.md")
+	require.Contains(t, string(files["main/index.md"]),
+		"[the first steps](./guide/first%20steps.md)")
+	require.Contains(t, string(files["main/llms-full.txt"]),
+		"[the first steps](guide/first%20steps.md)")
+	require.Contains(t, string(files["main/llms.txt"]),
+		"- [First steps](guide/first%20steps.md): Run it.")
+}
+
 // TestSiteFiles tests that the site holds the files of each edition under
 // main/ or <feature version>/ with the assets that the pages load, and index.html
 // and llms.txt beside them, and that the pages of a release show its sources

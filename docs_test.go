@@ -208,7 +208,7 @@ func TestResolveMarkdownLink(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			got, err := testSite.resolve(1, tt.dest, tt.base, page.markdownFile)
+			got, err := testSite.resolve(1, tt.dest, tt.base, page.markdownURL)
 			require.NoError(t, err)
 			require.Equal(t, tt.want, got)
 		})

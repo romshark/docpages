@@ -56,8 +56,15 @@ func (p page) markdownFile() string {
 	return strings.TrimSuffix(p.outFile(), ".html") + ".md"
 }
 
+// markdownURL returns the URL of the Markdown copy of p, relative to the root
+// of the version, which a link of a Markdown copy or of llms.txt leads to.
+// It's [page.markdownFile] escaped, because a Markdown link ends at a space.
+func (p page) markdownURL() string {
+	return (&url.URL{Path: p.markdownFile()}).EscapedPath()
+}
+
 // urlPath returns the URL path of p, relative to the root of the version.
-// It is what a link of a page leads to, as [page.markdownFile] is what a link
+// It is what a link of a page leads to, as [page.markdownURL] is what a link
 // of a Markdown copy leads to.
 func (p page) urlPath() string { return p.path }
 
@@ -381,7 +388,7 @@ func convertDocs(pages []page, srcs [][]byte, s *site) ([]doc, error) {
 		copyAt := func(base string) ([]byte, error) {
 			return pageRefs[i].rewrite(src,
 				func(dest string) (string, error) {
-					return s.resolve(i, dest, base, page.markdownFile)
+					return s.resolve(i, dest, base, page.markdownURL)
 				},
 				func(dest string) (string, error) {
 					return s.mediaURL(i, dest, base)
