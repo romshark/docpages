@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net/url"
 	"path"
+	"slices"
 	"strings"
 
 	"github.com/yuin/goldmark/v2/ast"
@@ -91,15 +92,14 @@ func (s *site) mediaURL(from int, dest, base string) (string, error) {
 	return withQueryFragment(base+(&url.URL{Path: c.name}).EscapedPath(), u), nil
 }
 
-// rewriteMedia returns the raw HTML raw with each URL of the src, srcset and
-// poster attributes of its media elements replaced by what resolve returns for
-// it. With only, the result holds those elements alone, with the attributes of
-// [mediaAttrs] and safe URLs, and what c writes of the rest, as a page shows
-// them; c is nil for none. Otherwise it keeps the rest of raw as it is, as the
-// Markdown copy of a page does. found reports whether the result holds a
-// media element or what c wrote.
+// rewriteMedia returns what a page shows of raw, raw HTML: its media elements,
+// with the attributes of [mediaAttrs], each URL of their src, srcset and poster
+// attributes replaced by what resolve returns for it and no URL that runs a
+// script, and what c writes of the rest; c is nil for none. found reports
+// whether the result holds a media element or what c wrote. [mediaURLEdits]
+// replaces the URLs of the Markdown copy of a page.
 func rewriteMedia(
-	raw string, only bool, c *collapsibles, resolve func(string) (string, error),
+	raw string, c *collapsibles, resolve func(string) (string, error),
 ) (out string, found bool, err error) {
 	z := html.NewTokenizer(strings.NewReader(raw))
 	var b strings.Builder
@@ -111,14 +111,11 @@ func rewriteMedia(
 			}
 			return "", false, z.Err()
 		}
-		source := string(z.Raw())
 		tok := z.Token()
 		tag := tt == html.StartTagToken || tt == html.SelfClosingTagToken ||
 			tt == html.EndTagToken
 		if !tag || !mediaElements[tok.Data] {
-			if !only {
-				b.WriteString(source)
-			} else if c != nil {
+			if c != nil {
 				wrote, err := c.write(&b, tt, tok)
 				if err != nil {
 					return "", false, err
@@ -129,16 +126,11 @@ func rewriteMedia(
 		}
 		found = true
 		if tt == html.EndTagToken {
-			if only {
-				b.WriteString("</")
-				b.WriteString(tok.Data)
-				b.WriteByte('>')
-			} else {
-				b.WriteString(source)
-			}
+			b.WriteString("</")
+			b.WriteString(tok.Data)
+			b.WriteByte('>')
 			continue
 		}
-		changed := false
 		var attrs []html.Attribute
 		for _, a := range tok.Attr {
 			if a.Key == "src" || a.Key == "srcset" || a.Key == "poster" {
@@ -146,20 +138,15 @@ func rewriteMedia(
 				if err != nil {
 					return "", false, fmt.Errorf("<%s>: %w", tok.Data, err)
 				}
-				changed = changed || v != a.Val
 				a.Val = v
-				if only && goldhtml.IsDangerousURL(v) {
+				if goldhtml.IsDangerousURL(v) {
 					continue
 				}
 			}
-			if only && !mediaAttrs[a.Key] {
+			if !mediaAttrs[a.Key] {
 				continue
 			}
 			attrs = append(attrs, a)
-		}
-		if !only && !changed {
-			b.WriteString(source)
-			continue
 		}
 		b.WriteByte('<')
 		b.WriteString(tok.Data)
@@ -221,7 +208,7 @@ func rawHTML(
 			case *ast.HTMLBlock:
 				raw, block = string(n.Value.Bytes(source)), true
 			}
-			out, found, err := rewriteMedia(raw, true, c, resolve)
+			out, found, err := rewriteMedia(raw, c, resolve)
 			if err != nil {
 				return ast.WalkStop, err
 			}
@@ -239,46 +226,197 @@ func rawHTML(
 
 // rawHTMLEdits returns the edits of the Markdown file src that replace each URL
 // of the media elements of raws, the raw HTML parsed from src, by what resolve
-// returns for it. The lines of an HTML block that follow each other in src are
-// read together, which keeps a tag that spans lines whole.
+// returns for it. Each node is read whole, from its first line to its last,
+// where what lies between its lines reads as spaces: the indentation of a list
+// item, the > of a blockquote or the indentation of a line of a paragraph,
+// which goldmark leaves out of the node. That keeps whole a tag whose lines
+// lie apart in src.
 func rawHTMLEdits(
 	src []byte, raws []ast.Node, resolve func(string) (string, error),
 ) ([]edit, error) {
-	var spans []text.Index
+	var edits []edit
 	for _, n := range raws {
-		var indices []text.Index
+		var lines []text.Index
 		switch n := n.(type) {
 		case *ast.RawHTML:
-			if n.Value.IsOwned() {
-				continue
+			if !n.Value.IsOwned() {
+				lines = n.Value.Indices()
 			}
-			indices = n.Value.Indices()
 		case *ast.HTMLBlock:
-			if n.Value.IsOwned() {
-				continue
-			}
-			for _, seg := range n.Value.Segments() {
-				indices = append(indices, text.Index{Start: seg.Start, Stop: seg.Stop})
+			if !n.Value.IsOwned() {
+				for _, seg := range n.Value.Segments() {
+					lines = append(lines, text.Index{Start: seg.Start, Stop: seg.Stop})
+				}
 			}
 		}
-		for _, i := range indices {
-			if k := len(spans) - 1; k >= 0 && spans[k].Stop == i.Start {
-				spans[k].Stop = i.Stop
-				continue
-			}
-			spans = append(spans, i)
+		if len(lines) == 0 {
+			continue
 		}
-	}
-	var edits []edit
-	for _, span := range spans {
-		raw := string(src[span.Start:span.Stop])
-		out, _, err := rewriteMedia(raw, false, nil, resolve)
+		// The offsets in raw are those in src less start.
+		start := lines[0].Start
+		raw := slices.Clone(src[start:lines[len(lines)-1].Stop])
+		for i := 1; i < len(lines); i++ {
+			for p := lines[i-1].Stop; p < lines[i].Start; p++ {
+				if raw[p-start] != '\n' {
+					raw[p-start] = ' '
+				}
+			}
+		}
+		urls, err := mediaURLEdits(string(raw), resolve)
 		if err != nil {
 			return nil, err
 		}
-		if out != raw {
-			edits = append(edits, edit{Index: span, text: out})
+		for _, e := range urls {
+			e.Start += start
+			e.Stop += start
+			edits = append(edits, e)
 		}
 	}
 	return edits, nil
+}
+
+// mediaURLEdits returns the edits of raw, raw HTML, that replace each URL of the
+// src, srcset and poster attributes of its media elements by what resolve
+// returns for it, as the Markdown copy of a page shows them. The edits replace
+// the values of those attributes alone, which keeps the rest of raw as written,
+// a tag that raw ends in the middle of among it. A value without quotes gains them.
+func mediaURLEdits(raw string, resolve func(string) (string, error)) ([]edit, error) {
+	z := html.NewTokenizer(strings.NewReader(raw))
+	var edits []edit
+	// at is the offset in raw of the token.
+	for at := 0; ; {
+		tt := z.Next()
+		if tt == html.ErrorToken {
+			if errors.Is(z.Err(), io.EOF) {
+				return edits, nil
+			}
+			return nil, z.Err()
+		}
+		source := string(z.Raw())
+		tok := z.Token()
+		if (tt == html.StartTagToken || tt == html.SelfClosingTagToken) &&
+			mediaElements[tok.Data] {
+			vals := attrValues(source)
+			if !slices.EqualFunc(vals, tok.Attr,
+				func(v attrValue, a html.Attribute) bool {
+					return v.key == a.Key
+				}) {
+				return nil, fmt.Errorf("<%s>: docpages can't find the attributes of %q",
+					tok.Data, source)
+			}
+			for i, a := range tok.Attr {
+				if a.Key != "src" && a.Key != "srcset" && a.Key != "poster" {
+					continue
+				}
+				v := vals[i]
+				// An attribute without a value names no file and keeps none.
+				if v.start == v.end && !v.quoted {
+					continue
+				}
+				val, err := resolveMediaAttr(a.Key, a.Val, resolve)
+				if err != nil {
+					return nil, fmt.Errorf("<%s>: %w", tok.Data, err)
+				}
+				if val == a.Val {
+					continue
+				}
+				val = html.EscapeString(val)
+				if !v.quoted {
+					val = `"` + val + `"`
+				}
+				edits = append(edits, edit{
+					Index: text.Index{Start: at + v.start, Stop: at + v.end},
+					text:  val,
+				})
+			}
+		}
+		at += len(source)
+	}
+}
+
+// attrValue is where the value of an attribute lies in the raw text of its tag.
+type attrValue struct {
+	key        string // Lower-cased, as [html.Token] holds it.
+	start, end int    // The value, inside its quotes if it has them.
+	quoted     bool
+}
+
+// attrValues returns where the values of the attributes of tag, the raw text
+// of a start tag, lie in it, in the order of [html.Token]. It reads them as the
+// tokenizer of golang.org/x/net/html does, which leaves out an attribute
+// without a key and the second of 2 with the same key.
+func attrValues(tag string) []attrValue {
+	space := func(i int) bool {
+		switch tag[i] {
+		case ' ', '\n', '\r', '\t', '\f':
+			return true
+		}
+		return false
+	}
+	skip := func(i int) int {
+		for i < len(tag) && space(i) {
+			i++
+		}
+		return i
+	}
+	var vals []attrValue
+	seen := make(map[string]bool)
+	// The name, after the <.
+	i := 1
+	for i < len(tag) && !space(i) && tag[i] != '/' && tag[i] != '>' {
+		i++
+	}
+	for i = skip(i); i < len(tag) && tag[i] != '>'; i = skip(i) {
+		// The key, which an = at its start belongs to.
+		k := i
+		for i < len(tag) && !space(i) && tag[i] != '/' && tag[i] != '>' &&
+			(tag[i] != '=' || i == k) {
+			i++
+		}
+		key := lowerASCII(tag[k:i])
+		v := attrValue{start: i, end: i}
+		// The value, after an = and the spaces around it.
+		switch j := skip(i); {
+		case j < len(tag) && tag[j] == '/':
+			i = j + 1
+		case j == len(tag) || tag[j] != '=':
+			i = j
+		default:
+			j = skip(j + 1)
+			switch {
+			case j == len(tag) || tag[j] == '>':
+				i = j
+			case tag[j] == '"' || tag[j] == '\'':
+				v.start, v.quoted = j+1, true
+				if e := strings.IndexByte(tag[j+1:], tag[j]); e >= 0 {
+					v.end, i = j+1+e, j+2+e
+				} else {
+					v.end, i = len(tag), len(tag)
+				}
+			default:
+				v.start = j
+				for j++; j < len(tag) && !space(j) && tag[j] != '>'; j++ {
+				}
+				v.end, i = j, j
+			}
+		}
+		if key != "" && !seen[key] {
+			seen[key] = true
+			v.key = strings.ReplaceAll(key, "\x00", "\ufffd")
+			vals = append(vals, v)
+		}
+	}
+	return vals
+}
+
+// lowerASCII returns s with its ASCII letters in lower case, as the tokenizer of
+// golang.org/x/net/html lower-cases a key.
+func lowerASCII(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		if 'A' <= c && c <= 'Z' {
+			b[i] = c + 'a' - 'A'
+		}
+	}
+	return string(b)
 }

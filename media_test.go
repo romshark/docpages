@@ -9,6 +9,7 @@ import (
 	"testing/fstest"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/html"
 )
 
 // mediaName returns the path of the copy of the media file name with the
@@ -80,7 +81,8 @@ func TestMediaSharedReference(t *testing.T) {
 	shot := mediaName("shot", "shot.png")
 
 	html := pageHTML(t, s, "guides/testing")
-	require.Contains(t, html, `<a href="`+blob+`docs/2-guides/img/shot.png">the shot</a>`)
+	require.Contains(t,
+		html, `<a href="`+blob+`docs/2-guides/img/shot.png">the shot</a>`)
 	require.Contains(t, html, `<img src="../`+shot+`" alt="The shot">`)
 
 	files, err := s.Files()
@@ -90,6 +92,41 @@ func TestMediaSharedReference(t *testing.T) {
 		"[shot]: ../"+shot+"\n",
 		string(files["main/guides/testing.md"]))
 	require.Contains(t, string(files["main/llms-full.txt"]), "[shot]: "+shot+"\n")
+}
+
+// mediaAcrossLines is a page with tags of raw HTML whose lines lie apart in the
+// file: below a line that the tag starts, which ends no tag and so starts no
+// HTML block, in a list item and in a blockquote. dest names the media file.
+func mediaAcrossLines(dest string) string {
+	return "# Testing\n\n" +
+		"<img src=\"" + dest + "\"\n     alt=\"Shot\" width=\"10\">\n\n" +
+		"1. Open it:\n\n   <img src=\"" + dest + "\"\n        alt=\"Shot\">\n\n" +
+		"> [!TIP]\n> <img src=\"" + dest + "\"\n>   alt=\"Shot\">\n"
+}
+
+// TestMediaAcrossLines tests that the Markdown copy of a page keeps a tag of
+// raw HTML whose lines lie apart in the file whole and as written, with its URL
+// replaced, as the page shows it.
+func TestMediaAcrossLines(t *testing.T) {
+	fsys := testRepoFS()
+	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{
+		Data: []byte(mediaAcrossLines("img/shot.png")),
+	}
+	fsys["docs/2-guides/img/shot.png"] = &fstest.MapFile{Data: []byte("shot")}
+	s, err := read(fsys, "docs", noRemote, false)
+	require.NoError(t, err)
+	shot := mediaName("shot", "shot.png")
+
+	html := pageHTML(t, s, "guides/testing")
+	require.Contains(t, html, `<img src="../`+shot+`" alt="Shot" width="10">`)
+	require.Equal(t, 2, strings.Count(html, `<img src="../`+shot+`" alt="Shot">`))
+
+	files, err := s.Files()
+	require.NoError(t, err)
+	require.Equal(t,
+		mediaAcrossLines("../"+shot),
+		string(files["main/guides/testing.md"]))
+	require.Contains(t, string(files["main/llms-full.txt"]), mediaAcrossLines(shot))
 }
 
 // TestMediaErr tests that a media file that the repository lacks and a media
@@ -112,17 +149,19 @@ func TestMediaErr(t *testing.T) {
 	require.ErrorContains(t, err, `media "../../../../assets/logo.png" is outside docs/versions/v1.2`)
 }
 
+// testResolve resolves a URL of raw HTML for the tests: as [site.mediaURL], it
+// keeps a URL with a scheme.
+func testResolve(dest string) (string, error) {
+	if strings.Contains(dest, ":") {
+		return dest, nil
+	}
+	return "/r/" + dest, nil
+}
+
 // TestRewriteMedia tests that the HTML of a page holds the media elements of
 // raw HTML alone, with their URLs resolved, the attributes of [mediaAttrs]
-// and no URL that runs a script, and that the Markdown copy keeps the rest.
+// and no URL that runs a script.
 func TestRewriteMedia(t *testing.T) {
-	// As [site.mediaURL], it keeps a URL with a scheme.
-	resolve := func(dest string) (string, error) {
-		if strings.Contains(dest, ":") {
-			return dest, nil
-		}
-		return "/r/" + dest, nil
-	}
 	for raw, want := range map[string]string{
 		`<p align="center"><img src="a.png" width="50" onerror="x()"></p>`: `<img src="/r/a.png" width="50">`,
 		`<img src="javascript:alert(1)" alt="x">`:                          `<img alt="x">`,
@@ -130,16 +169,68 @@ func TestRewriteMedia(t *testing.T) {
 		`<video controls muted src="v.mp4"></video>`:                       `<video controls muted src="/r/v.mp4"></video>`,
 		`<details><summary>More</summary></details>`:                       ``,
 	} {
-		got, found, err := rewriteMedia(raw, true, nil, resolve)
+		got, found, err := rewriteMedia(raw, nil, testResolve)
 		require.NoError(t, err)
 		require.Equal(t, want, got, raw)
 		require.Equal(t, want != "", found, raw)
 	}
+}
 
-	got, found, err := rewriteMedia(`<p><img class="x" src="a.png"> <b>B</b></p>`, false, nil, resolve)
-	require.NoError(t, err)
-	require.True(t, found)
-	require.Equal(t, `<p><img class="x" src="/r/a.png"> <b>B</b></p>`, got)
+// TestMediaURLEdits tests that the Markdown copy of raw HTML replaces the URLs
+// of its media elements alone and keeps the rest as written: a tag that spans
+// lines, the quotes of a value, which a value without them gains, an
+// attribute without a value, and a tag that the raw HTML ends in the middle of.
+func TestMediaURLEdits(t *testing.T) {
+	for raw, want := range map[string]string{
+		`<p><img class="x" src="a.png"> <b>B</b></p>`:       `<p><img class="x" src="/r/a.png"> <b>B</b></p>`,
+		"<img\n  src=\"a.png\"\n  alt=\"A\"\n/>":            "<img\n  src=\"/r/a.png\"\n  alt=\"A\"\n/>",
+		"<source srcset=\"a.png 1x,\n  b.png 2x\">":         `<source srcset="/r/a.png 1x, /r/b.png 2x">`,
+		`<img src='a.png' alt=x/>`:                          `<img src='/r/a.png' alt=x/>`,
+		`<IMG SRC=a.png Width=10>`:                          `<IMG SRC="/r/a.png" Width=10>`,
+		`<img src="a.png?w=1&amp;h=2">`:                     `<img src="/r/a.png?w=1&amp;h=2">`,
+		`<img src="a.png" src="b.png">`:                     `<img src="/r/a.png" src="b.png">`,
+		`<video src controls poster="https://x.org/p.png">`: `<video src controls poster="https://x.org/p.png">`,
+		`<b>B</b> <img alt="A" src="a.png"`:                 `<b>B</b> <img alt="A" src="a.png"`,
+	} {
+		edits, err := mediaURLEdits(raw, testResolve)
+		require.NoError(t, err)
+		require.Equal(t, want, string(applyEdits([]byte(raw), edits)), raw)
+	}
+}
+
+// TestAttrValues tests that attrValues finds the attributes of a tag that the
+// tokenizer of golang.org/x/net/html reads, with their values.
+func TestAttrValues(t *testing.T) {
+	for _, tag := range []string{
+		`<img>`,
+		`<img/>`,
+		`<img src="a" alt='b "c"' width=10 controls>`,
+		`<IMG SRC="a" Alt=B>`,
+		"<img\tsrc = \"a\"\n alt\f=\r'b'>",
+		`<img src="a" src="b" SRC="c">`,
+		`<img ="a" src="b">`,
+		`<img src=a/>`,
+		`<img src="a"/>`,
+		`<img / src="a" / alt="b">`,
+		`<img src=>`,
+		`<img src= >`,
+		`<img src="a"alt="b">`,
+		`<img src=a"b alt=c'd>`,
+		`<img a=b=c d==e>`,
+		"<img src\x00=\"a\">",
+	} {
+		z := html.NewTokenizer(strings.NewReader(tag))
+		tt := z.Next()
+		require.Contains(t,
+			[]html.TokenType{html.StartTagToken, html.SelfClosingTagToken}, tt, tag)
+		tok := z.Token()
+		vals := attrValues(tag)
+		require.Len(t, vals, len(tok.Attr), tag)
+		for i, a := range tok.Attr {
+			require.Equal(t, a.Key, vals[i].key, tag)
+			require.Equal(t, a.Val, tag[vals[i].start:vals[i].end], tag)
+		}
+	}
 }
 
 // TestSnapshotMedia tests that a snapshot copies the media files that its pages
@@ -165,7 +256,8 @@ func TestSnapshotMedia(t *testing.T) {
 	s, err := read(withReleases(t, fsys, "v1.2.3"), "docs", noRemote, false)
 	require.NoError(t, err)
 	html := editionPageHTML(t, s, "v1.2", "guides/testing")
-	require.Contains(t, html, `<img src="../`+mediaName("logo", "logo.png")+`" width="10">`)
+	require.Contains(t,
+		html, `<img src="../`+mediaName("logo", "logo.png")+`" width="10">`)
 }
 
 // TestSnapshotMediaSharedReference tests that a snapshot gives a reference definition
@@ -185,4 +277,26 @@ func TestSnapshotMediaSharedReference(t *testing.T) {
 		"See [the logo][logo] and ![The logo][logo].\n\n"+
 		"[logo]: ../media/assets/logo.png\n",
 		string(files[v+"2-guides/10-testing.md"]))
+}
+
+// TestSnapshotMediaAcrossLines tests that a snapshot keeps a tag of raw HTML
+// whose lines lie apart in the file whole and as written, with its URL replaced,
+// which the release then shows.
+func TestSnapshotMediaAcrossLines(t *testing.T) {
+	fsys := testRepoFS()
+	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{
+		Data: []byte(mediaAcrossLines("../../assets/shot.png")),
+	}
+	fsys["assets/shot.png"] = &fstest.MapFile{Data: []byte("shot")}
+	_, files, err := snapshot(fsys, "docs", "v1.2.3", noRemote)
+	require.NoError(t, err)
+	require.Equal(t, mediaAcrossLines("../media/assets/shot.png"),
+		string(files["docs/versions/v1.2/2-guides/10-testing.md"]))
+
+	s, err := read(withReleases(t, fsys, "v1.2.3"), "docs", noRemote, false)
+	require.NoError(t, err)
+	html := editionPageHTML(t, s, "v1.2", "guides/testing")
+	shot := mediaName("shot", "shot.png")
+	require.Contains(t, html, `<img src="../`+shot+`" alt="Shot" width="10">`)
+	require.Equal(t, 2, strings.Count(html, `<img src="../`+shot+`" alt="Shot">`))
 }
