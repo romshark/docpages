@@ -129,8 +129,9 @@ func read(
 	}
 	repoURL = strings.TrimSuffix(repoURL, "/")
 	c := chrome{
-		name: set.Name,
-		home: set.Home,
+		name:    set.Name,
+		home:    set.Home,
+		license: strings.TrimSpace(set.License),
 	}
 	if c.name == "" {
 		c.name = path.Base(repoURL)
@@ -154,12 +155,6 @@ func read(
 	if c.footer, err = withIcons(fsys, dir, "footer", set.Footer); err != nil {
 		return nil, err
 	}
-	if set.License != nil {
-		c.license = strings.TrimSpace(*set.License)
-	} else if c.license, err = license(fsys); err != nil {
-		return nil, err
-	}
-
 	assets, err := siteAssets()
 	if err != nil {
 		return nil, err

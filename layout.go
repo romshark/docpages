@@ -54,10 +54,8 @@ type frontMatter struct {
 	Header []frontMatterLink `yaml:"header"`
 	// Footer are the links of the footer between the repository and llms.txt.
 	Footer []frontMatterLink `yaml:"footer"`
-	// License is the line that ends the footer. Without it the line names the
-	// license and the copyright holder of the license file. An empty line
-	// leaves the footer without one.
-	License *string `yaml:"license"`
+	// License is the line that ends the footer, which has none without it.
+	License string `yaml:"license"`
 }
 
 // frontMatterLink is a link of the header or the footer. URL is resolved as a
@@ -240,7 +238,7 @@ func (l *layout) add(r readPageResult) {
 // hasSettings reports whether fm sets a setting of the site.
 func (fm frontMatter) hasSettings() bool {
 	return fm.Name != "" || fm.Home != "" || fm.Repository != "" || fm.Host != nil ||
-		fm.Header != nil || fm.Footer != nil || fm.License != nil
+		fm.Header != nil || fm.Footer != nil || fm.License != ""
 }
 
 // orderedEntry is a group directory or a page file with its position.
@@ -352,41 +350,6 @@ func cutLine(data []byte) (line string, rest []byte, ok bool) {
 		return strings.TrimSuffix(string(data), "\r"), nil, true
 	}
 	return strings.TrimSuffix(string(data[:i]), "\r"), data[i+1:], true
-}
-
-// license returns the line of the footer that the license file of fsys yields,
-// as "MIT License (c) 2026 Jane Doe" for the MIT license, or "" without a license file.
-// The line is the first line of the file followed by its copyright line.
-func license(fsys fs.FS) (string, error) {
-	for _, name := range []string{"LICENSE", "LICENSE.md", "LICENSE.txt"} {
-		data, err := fs.ReadFile(fsys, name)
-		if errors.Is(err, fs.ErrNotExist) {
-			continue
-		} else if err != nil {
-			return "", err
-		}
-		var title, holder string
-		for line := range strings.Lines(string(data)) {
-			line = strings.TrimSpace(line)
-			switch {
-			case line == "":
-			case title == "":
-				title = line
-			case strings.HasPrefix(line, "Copyright"):
-				holder = strings.TrimSpace(strings.TrimPrefix(line, "Copyright"))
-				holder = strings.TrimSpace(strings.TrimPrefix(holder, "(c)"))
-				holder = strings.TrimSpace(strings.TrimPrefix(holder, "©"))
-			}
-			if holder != "" {
-				break
-			}
-		}
-		if holder == "" {
-			return title, nil
-		}
-		return title + " © " + holder, nil
-	}
-	return "", nil
 }
 
 // httpsRepoURL returns the HTTPS URL of the repository of the Git remote

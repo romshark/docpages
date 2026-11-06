@@ -11,6 +11,7 @@ footer:
   - title: Go reference
     url: https://pkg.go.dev/github.com/romshark/docpages
     icon: icons/package.svg
+license: MIT License © 2026 Roman Scharkov
 ---
 
 # Introduction

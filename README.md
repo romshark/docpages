@@ -57,7 +57,7 @@ The front matter of the `README.md` of the docs directory also holds the setting
 | `host` | Where the repository is hosted, GitHub by default. See [Hosting](#hosting). |
 | `header` | Links of the header before the repository, each with `title`, `url` and an optional `icon`, the path of an SVG file. The default is 1 link to the first page, `Docs`, and `[]` leaves the header without links. |
 | `footer` | Links of the footer between the repository and `llms.txt`, each with `title`, `url` and an optional `icon`, the path of an SVG file. |
-| `license` | The line that ends the footer. The default is the first line and the copyright holder of the `LICENSE` file of the repository, as `MIT License © 2026 Jane Doe`, and `""` leaves the footer without one. |
+| `license` | The line that ends the footer, as written, as `MIT License © 2026 Jane Doe`. Without it the footer has none. |
 
 A `url` of `header` and `footer` is a link of that `README.md`: a Markdown file leads to its page. A link of the header is the current one on the page that it leads to, and a link to the first page on every page that no other link of the header leads to.
 

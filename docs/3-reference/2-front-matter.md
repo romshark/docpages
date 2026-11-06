@@ -31,4 +31,4 @@ Only in `docs/README.md`:
 | `host` | Map | Where the repository is hosted: `name`, `icon`, `file` and `dir`. See [Repository host](../2-guide/7-repository-host.md). |
 | `header` | List | The links of the header, each with `title`, `url` and an optional `icon`. Default: "Docs", to the first page. |
 | `footer` | List | More links in the footer, each with `title`, `url` and an optional `icon`. |
-| `license` | Text | The last line of the footer. `""` leaves it out. Default: the first line and the copyright holder of the `LICENSE` file. |
+| `license` | Text | The last line of the footer, as written. Default: none. |

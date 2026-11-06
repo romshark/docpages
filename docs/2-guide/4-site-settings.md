@@ -52,13 +52,12 @@ optional `icon`, an SVG file.
 `footer` lists more links, written like those of the header. They sit between
 the link to your repository and `llms.txt`.
 
-The footer ends with your license: the first line and the copyright holder of
-the `LICENSE` file at the root of the repository, as "MIT License © 2026 Jane
-Doe". `license` replaces the line, and `license: ""` leaves it out:
+The footer ends with `license`, as written. Without it, the footer has no such
+line:
 
 ```yaml title="docs/README.md"
 ---
-license: © 2026 Jane Doe. All rights reserved.
+license: MIT License © 2026 Jane Doe
 ---
 ```
 

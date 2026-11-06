@@ -35,6 +35,7 @@ footer:
     icon: icons/chat.svg
   - title: Changelog
     url: 3-reference/2-changelog.md
+license: MIT License © 2026 Jane Doe
 ---
 
 # Introduction
@@ -277,52 +278,22 @@ func TestParseFrontMatter(t *testing.T) {
 	require.ErrorContains(t, err, "front matter has no closing ---")
 }
 
-// TestLicense tests that the footer line names the license and the copyright
-// holder of the license file, and that a repository without one has none.
-func TestLicense(t *testing.T) {
-	for name, tt := range map[string]struct {
-		fsys fstest.MapFS
-		want string
-	}{
-		"MIT": {
-			fsys: fstest.MapFS{"LICENSE": {Data: []byte(
-				"MIT License\n\nCopyright (c) 2026 Jane Doe\n\nPermission is hereby granted\n")}},
-			want: "MIT License © 2026 Jane Doe",
-		},
-		"symbol": {
-			fsys: fstest.MapFS{"LICENSE.md": {Data: []byte("BSD\nCopyright © 2025 Org\n")}},
-			want: "BSD © 2025 Org",
-		},
-		"no copyright": {
-			fsys: fstest.MapFS{"LICENSE.txt": {Data: []byte("\nThe Unlicense\n\nThis is free.\n")}},
-			want: "The Unlicense",
-		},
-		"none": {fsys: fstest.MapFS{}},
-	} {
-		t.Run(name, func(t *testing.T) {
-			got, err := license(tt.fsys)
-			require.NoError(t, err)
-			require.Equal(t, tt.want, got)
-		})
-	}
-}
-
-// TestSiteLicense tests that the license setting replaces the line of the
-// footer that the license file yields, that an empty one leaves the footer
-// without one, and that the README.md of a release can't set it.
+// TestSiteLicense tests that the footer ends with the license setting as
+// written, that without it the footer has no such line although the repository
+// has a LICENSE file, and that the README.md of a release can't set it.
 func TestSiteLicense(t *testing.T) {
 	for name, tt := range map[string]struct {
 		setting string // The line of the front matter, empty for none.
 		want    string // The end of the footer.
 	}{
-		"license file": {"", "<span>MIT License © 2026 Jane Doe</span></footer>"},
-		"set":          {`license: "© 2026 Demo Inc. All rights reserved."`, "<span>© 2026 Demo Inc. All rights reserved.</span></footer>"},
-		"empty":        {`license: ""`, "llms.txt</a></nav></footer>"},
+		"set":   {`license: " © 2026 Demo Inc. All rights reserved. "`, "<span>© 2026 Demo Inc. All rights reserved.</span></footer>"},
+		"unset": {"", "llms.txt</a></nav></footer>"},
+		"empty": {`license: ""`, "llms.txt</a></nav></footer>"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			fsys := testRepoFS()
 			fsys["docs/README.md"] = &fstest.MapFile{Data: []byte(strings.Replace(
-				testRoot, "suggested: true\n", "suggested: true\n"+tt.setting+"\n", 1))}
+				testRoot, "license: MIT License © 2026 Jane Doe\n", tt.setting+"\n", 1))}
 			s, err := read(fsys, "docs", noRemote, false)
 			require.NoError(t, err)
 			require.Contains(t, pageHTML(t, s, ""), tt.want)
