@@ -12,6 +12,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -303,7 +305,8 @@ func noNestedGroups(entries []fs.DirEntry, dir string) error {
 // after its prefix, as "Get started" for get-started.
 func groupTitle(slug string) string {
 	t := strings.ReplaceAll(slug, "-", " ")
-	return strings.ToUpper(t[:1]) + t[1:]
+	r, n := utf8.DecodeRuneInString(t)
+	return string(unicode.ToTitle(r)) + t[n:]
 }
 
 // frontMatterDelim is the line that opens and closes front matter.

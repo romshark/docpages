@@ -240,6 +240,22 @@ func TestReadLayoutErr(t *testing.T) {
 	}
 }
 
+// TestGroupTitle tests that the title of a group has spaces for the hyphens of
+// its directory name and its first letter in title case, also when that letter
+// takes more than 1 byte.
+func TestGroupTitle(t *testing.T) {
+	for slug, want := range map[string]string{
+		"get-started": "Get started",
+		"über-uns":    "Über uns",
+		"élan":        "Élan",
+		"日本語":         "日本語",
+		"ǆungla":      "ǅungla",
+		"1st-steps":   "1st steps",
+	} {
+		require.Equal(t, want, groupTitle(slug), slug)
+	}
+}
+
 // TestParseFrontMatter tests that front matter opens a file between 2 lines of
 // ---, with any line ending, and that the Markdown follows it.
 func TestParseFrontMatter(t *testing.T) {
