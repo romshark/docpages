@@ -87,6 +87,28 @@ func TestSnapshotWrite(t *testing.T) {
 	require.Equal(t, "v1.2", s.latest().version)
 }
 
+// TestSnapshotFileWithSpace tests that a snapshot gives a link to a file of the
+// repository whose name holds a space its escaped URL at the tag,
+// which the release then shows as a link.
+func TestSnapshotFileWithSpace(t *testing.T) {
+	fsys := testRepoFS()
+	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{
+		Data: []byte("# Testing\n\nRead the [design](../../Design%20Doc.pdf).\n"),
+	}
+	fsys["Design Doc.pdf"] = &fstest.MapFile{Data: []byte("PDF")}
+	const design = "https://github.com/o/demo/blob/v1.2.3/Design%20Doc.pdf"
+	_, files, err := snapshot(fsys, "docs", "v1.2.3", noRemote)
+	require.NoError(t, err)
+	require.Equal(t, "# Testing\n\nRead the [design]("+design+").\n",
+		string(files["docs/versions/v1.2/2-guides/10-testing.md"]))
+
+	s, err := read(withReleases(t, fsys, "v1.2.3"), "docs", noRemote, false)
+	require.NoError(t, err)
+	require.Contains(t,
+		editionPageHTML(t, s, "v1.2", "guides/testing"),
+		`<a href="`+design+`">design</a>`)
+}
+
 // TestRelativeLink tests the link from a file to another file or directory,
 // which keeps the query and the fragment of the link.
 func TestRelativeLink(t *testing.T) {

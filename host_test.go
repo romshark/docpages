@@ -68,6 +68,9 @@ func TestHostURL(t *testing.T) {
 	require.Equal(t,
 		"https://github.com/o/r/tree/v1.2.3/cmd/",
 		h.url("v1.2.3", "cmd", true))
+	require.Equal(t,
+		"https://github.com/o/r/blob/main/docs/Design%20Doc%231.pdf",
+		h.url("main", "docs/Design Doc#1.pdf", false))
 
 	h, err := readHost(nil, "docs", "https://git.example.com/o/r",
 		&hostSettings{Name: "Forge", File: "{repository}/-/blob/{ref}/{path}"})

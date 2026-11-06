@@ -80,7 +80,9 @@ func TestHandlerRepository(t *testing.T) {
 		require.NoError(t, os.WriteFile(p, []byte(data), 0o644))
 	}
 	write("docs/2-guides/10-testing.md",
-		"# Testing\n\nSee [the examples](../../example/) and [the license](../../LICENSE).\n")
+		"# Testing\n\nSee [the examples](../../example/), [the license](../../LICENSE) "+
+			"and [the design](../../Design%20Doc.txt).\n")
+	write("Design Doc.txt", "The design.\n")
 	write("example/cli/main.go", "package main\n")
 	write("example/logo.png", "\x89PNG\r\n\x1a\n")
 	write("example/.env", "SECRET=1\n")
@@ -94,6 +96,9 @@ func TestHandlerRepository(t *testing.T) {
 	require.Equal(t, http.StatusOK, code)
 	require.Contains(t, body, `<a href="../../_repository/example/">the examples</a>`)
 	require.Contains(t, body, `<a href="../../_repository/LICENSE">the license</a>`)
+	// A Markdown link ends at a space.
+	_, body = get(t, h, "/main/guides/testing.md")
+	require.Contains(t, body, "[the design](../../_repository/Design%20Doc.txt)")
 
 	for name, tt := range map[string]struct {
 		code  int
@@ -102,6 +107,9 @@ func TestHandlerRepository(t *testing.T) {
 	}{
 		"/_repository/LICENSE": {
 			200, "text/plain; charset=utf-8", "MIT License",
+		},
+		"/_repository/Design%20Doc.txt": {
+			200, "text/plain; charset=utf-8", "The design.",
 		},
 		"/_repository/example/cli/main.go": {
 			200, "text/plain; charset=utf-8", "package main",

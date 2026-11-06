@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/url"
 	"path"
 	"strings"
 )
@@ -71,13 +72,15 @@ func readHost(fsys fs.FS, dir, repoURL string, set *hostSettings) (*host, error)
 }
 
 // url returns the URL of file, a path from the repository root, at the Git ref,
-// of a directory if dir.
+// of a directory if dir. {path} takes file escaped, because a Markdown copy and
+// a snapshot take the URL as it is, and a Markdown link ends at a space.
 func (h *host) url(ref, file string, dir bool) string {
 	t := h.file
 	if dir {
 		t = h.dir
 	}
 	return strings.NewReplacer(
-		"{repository}", h.repoURL, "{ref}", ref, "{path}", file,
+		"{repository}", h.repoURL, "{ref}", ref,
+		"{path}", (&url.URL{Path: file}).EscapedPath(),
 	).Replace(t)
 }

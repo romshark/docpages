@@ -571,8 +571,8 @@ func repoPath(from, p string) string {
 // fileURL returns the URL of file, a path from the repository root,
 // of a directory if dir, with the query and the fragment of the link u: the URL of
 // file at the Git ref in the repository, or, while [Handler] serves the files
-// that the links lead to, the URL of the file it serves, which it adds to
-// served. base is the URL of the root of the version from where the URL is read.
+// that the links lead to, the URL of the file it serves, which it adds to served.
+// base is the URL of the root of the version from where the URL is read.
 // It adds file to linked.
 func (s *site) fileURL(file string, dir bool, base string, u *url.URL) string {
 	if s.linked == nil {
@@ -582,7 +582,7 @@ func (s *site) fileURL(file string, dir bool, base string, u *url.URL) string {
 	var r string
 	if s.served != nil {
 		s.served[file] = true
-		r = path.Join(base, "..", repositoryPath, file)
+		r = (&url.URL{Path: path.Join(base, "..", repositoryPath, file)}).EscapedPath()
 		if dir {
 			r += "/"
 		}

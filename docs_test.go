@@ -201,6 +201,11 @@ func TestResolveMarkdownLink(t *testing.T) {
 			base: "../", dest: "../FAQ.md",
 			want: blob + "FAQ.md",
 		},
+		// A Markdown link ends at a space.
+		"file with a space": {
+			base: "../", dest: "../Design%20Doc.pdf",
+			want: blob + "Design%20Doc.pdf",
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			got, err := testSite.resolve(1, tt.dest, tt.base, page.markdownFile)
