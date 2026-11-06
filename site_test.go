@@ -188,24 +188,58 @@ func TestReadLayoutErr(t *testing.T) {
 			want:  "docs/1-a/b.md: the name of a page starts with its position, as 1-b.md",
 		},
 		"shared position": {
-			files: map[string]string{"docs/1-a/1-b.md": "# B\n", "docs/1-a/01-c.md": "# C\n"},
-			want:  "docs/1-a/01-c.md and docs/1-a/1-b.md share the position 1",
+			files: map[string]string{
+				"docs/1-a/1-b.md":  "# B\n",
+				"docs/1-a/01-c.md": "# C\n",
+			},
+			want: "docs/1-a/01-c.md and docs/1-a/1-b.md share the position 1",
+		},
+		"shared name": {
+			files: map[string]string{
+				"docs/1-a/1-b.md": "# B\n",
+				"docs/1-a/2-b.md": "# B\n",
+			},
+			want: "docs/1-a/1-b.md and docs/1-a/2-b.md share the output file a/b.html",
+		},
+		"shared name in 2 groups": {
+			files: map[string]string{
+				"docs/1-a/1-b.md": "# B\n",
+				"docs/2-a/1-b.md": "# B\n",
+			},
+			want: "docs/1-a/1-b.md and docs/2-a/1-b.md share the output file a/b.html",
+		},
+		"index next to README.md": {
+			files: map[string]string{
+				"docs/1-a/README.md":  "# A\n",
+				"docs/1-a/1-index.md": "# I\n",
+			},
+			want: "docs/1-a/README.md and docs/1-a/1-index.md share the output file a/index.html",
 		},
 		"group in a group": {
-			files: map[string]string{"docs/1-a/1-b.md": "# B\n", "docs/1-a/2-c/1-d.md": "# D\n"},
-			want:  "docs/1-a/2-c: a group holds no groups",
+			files: map[string]string{
+				"docs/1-a/1-b.md":     "# B\n",
+				"docs/1-a/2-c/1-d.md": "# D\n",
+			},
+			want: "docs/1-a/2-c: a group holds no groups",
 		},
 		"empty group": {
-			files: map[string]string{"docs/1-a/1-b.md": "# B\n", "docs/2-c/icon.svg": "<svg/>"},
-			want:  "group docs/2-c has no page",
+			files: map[string]string{
+				"docs/1-a/1-b.md":   "# B\n",
+				"docs/2-c/icon.svg": "<svg/>",
+			},
+			want: "group docs/2-c has no page",
 		},
 		"settings of a page": {
-			files: map[string]string{"docs/1-a/1-b.md": "---\nname: B\n---\n# B\n"},
-			want:  "docs/1-a/1-b.md: only the README.md of the docs directory takes site settings",
+			files: map[string]string{
+				"docs/1-a/1-b.md": "---\nname: B\n---\n# B\n",
+			},
+			want: "docs/1-a/1-b.md: only the README.md of the docs directory takes site settings",
 		},
 		"url without a title": {
-			files: map[string]string{"docs/1-a/1-b.md": "---\nurl: https://x.dev\n---\n"},
-			want:  "docs/1-a/1-b.md: a page with url needs a title",
+			files: map[string]string{
+				"docs/1-a/1-b.md": "---\nurl: https://x.dev\n---\n",
+			},
+			want: "docs/1-a/1-b.md: a page with url needs a title",
 		},
 		"url and source": {
 			files: map[string]string{
@@ -214,12 +248,16 @@ func TestReadLayoutErr(t *testing.T) {
 			want: "docs/1-a/1-b.md: url and source exclude each other",
 		},
 		"source outside the repository": {
-			files: map[string]string{"docs/1-a/1-b.md": "---\nsource: ../../../A.md\n---\n"},
-			want:  `docs/1-a/1-b.md: source "../../../A.md" is outside the repository`,
+			files: map[string]string{
+				"docs/1-a/1-b.md": "---\nsource: ../../../A.md\n---\n",
+			},
+			want: `docs/1-a/1-b.md: source "../../../A.md" is outside the repository`,
 		},
 		"missing source": {
-			files: map[string]string{"docs/1-a/1-b.md": "---\nsource: ../../A.md\n---\n"},
-			want:  "docs/1-a/1-b.md: source: open A.md",
+			files: map[string]string{
+				"docs/1-a/1-b.md": "---\nsource: ../../A.md\n---\n",
+			},
+			want: "docs/1-a/1-b.md: source: open A.md",
 		},
 		"unknown key": {
 			files: map[string]string{"docs/1-a/1-b.md": "---\ntitel: B\n---\n"},

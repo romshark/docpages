@@ -2,6 +2,7 @@ package docpages
 
 import (
 	"bytes"
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
@@ -164,6 +165,20 @@ func readLayout(fsys fs.FS, dir string) (layout, error) {
 		if len(l.pages) == 1 || l.pages[len(l.pages)-1].group != gi {
 			return layout{}, fmt.Errorf("group %s has no page", gdir)
 		}
+	}
+	// The site leaves the prefixes out, which gives 1-setup.md and 2-setup.md 1
+	// file, and the README.md of a group shares index.html with 1-index.md.
+	written := make(map[string]string)
+	for _, p := range l.pages {
+		if p.external() {
+			continue
+		}
+		file := cmp.Or(p.stub, p.file)
+		if other, ok := written[p.outFile()]; ok {
+			return layout{}, fmt.Errorf("%s and %s share the output file %s",
+				other, file, p.outFile())
+		}
+		written[p.outFile()] = file
 	}
 	return l, nil
 }

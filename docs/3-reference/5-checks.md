@@ -11,6 +11,8 @@ page until you fix it.
 - A group without a page, and a group in a group.
 - A Markdown file in a group without a position, as `1-install.md`, and 2
   entries of a folder with the same position.
+- 2 pages with the same URL, as `1-setup.md` and `2-setup.md`, the same file
+  name in 2 groups of the same name, or `1-index.md` next to `README.md`.
 - A release folder not named after a minor version, as `v1.2`.
 - A file that nothing uses: no page shows it, and no link or setting names
   it. That catches an image that no page shows any more, and a page in a
