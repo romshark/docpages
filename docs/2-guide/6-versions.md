@@ -32,6 +32,8 @@ This writes `docs/versions/v1.2/`:
 - The text of each `source` file goes into its page.
 - A link to a file outside the docs folder now leads to the file at the
   release tag, or to the page that shows it, as the changelog.
+- A link from the root of the repository, as `/docs/1-get-started/1-install.md`,
+  becomes relative, which leads to the copy of the file.
 
 A patch release needs no new copy. `-snapshot` refuses to overwrite a folder;
 delete it to copy the docs again.

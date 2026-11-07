@@ -87,6 +87,30 @@ func TestSnapshotWrite(t *testing.T) {
 	require.Equal(t, "v1.2", s.latest().version)
 }
 
+// TestSnapshotRootedLink tests that a snapshot makes a link and a media file of
+// the docs directory that a path from the repository root names relative, which
+// leads to the copy in the release rather than to the file of main.
+func TestSnapshotRootedLink(t *testing.T) {
+	fsys := testRepoFS()
+	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte("# Testing\n\n" +
+		"See [events](/docs/2-guides/01-events.md#dispatch) and [notes](/docs/notes.txt).\n\n" +
+		"![Logo](/docs/img/logo.png)\n\n<img src=\"/docs/img/logo.png\" width=\"10\">\n")}
+	fsys["docs/notes.txt"] = &fstest.MapFile{Data: []byte("Notes.")}
+	fsys["docs/img/logo.png"] = &fstest.MapFile{Data: []byte("logo")}
+	_, files, err := snapshot(fsys, "docs", "v1.2.3", noRemote)
+	require.NoError(t, err)
+	const v = "docs/versions/v1.2/"
+	require.Equal(t, "# Testing\n\n"+
+		"See [events](01-events.md#dispatch) and [notes](../notes.txt).\n\n"+
+		"![Logo](../img/logo.png)\n\n<img src=\"../img/logo.png\" width=\"10\">\n",
+		string(files[v+"2-guides/10-testing.md"]))
+	require.Equal(t, "Notes.", string(files[v+"notes.txt"]))
+	require.Equal(t, "logo", string(files[v+"img/logo.png"]))
+
+	_, err = read(withReleases(t, fsys, "v1.2.3"), "docs", noRemote, false)
+	require.NoError(t, err)
+}
+
 // TestSnapshotDirectoryLink tests that a snapshot gives a link to a directory
 // whose README.md a page shows the file of that page without a "/" after it.
 // The directories are 1 outside the docs directory, which a page shows as its

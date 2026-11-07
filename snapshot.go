@@ -30,6 +30,8 @@ import (
 //   - A page with a source holds the text of the source in place of its own.
 //   - A link to a file outside the docs directory becomes the URL of the file
 //     at tag in the repository, or leads to the page that shows the file.
+//   - A link or a media file named from the repository root, as /docs/a.md,
+//     becomes relative, which leads to its copy.
 //   - An image or another media file of a page that lies outside the docs
 //     directory is copied into media/ of the copy, which the page then shows.
 //
@@ -229,11 +231,16 @@ func (c *snapshotter) media(file, origin, dest string) string {
 	switch {
 	case !c.inside(t):
 		return relativeLink(file, path.Join(c.dir, mediaDir, t), u)
-	case origin != file:
+	case origin != file || rooted(u):
 		return relativeLink(file, t, u)
 	}
 	return dest
 }
+
+// rooted reports whether the link u names a file by its path from the
+// repository root, as /docs/a.md. Such a path in a copy names the file of
+// main, which a release can't link, and not its copy.
+func rooted(u *url.URL) bool { return strings.HasPrefix(u.Path, "/") }
 
 // link returns the destination of the link dest in the copy of file, the dest
 // having been written in origin: file or its source. A link to a file of the
@@ -247,7 +254,7 @@ func (c *snapshotter) link(file, origin, dest string) string {
 	}
 	t := repoPath(origin, u.Path)
 	inside := c.inside(t)
-	if inside && origin == file {
+	if inside && origin == file && !rooted(u) {
 		c.need(t)
 		return dest
 	}
