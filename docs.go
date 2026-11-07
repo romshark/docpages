@@ -748,10 +748,13 @@ func plainText(n ast.Node, src []byte) string {
 }
 
 // writePlainText writes the text of n without its inline markup to w.
-// A line break becomes a space.
+// A line break and the end of a block, as a list item or a table cell, become a space.
 func writePlainText(w io.StringWriter, n ast.Node, src []byte) {
 	_ = ast.Walk(n, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
+			if _, ok := n.(ast.BlockNode); ok {
+				_, _ = w.WriteString(" ")
+			}
 			return ast.WalkContinue, nil
 		}
 		switch n := n.(type) {

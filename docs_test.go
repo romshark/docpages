@@ -618,6 +618,17 @@ func TestPlainTextAutoLinks(t *testing.T) {
 	require.Equal(t, "Install from https://go.dev "+text, d.search[0].Text)
 }
 
+// TestPlainTextBlocks tests that the search text of a page keeps the words of
+// 2 blocks in 1 node apart, as those of 2 list items and of 2 table cells.
+func TestPlainTextBlocks(t *testing.T) {
+	d := convert(t,
+		"# Writing\n\n- A list\n  - with a nested item\n- [x] A done task\n\n"+
+			"| Flag | Default |\n| --- | --- |\n| -o | site |\n")
+	require.Equal(t,
+		"Writing A list with a nested item A done task Flag Default -o site",
+		d.search[0].Text)
+}
+
 // TestSearchEntries tests that a page yields 1 search entry for the text above
 // its first section and 1 for each heading down to its depth, without code.
 func TestSearchEntries(t *testing.T) {
