@@ -31,7 +31,9 @@ This writes `docs/versions/v1.2/`:
   favicon, `style.css` and the site settings stay in `docs/`, for every version.
 - The text of each `source` file goes into its page.
 - A link to a file outside the docs folder now leads to the file at the
-  release tag, or to the page that shows it, as the changelog.
+  release tag, or to the page that shows it, as the changelog. In a docs folder
+  at the root of the repository, the docs are `README.md` and the groups, and
+  every other file is outside.
 - A link from the root of the repository, as `/docs/1-get-started/1-install.md`,
   becomes relative, which leads to the copy of the file.
 

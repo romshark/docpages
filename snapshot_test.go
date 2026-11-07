@@ -87,6 +87,40 @@ func TestSnapshotWrite(t *testing.T) {
 	require.Equal(t, "v1.2", s.latest().version)
 }
 
+// TestSnapshotRootDocs tests that a snapshot of a docs directory at the root of
+// the repository takes only the README.md and the groups for the docs, as the
+// check of unused files does. A link to another file of the repository becomes
+// its URL at the tag, and an image elsewhere is copied into media/ of the copy.
+func TestSnapshotRootDocs(t *testing.T) {
+	fsys := fstest.MapFS{
+		"README.md": {Data: []byte("---\nrepository: https://github.com/o/r\n---\n\n" +
+			"# Intro\n\nSee [A](1-guide/1-a.md), [main.go](cmd/app/main.go) and " +
+			"[the license](LICENSE).\n\n![Logo](img/logo.png)\n")},
+		"1-guide/1-a.md":  {Data: []byte("# A\n\nText.\n")},
+		"cmd/app/main.go": {Data: []byte("package main\n")},
+		"LICENSE":         {Data: []byte("MIT License\n")},
+		"img/logo.png":    {Data: []byte("logo")},
+	}
+	_, files, err := snapshot(fsys, ".", "v1.2.3", noRemote)
+	require.NoError(t, err)
+	require.Equal(t, []string{
+		"versions/v1.2/1-guide/1-a.md",
+		"versions/v1.2/README.md",
+		"versions/v1.2/media/img/logo.png",
+	}, slices.Sorted(maps.Keys(files)))
+	require.Equal(t, "# Intro\n\nSee [A](1-guide/1-a.md), "+
+		"[main.go](https://github.com/o/r/blob/v1.2.3/cmd/app/main.go) and "+
+		"[the license](https://github.com/o/r/blob/v1.2.3/LICENSE).\n\n"+
+		"![Logo](media/img/logo.png)\n",
+		string(files["versions/v1.2/README.md"]))
+
+	for name, data := range files {
+		fsys[name] = &fstest.MapFile{Data: data}
+	}
+	_, err = read(fsys, ".", noRemote, false)
+	require.NoError(t, err)
+}
+
 // TestSnapshotRootedLink tests that a snapshot makes a link and a media file of
 // the docs directory that a path from the repository root names relative, which
 // leads to the copy in the release rather than to the file of main.

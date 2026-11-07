@@ -212,9 +212,19 @@ func (c *snapshotter) markdown(file string, data []byte) ([]byte, error) {
 }
 
 // inside reports whether file, a path from the repository root, is a file of
-// the docs directory and not of a release.
+// the docs directory and not of a release. Of a docs directory at the root of
+// the repository, only README.md and the groups count, as for [unusedFiles],
+// and the rest is the repository, as source code, which a release links at
+// its tag rather than copies.
 func (c *snapshotter) inside(file string) bool {
-	return inDir(file, c.dir) && !inDir(file, path.Join(c.dir, versionsDir))
+	if inDir(file, path.Join(c.dir, versionsDir)) {
+		return false
+	}
+	if c.dir != "." {
+		return inDir(file, c.dir)
+	}
+	top, _, _ := strings.Cut(file, "/")
+	return file == readmeName || orderPrefix.MatchString(top)
 }
 
 // media returns the destination of the media file dest in the copy of file,
