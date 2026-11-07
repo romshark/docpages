@@ -687,18 +687,27 @@ func TestLLMSTxt(t *testing.T) {
 }
 
 // TestSuggestions tests that the search of a page offers the suggested pages,
-// linked relative to the page, and hides its heading without them.
+// linked relative to the page, a link that leaves the site by its URL,
+// and hides its heading without them.
 func TestSuggestions(t *testing.T) {
 	pages := []page{
 		{path: "", title: "Introduction", group: 0, suggested: true},
 		{path: "guide/events", title: "Events", group: 1},
 		{path: "faq", title: "FAQ", group: 2, suggested: true},
+		{
+			path:      "api",
+			url:       "https://pkg.go.dev/x",
+			title:     "API",
+			group:     2,
+			suggested: true,
+		},
 	}
 	groups := []group{{title: "Get started"}, {title: "Guides"}, {title: "More"}}
 	suggested := suggestions(pages, groups, 1)
 	require.Equal(t, []suggestion{
 		{Group: "Get started", Title: "Introduction", Href: "../"},
 		{Group: "More", Title: "FAQ", Href: "../faq"},
+		{Group: "More", Title: "API", Href: "https://pkg.go.dev/x"},
 	}, suggested)
 
 	html := render(t, searchDialog(suggested))
@@ -708,6 +717,7 @@ func TestSuggestions(t *testing.T) {
 		`<li id="search_suggestion_1" role="option" aria-selected="false">`,
 		`<a href="../faq" tabindex="-1">`,
 		`<span class="result-section">FAQ</span>`,
+		`<a href="https://pkg.go.dev/x" tabindex="-1">`,
 	} {
 		require.Contains(t, html, want)
 	}

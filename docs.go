@@ -164,20 +164,24 @@ func contents(d doc) []tocEntry {
 // suggestion is a page that the search offers while its field is empty.
 type suggestion struct {
 	Group, Title string
-	Href         string // Relative to the page that shows the search.
+	// Href is relative to the page that shows the search, or the URL of a link
+	// that leaves the site.
+	Href string
 }
 
 // suggestions returns the suggested pages of pages, linked from pages[current].
 func suggestions(pages []page, groups []group, current int) []suggestion {
 	var s []suggestion
 	for _, p := range pages {
-		if p.suggested {
-			s = append(s, suggestion{
-				Group: groups[p.group].title,
-				Title: p.title,
-				Href:  pages[current].base() + p.path,
-			})
+		if !p.suggested {
+			continue
 		}
+		href := pages[current].base() + p.path
+		if p.external() {
+			href = p.url
+		}
+		s = append(s,
+			suggestion{Group: groups[p.group].title, Title: p.title, Href: href})
 	}
 	return s
 }
