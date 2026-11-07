@@ -13,7 +13,7 @@ import (
 )
 
 // static holds the stylesheet, the script, the icons and the Morpheus bundle of
-// the pages. generate.go writes style.min.css and morpheus/.
+// the pages. generate.go writes style.min.css, docs.min.js and morpheus/.
 //
 //go:embed static
 var static embed.FS
@@ -23,7 +23,7 @@ var static embed.FS
 // in morpheus/icons, the one directory that <neo-icon> loads icons from.
 var staticAssets = map[string]string{
 	"docpages.css":   "static/style.min.css",
-	"docpages.js":    "static/docs.js",
+	"docpages.js":    "static/docs.min.js",
 	"morpheus":       "static/morpheus",
 	"morpheus/icons": "static/icons",
 }

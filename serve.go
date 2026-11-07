@@ -27,31 +27,32 @@ const reloadPath = "_reload"
 // directory, that holds the files of the repository that the links lead to.
 const repositoryPath = "_repository"
 
-// pollInterval is how often [Handler] looks for a change of the files that the
-// site reads.
+// pollInterval is how often [Handler] looks for
+// a change of the files that the site reads.
 const pollInterval = 250 * time.Millisecond
 
 // Handler serves the files of the site of o at their paths relative to the
 // output directory, as [Site.Write] writes them. It reads the docs directory
-// on every request for a file, which shows a change without a restart, and the
-// pages reload when a file that the site reads changes. It serves the
-// stylesheet unminified. Paths resolve as on GitHub Pages. A path that ends in
-// "/" serves its index.html, and a path that names no file serves the file with
-// ".html" appended, also a path with a dot, as guide/v1.2-notes. An error, such
-// as a link to a missing heading, is a page, which reloads too.
+// on every request for a file, which shows a change without a restart,
+// and the pages reload when a file that the site reads changes.
+// It serves the stylesheet and the script unminified. Paths resolve as on GitHub Pages.
+// A path that ends in "/" serves its index.html, and a path that names no file
+// serves the file with ".html" appended, also a path with a dot, as guide/v1.2-notes.
+// An error, such as a link to a missing heading, is a page, which reloads too.
 //
 // A link to a file of the repository that no page shows leads to the file in
-// the working tree, not on the host, which has only what was pushed. Handler
-// serves the files and directories that the links name and what the directories
-// hold, except names that start with ".", as .git. It serves text as plain text
-// and a directory as a list of its files.
+// the working tree, not on the host, which has only what was pushed.
+// Handler serves the files and directories that the links name and what
+// the directories hold, except names that start with ".", as .git.
+// It serves text as plain text and a directory as a list of its files.
 func Handler(o Options) http.Handler {
 	w := &watcher{root: o.Root, dir: o.Dir}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /"+reloadPath, w.serveEvents)
-	mux.HandleFunc("GET /"+repositoryPath+"/", func(rw http.ResponseWriter, r *http.Request) {
-		serveRepository(o, rw, r)
-	})
+	mux.HandleFunc("GET /"+repositoryPath+"/",
+		func(rw http.ResponseWriter, r *http.Request) {
+			serveRepository(o, rw, r)
+		})
 	mux.HandleFunc("GET /", func(rw http.ResponseWriter, r *http.Request) {
 		name := strings.TrimPrefix(r.URL.Path, "/")
 		if name == "" || strings.HasSuffix(name, "/") {
@@ -151,8 +152,13 @@ func (w *watcher) files(o Options, state string) (map[string][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	js, err := fs.ReadFile(static, "static/docs.js")
+	if err != nil {
+		return nil, err
+	}
 	for _, e := range s.editions {
 		files[e.outDir()+"docpages.css"] = css
+		files[e.outDir()+"docpages.js"] = js
 	}
 	return files, nil
 }
@@ -302,8 +308,8 @@ func serveRepository(o Options, rw http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprint(rw, "</ul>")
 }
 
-// serves reports whether [Handler] serves file, a path from the repository
-// root: a file or directory of served, or what such a directory holds under
+// serves reports whether [Handler] serves file, a path from the repository root:
+// a file or directory of served, or what such a directory holds under
 // no name that starts with ".", as .git.
 func (s *Site) serves(file string) bool {
 	for f := range s.served {
@@ -330,8 +336,8 @@ func (s *Site) serves(file string) bool {
 
 // repositoryType returns the media type of the file name of the repository
 // with the content data: that of its extension for an image, audio, a video or
-// a PDF, which the browser shows, and plain text for other text, as source
-// code, which the browser shows as it is.
+// a PDF, which the browser shows, and plain text for other text, as source code,
+// which the browser shows as it is.
 func repositoryType(name string, data []byte) string {
 	t := mime.TypeByExtension(path.Ext(name))
 	for _, media := range []string{"image/", "audio/", "video/", "application/pdf"} {

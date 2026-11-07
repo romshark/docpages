@@ -65,6 +65,12 @@ func TestHandler(t *testing.T) {
 	require.Equal(t, http.StatusOK, code)
 	require.Equal(t, string(css), body)
 
+	js, err := static.ReadFile("static/docs.js")
+	require.NoError(t, err)
+	code, body = get(t, h, "/main/docpages.js")
+	require.Equal(t, http.StatusOK, code)
+	require.Equal(t, string(js), body)
+
 	code, _ = get(t, h, "/main/missing")
 	require.Equal(t, http.StatusNotFound, code)
 

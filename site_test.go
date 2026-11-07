@@ -652,7 +652,8 @@ func TestSearchSuggestions(t *testing.T) {
 	require.Equal(t, 2, strings.Count(html, `id="search_suggestion_`))
 }
 
-// TestStaticAssets tests that every asset that the pages load is embedded.
+// TestStaticAssets tests that every asset that the pages load is embedded,
+// the script minified, and that the sources that [Handler] serves are too.
 func TestStaticAssets(t *testing.T) {
 	assets, err := siteAssets()
 	require.NoError(t, err)
@@ -672,8 +673,13 @@ func TestStaticAssets(t *testing.T) {
 		"morpheus/icons/sun.svg",
 		"morpheus/morpheus.min.css", "morpheus/morpheus.min.js",
 	}, names)
-	_, err = fs.Stat(static, "static/style.css")
+	min, err := static.ReadFile("static/docs.min.js")
 	require.NoError(t, err)
+	require.Equal(t, string(min), string(assets["docpages.js"]))
+	for _, source := range []string{"static/style.css", "static/docs.js"} {
+		_, err = fs.Stat(static, source)
+		require.NoError(t, err)
+	}
 }
 
 // TestIcons tests that every icon that the templates show is a file of icons,
