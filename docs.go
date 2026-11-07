@@ -759,6 +759,9 @@ func writePlainText(w io.StringWriter, n ast.Node, src []byte) {
 		case *ast.CodeSpan:
 			_, _ = w.WriteString(n.Value.Value(src))
 			return ast.WalkSkipChildren, nil
+		case *ast.AutoLink:
+			// An autolink holds its text in Label, not in a child.
+			_, _ = w.WriteString(n.Label.Value(src))
 		}
 		return ast.WalkContinue, nil
 	})

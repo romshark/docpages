@@ -606,6 +606,18 @@ func TestHeadingLinks(t *testing.T) {
 		` aria-label="Link to this section"></a></h2>`)
 }
 
+// TestPlainTextAutoLinks tests that the title, the description and the search
+// text of a page keep the text of its autolinks: a bare URL, which GFM links,
+// a URL and an email address in <>.
+func TestPlainTextAutoLinks(t *testing.T) {
+	d := convert(t, "# Install from <https://go.dev>\n\n"+
+		"See https://example.com and <https://go.dev>, or write <dev@example.com>.\n")
+	const text = "See https://example.com and https://go.dev, or write dev@example.com."
+	require.Equal(t, "Install from https://go.dev", d.title)
+	require.Equal(t, text, d.description)
+	require.Equal(t, "Install from https://go.dev "+text, d.search[0].Text)
+}
+
 // TestSearchEntries tests that a page yields 1 search entry for the text above
 // its first section and 1 for each heading down to its depth, without code.
 func TestSearchEntries(t *testing.T) {
