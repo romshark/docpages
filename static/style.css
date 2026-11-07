@@ -6,8 +6,7 @@
   padding: 0;
 }
 
-/* Every color is a light-dark() pair, which the color scheme picks from.
-   The scheme follows the system unless the theme switch sets data-theme. */
+/* light-dark() pairs follow the system scheme unless the theme switch sets data-theme. */
 :root {
   color-scheme: light dark;
   --bg: light-dark(#ffffff, #0d1117);
@@ -19,8 +18,7 @@
   --accent: light-dark(#0969da, #58a6ff);
   --accent-hover: light-dark(#0550ae, #79c0ff);
   --green: light-dark(#1a7f37, #3fb950);
-  /* The theme tokens of Morpheus, from which the sidebar and the button of
-     the docs pages take their colors. */
+  /* Morpheus theme tokens color the docs sidebar and button. */
   --page-bg: var(--bg);
   --page-fg: var(--text);
   --muted: var(--text-muted);
@@ -56,10 +54,9 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
 
-  /* The column keeps the footer at the viewport bottom on a page whose
-     content is shorter than the screen. Every section states its own
-     inline-size: the auto inline margins that center them are auto
-     cross-axis margins here, which cancel the flex stretch. */
+  /* Keep the footer at the viewport bottom on short pages. Each section sets
+     its inline size; its centering margins become cross-axis auto margins here,
+     canceling flex stretch. */
   display: flex;
   flex-direction: column;
   min-block-size: 100dvh;
@@ -74,17 +71,15 @@ a {
   }
 }
 
-/* An icon of the pages fills its <neo-icon>, which is as large as the text
-   unless a rule sizes it. The server puts the SVG in the element, and it
-   stays there until the script of Morpheus moves it into the shadow root. */
+/* Page icons fill <neo-icon>, which defaults to text size. The server places
+   the SVG there until Morpheus moves it into the shadow root. */
 neo-icon > svg {
   display: block;
   inline-size: 100%;
   block-size: 100%;
 }
 
-/* A link with an icon before its text.
-   The icon takes the color and the size of the text. */
+/* A link whose leading icon inherits the text color and size. */
 .icon-link {
   display: flex;
   flex-direction: row;
@@ -101,14 +96,13 @@ neo-icon > svg {
 
 /* ── Header ──────────────────────────────────────── */
 
-/* The sticky header of a docs page computes its offset from --header-pad,
-   --logo-size and --header-row-gap. */
+/* The sticky docs header derives its offset from --header-pad, --logo-size,
+   and --header-row-gap. */
 .site-header {
   --header-pad: 1.25rem;
   --logo-size: 3rem;
   --header-row-gap: 1rem;
-  /* The height of the controls of the header: the version menu, the search
-     button, the theme switch and menu, and the Menu button. */
+  /* Shared height for version, search, theme, and Menu controls. */
   --control-height: 2rem;
   display: flex;
   flex-wrap: wrap;
@@ -131,8 +125,7 @@ neo-icon > svg {
     display: inline-flex;
     color: var(--text);
 
-    /* The mark carries the wordmark, so it scales with the header text size
-       instead of a fixed pixel height. */
+    /* The mark includes the wordmark, so scale it with header text, not pixels. */
     .logo-svg {
       block-size: var(--logo-size);
       inline-size: auto;
@@ -163,7 +156,7 @@ neo-icon > svg {
     }
   }
 
-  /* The Menu button of a docs page opens the navigation while it is an overlay. */
+  /* The docs Menu button opens navigation only in overlay mode. */
   .menu-button {
     block-size: var(--control-height);
     margin-inline-end: auto;
@@ -190,17 +183,16 @@ neo-icon > svg {
       font-size: 0.85rem;
     }
 
-    /* The navigation of a docs page links the docs, the examples and the FAQ too. */
+    /* Docs navigation also links the docs, examples, and FAQ. */
     .docs-page & .header-link {
       display: none;
     }
   }
 
-  /* Morpheus makes the navigation of a docs page an overlay while the content
-     box of .docs is at most 56.25rem wide, which is a viewport of at most
-     59.25rem with the 1.5rem padding of .docs. The header then takes 2 rows. */
+  /* Morpheus overlays docs navigation when .docs is at most 56.25rem wide:
+     a 59.25rem viewport with its 1.5rem side padding. The header then uses two rows. */
   @media (width <= 59.25rem) {
-    /* The logo and the version menu take the first row, the menu at its end. */
+    /* Logo and version use the first row, ending with the menu. */
     .brand {
       flex-basis: 100%;
 
@@ -209,15 +201,13 @@ neo-icon > svg {
       }
     }
 
-    /* The links take the second row. The theme select replaces the theme
-       switch at this width. */
+    /* Links use row two; the theme select replaces the switch. */
     nav {
       flex-basis: 100%;
     }
 
-    /* On a docs page the links take the second row after the Menu button.
-       The header sticks with the first row above the viewport, which keeps the
-       second row in view. */
+    /* On docs pages, row two follows Menu. The header sticks with row one above
+       the viewport, leaving row two visible. */
     .docs-page & {
       position: sticky;
       inset-block-start: calc(
@@ -227,9 +217,8 @@ neo-icon > svg {
       padding-block-end: 0.5rem;
       background: var(--bg);
 
-      /* With the gap of 1.5rem the search button has no room for its label
-         below a 666px wide viewport, measured in Chrome on macOS.
-         The row height is part of --header-stuck. */
+      /* At a 1.5rem gap, the search label has no room below 666px in Chrome on macOS.
+         The row height contributes to --header-stuck. */
       nav {
         justify-content: flex-end;
         gap: 1rem;
@@ -238,11 +227,9 @@ neo-icon > svg {
     }
   }
 
-  /* Above 59.25rem the header takes 1 row. On a docs page the row needs a
-     viewport of 956px with main and of 986px with an 8 character version,
-     such as v0.12.10, measured in Chrome on macOS. Up to 64rem the gaps of
-     the navigation are those of 2 rows, and the search button drops its
-     shortcut hint as it does there. */
+  /* Above 59.25rem the header uses one row. In Chrome on macOS, docs need
+     956px for main or 986px for an eight-character version such as v0.12.10.
+     Through 64rem, use two-row gaps and hide the search shortcut as there. */
   @media (59.25rem < width <= 64rem) {
     .docs-page & {
       nav {
@@ -265,8 +252,7 @@ neo-icon > svg {
 
 /* ── Skip link ───────────────────────────────────── */
 
-/* The first link of every page. It stays above the viewport until the first
-   Tab gives it the focus. */
+/* Each page's first link stays above the viewport until Tab focuses it. */
 .skip-link {
   position: absolute;
   inset-block-start: 0.5rem;
@@ -285,8 +271,8 @@ neo-icon > svg {
   }
 }
 
-/* The skip link focuses <main> so that the next Tab continues in the content.
-   A focus ring around the whole column would mark nothing the reader can use. */
+/* The skip link focuses <main>, so the next Tab continues in content.
+   Hide a whole-column focus ring because it marks nothing usable. */
 #main-content:focus {
   outline: none;
 }
@@ -302,7 +288,7 @@ neo-icon > svg {
   border: 1px solid var(--border);
   border-radius: 999px;
 
-  /* Round, and as high as the switch inside its border and padding. */
+  /* Round and as tall as the switch inside its border and padding. */
   button {
     --size: calc(var(--control-height) - 2px - 2 * var(--switch-pad));
     display: grid;
@@ -337,11 +323,10 @@ neo-icon > svg {
   }
 }
 
-/* The theme switch of a docs page on a narrow screen. .site-header outranks
-   the display of <neo-select> in Morpheus. */
+/* Narrow-screen docs theme switch. .site-header outranks Morpheus's
+   <neo-select> display. */
 .site-header .theme-select {
-  /* Morpheus sizes the trigger of an icon to its content, which the padding
-     brings to the height of the other controls. */
+  /* Padding raises Morpheus's content-sized icon trigger to the other controls' height. */
   --neo-button-padding: calc((var(--control-height) - 2px - 1rem) / 2) 0.625rem;
 
   neo-icon {
@@ -356,9 +341,8 @@ neo-icon > svg {
 
 /* ── Version menu ────────────────────────────────── */
 
-/* The version menu and the theme switch of a docs page, as wide as what they
-   show. The button, popover and option colors of Morpheus have no dark
-   variant. */
+/* Size the docs version and theme controls to their content. Override Morpheus
+   button, popover, and option colors, which lack dark variants. */
 .version-select,
 .theme-select {
   --neo-select-min-width: 0;
@@ -382,8 +366,7 @@ neo-icon > svg {
   font-size: 0.75rem;
 }
 
-/* The note above the pages of a version that sets one, in the colors of a
-   warning callout. */
+/* A version note above its pages, using warning-callout colors. */
 .version-note {
   --note: light-dark(#9a6700, #d29922);
   margin-block: 0 1rem;
@@ -396,25 +379,23 @@ neo-icon > svg {
 
 /* ── Docs ────────────────────────────────────────── */
 
-/* The header reads the same width as the columns, which aligns their edges.
-   The width is 15rem of navigation, 48rem of text and 13rem of contents with
-   3rem of gap between them, inside 1.5rem of padding. */
+/* Match the header to the columns: 15rem navigation, 48rem text, 13rem
+   contents, 3rem gaps, and 1.5rem side padding. */
 .docs-page {
   --max-w: 85rem;
 }
 
-/* A smooth scroll to a heading of the specification, from its contents or from
-   a link in the guide, takes about 2s for the 9000px it can cover. */
+/* Disable smooth scrolling here: a specification heading jump can span
+   9,000px and take about 2s. */
 html:has(.docs-page) {
   scroll-behavior: auto;
-  /* The part of the sticky header in view: the 2.25rem row of its navigation
-     with 0.5rem above and below. */
+  /* Visible sticky header: a 2.25rem navigation row plus 0.5rem above and below. */
   --header-stuck: 3.25rem;
   /* The height of the summary of .toc-inline. */
   --toc-summary: 2.25rem;
 
-  /* Keeps a heading that a link scrolls to below the sticky header and the
-     contents bar of .toc-inline with its 0.5rem below. */
+  /* Keep linked headings below the sticky header, inline contents bar, and
+     its 0.5rem lower gap. */
   @media (width <= 59.25rem) {
     scroll-padding-block-start: var(--header-stuck);
 
@@ -425,7 +406,7 @@ html:has(.docs-page) {
     }
   }
 
-  /* The header does not stick and the bar has 0.5rem above too. */
+  /* The header is not sticky; the bar also has 0.5rem above. */
   @media (59.25rem < width < 75rem) {
     &:has(.toc-inline) {
       scroll-padding-block-start: calc(var(--toc-summary) + 1rem);
@@ -440,7 +421,7 @@ html:has(.docs-page) {
   max-width: var(--max-w);
   margin-inline: auto;
   padding-inline: 1.5rem;
-  /* The navigation takes its padding from how far .docs is in view. */
+  /* Navigation padding follows how far .docs has entered view. */
   view-timeline: --docs block;
 
   @media (width <= 900px) {
@@ -449,8 +430,7 @@ html:has(.docs-page) {
   }
 }
 
-/* <neo-sidebar> of Morpheus. Above its 56.25rem breakpoint it is a column,
-   which sticks in view while the text scrolls, and below an overlay. */
+/* Morpheus <neo-sidebar> is a sticky column above 56.25rem and an overlay below. */
 .docs-nav {
   --neo-sidebar-width: 15rem;
   font-size: 0.875rem;
@@ -465,12 +445,10 @@ html:has(.docs-page) {
     > [data-neo-sidebar-content] {
       padding-inline: 0;
 
-      /* At the top of the page the header pushes the end of the column below
-         the viewport. Morpheus sets overscroll-behavior to contain, which
-         keeps a scroll of the navigation from scrolling the page. The padding
-         grows by the part below the viewport, which keeps the last link
-         within reach of the navigation alone. Without scroll-driven
-         animations the scroll passes on to the page instead. */
+      /* At page top, the header pushes the column past the viewport.
+         Morpheus contains navigation scrolling, so padding grows by the hidden part
+         to keep the last link reachable. Without scroll-driven animation,
+         let scrolling pass to the page instead. */
       @supports (animation-timeline: view()) {
         animation: docs-nav-enter linear;
         animation-timeline: --docs;
@@ -483,8 +461,7 @@ html:has(.docs-page) {
   }
 }
 
-/* While .docs enters the viewport, the end of the column below the viewport
-   shrinks from 100dvh to 0. */
+/* As .docs enters view, shrink the column's hidden end from 100dvh to 0. */
 @keyframes docs-nav-enter {
   from {
     padding-block-end: calc(var(--neo-sidebar-padding) + 100dvh);
@@ -540,8 +517,8 @@ html:has(.docs-page) {
   }
 }
 
-/* The column has no maximum width. Beside the navigation and the contents it is
-   at most 48rem wide, and without them a maximum would leave empty space after it. */
+/* The column reaches at most 48rem beside navigation and contents.
+   Without them, a maximum would leave trailing empty space. */
 .docs-column {
   display: flex;
   flex: 1;
@@ -557,8 +534,7 @@ html:has(.docs-page) {
   }
 }
 
-/* The contents of the page. A column on a screen wide enough for 3 columns,
-   above the text otherwise. */
+/* Page contents: a third column on wide screens, above the text otherwise. */
 .docs-toc {
   flex: 0 0 13rem;
   position: sticky;
@@ -579,12 +555,10 @@ html:has(.docs-page) {
   font-weight: 600;
 }
 
-/* The contents of the page while the screen is too narrow for their column.
-   A bar that sticks below the header, or at the top while the header doesn't
-   stick, and opens the list over the text. The bar covers the text that
-   scrolls below it, with 0.5rem above and below its summary.
-   docs.js limits the list to the viewport and sets data-stuck while the bar
-   sticks. */
+/* On screens too narrow for a contents column, use a bar that sticks below the
+   header, or at the top when the header does not stick, and opens over text.
+   It covers text beneath it with 0.5rem around its summary. docs.js keeps the
+   list in the viewport and sets data-stuck while the bar sticks. */
 .toc-inline {
   display: none;
   position: sticky;
@@ -634,8 +608,7 @@ html:has(.docs-page) {
     rotate: 180deg;
   }
 
-  /* A shadow, because a border would move the text below the bar by 1px
-     when the bar sticks. */
+  /* A shadow avoids moving text down 1px when the bar sticks. */
   &[data-stuck] {
     box-shadow: 0 1px 0 var(--border);
   }
@@ -665,8 +638,8 @@ html:has(.docs-page) {
 .toc {
   list-style: none;
 
-  /* Headings of the specification name types such as
-     datapages.Dispatcher[EventXXX], which are wider than the column. */
+  /* Specification headings may name types wider than the column,
+     such as datapages.Dispatcher[EventXXX]. */
   a {
     display: block;
     overflow-wrap: anywhere;
@@ -792,9 +765,8 @@ html:has(.docs-page) {
     font-size: 0.75rem;
   }
 
-  /* In the row of the header while the navigation is an overlay, the button
-     takes the width that the other items leave. A label without room for it
-     ends in an ellipsis instead of wrapping the row. */
+  /* With overlay navigation, fill the header row's remaining width and
+     ellipsize the label instead of wrapping. */
   @media (width <= 59.25rem) {
     flex: 1;
     min-inline-size: 0;
@@ -811,10 +783,8 @@ html:has(.docs-page) {
   }
 }
 
-/* --search-top and --search-height are the top and the height of the visual
-   viewport, the part of the viewport that a screen keyboard leaves visible,
-   which docs.js sets while the dialog is open. The dialog keeps a tenth of
-   that height above it. */
+/* docs.js sets --search-top and --search-height to the visual viewport left by
+   an on-screen keyboard while open. Keep one tenth of that height above the dialog. */
 neo-dialog.search dialog {
   inline-size: min(40rem, calc(100vw - 2rem));
   max-inline-size: none;
@@ -827,8 +797,7 @@ neo-dialog.search dialog {
   overflow: hidden;
 }
 
-/* The icon lies over the padding of the input and lets clicks through, which
-   keeps a click on it from taking the focus from the input. */
+/* The icon overlays input padding and passes clicks through, preserving input focus. */
 .search-box {
   position: relative;
 
@@ -856,23 +825,21 @@ neo-dialog.search dialog {
   font: inherit;
   font-size: 1rem;
 
-  /* The focus outline of Morpheus for a text input outranks .search-input.
-     It lies 2px outside the input, where the dialog clips all but its lower edge. */
+  /* Morpheus's text-input outline outranks .search-input and extends 2px
+     outside it, where the dialog clips all but the lower edge. */
   &:focus-visible {
     outline: none;
   }
 }
 
-/* <neo-elastic> of Morpheus around the list and the lines above and below
-   it, which animates the height of the dialog. Clipped rather than hidden,
-   which no scroll can move, as that of a result into view while the height
-   grows. */
+/* Morpheus <neo-elastic> wraps the list and adjacent lines to animate dialog
+   height. Clip rather than hide so scrolling a result into view cannot move it
+   while the height grows. */
 .search-body {
   overflow: clip;
 }
 
-/* --search-room is the height that the visual viewport leaves the list, which
-   ends above a screen keyboard, as docs.js measures it. */
+/* --search-room is docs.js's measured list height above an on-screen keyboard. */
 .search-results {
   max-block-size: min(26rem, 60dvh, var(--search-room, 100dvh));
   overflow-y: auto;
@@ -968,8 +935,8 @@ neo-dialog.search dialog {
   min-inline-size: 0;
   padding-block: 1rem;
   line-height: 1.7;
-  /* Identifiers in inline code, such as
-     datapages.ResponseCompressionLowBandwidth(), are wider than a phone. */
+  /* Inline identifiers such as datapages.ResponseCompressionLowBandwidth()
+     may exceed a phone's width. */
   overflow-wrap: break-word;
 
   h1 {
@@ -979,8 +946,7 @@ neo-dialog.search dialog {
     letter-spacing: -0.02em;
     margin-block-end: 1rem;
 
-    /* Each part of the page, such as the specification,
-       starts with a level 1 heading. */
+    /* Each page part, such as the specification, starts at level 1. */
     &:not(:first-child) {
       margin-block-start: 4rem;
       padding-block-start: 2.5rem;
@@ -1059,8 +1025,8 @@ neo-dialog.search dialog {
     padding: 0.1em 0.35em;
   }
 
-  /* The font size is set on pre and not only on its code. A line of pre is at
-     least the line height of pre tall, 24px at the inherited 16px. */
+  /* Set font size on pre too; its line is at least its own line height,
+     24px at the inherited 16px. */
   pre {
     font-family: var(--font-mono);
     font-size: 0.85rem;
@@ -1079,8 +1045,8 @@ neo-dialog.search dialog {
       padding: 0;
     }
 
-    /* The token classes that Chroma writes, in the syntax colors of the light and
-       dark themes of GitHub. Other tokens keep the text color. */
+    /* Chroma token classes use GitHub's light and dark syntax colors.
+       Other tokens keep the text color. */
     .k,
     .kd,
     .kn,
@@ -1139,7 +1105,7 @@ neo-dialog.search dialog {
     }
   }
 
-  /* A table wider than the column scrolls instead of widening the page. */
+  /* Wide tables scroll instead of widening the page. */
   table {
     display: block;
     inline-size: max-content;
@@ -1160,12 +1126,12 @@ neo-dialog.search dialog {
     font-weight: 600;
   }
 
-  /* A nested list follows its item without the space below a list. */
+  /* A nested list follows its item without normal trailing list space. */
   li > :is(ul, ol) {
     margin-block: 0.25rem 0;
   }
 
-  /* A task, as "- [x]", shows its box in place of the bullet, as on GitHub. */
+  /* Tasks such as "- [x]" replace the bullet with a box, as on GitHub. */
   li:has(> input[type="checkbox"]:first-child) {
     list-style: none;
 
@@ -1193,22 +1159,20 @@ neo-dialog.search dialog {
   }
 }
 
-/* An image or a video is at most as wide as the column, as high as its
-   proportions make it. A screenshot taken at 2x would be twice as wide. */
+/* Limit images and videos to column width while preserving proportions;
+   a 2x screenshot would otherwise render twice as wide. */
 .docs-content :is(img, video) {
   max-inline-size: 100%;
   block-size: auto;
 }
 
-/* An image or a video of raw HTML between paragraphs, which no paragraph
-   holds, keeps the space of one below it. */
+/* Raw-HTML media between paragraphs keeps paragraph spacing below it. */
 .docs-content > :is(img, picture, video, audio) {
   display: block;
   margin-block-end: 1rem;
 }
 
-/* A Mermaid diagram, which docs.js draws as an SVG in place of its source.
-   Without the script the source shows as text. */
+/* docs.js replaces Mermaid source with an SVG; without it, the source stays visible. */
 .docs-content pre.mermaid {
   padding: 0;
   border: 0;
@@ -1216,8 +1180,8 @@ neo-dialog.search dialog {
   text-align: center;
 }
 
-/* A code block with its title above it and its copy button in its top right
-   corner, or in its title if it has one. */
+/* A code block with an optional title above and copy button at top right,
+   or inside that title. */
 .docs-content .code-block {
   position: relative;
   margin-block-end: 1rem;
@@ -1244,9 +1208,8 @@ neo-dialog.search dialog {
   }
 }
 
-/* The host of the button is placed and not the button, which would leave the
-   host as an empty line below the block. As a flex container the host is as
-   high as the button, without the line height of the text around it. */
+/* Position the button host; positioning the button would leave an empty host
+   line below. Flex keeps the host button-height without surrounding line height. */
 .docs-content .code-block neo-clipcopy {
   position: absolute;
   inset-block-start: 0.4rem;
@@ -1259,8 +1222,7 @@ neo-dialog.search dialog {
   translate: 0 -50%;
 }
 
-/* The button shows while the pointer is over its block, and always on a
-   screen without hover. */
+/* Show the button on block hover, or always on screens without hover. */
 .docs-content .copy-button {
   padding: 0.15rem 0.5rem;
   border: 1px solid var(--border);
@@ -1294,7 +1256,7 @@ neo-dialog.search dialog {
   color: var(--text-muted);
 }
 
-/* GitHub alerts, as in "> [!NOTE]", in the colors that GitHub gives them. */
+/* GitHub alerts such as "> [!NOTE]", using GitHub's colors. */
 .docs-content .callout {
   --callout: var(--accent);
   margin-block-end: 1rem;
@@ -1330,9 +1292,8 @@ neo-dialog.search dialog {
   color: var(--callout);
 }
 
-/* A <details> of a page: a card whose summary shows and hides its text. The
-   chevron points at the summary while the text is hidden and turns down as it
-   shows, and back as it starts to hide, before the <details> closes. */
+/* Page <details> card whose summary toggles text. Its chevron points inward
+   while closed, down while open, and back as hiding starts before close. */
 .docs-content .details {
   margin-block-end: 1rem;
   border: 1px solid var(--border);
@@ -1366,7 +1327,7 @@ neo-dialog.search dialog {
     }
   }
 
-  /* none and not 0deg, which a minifier writes as 0, no angle for rotate. */
+  /* Use none, not 0deg, which minifies to angle-less 0 for rotate. */
   &[open]:not(:has(> .details-body[open="false"])) > summary neo-icon {
     rotate: none;
   }
@@ -1376,12 +1337,11 @@ neo-dialog.search dialog {
   min-inline-size: 0;
 }
 
-/* <neo-elastic> of Morpheus around the text, which animates its height. The
-   wrapper that Morpheus puts in it holds the padding, which it measures: the
-   padding of <neo-elastic> would stay while its height shrinks to 0. */
+/* Morpheus <neo-elastic> animates text height. Put measured padding on its
+   wrapper; padding on <neo-elastic> would remain at zero height. */
 .docs-content .details-body {
-  /* Morpheus keeps the height of an open="false" at 0 until its script runs,
-     which a page without the script would never show. */
+  /* Before its script runs, override Morpheus's zero height for open="false";
+     otherwise a script-free page never shows it. */
   &:not(:defined) {
     height: auto;
   }
@@ -1396,7 +1356,7 @@ neo-dialog.search dialog {
   }
 }
 
-/* The link of a heading to itself, which shows while the pointer is over the heading. */
+/* A heading's self-link, shown on heading hover. */
 .docs-content .heading-link {
   margin-inline-start: 0.4rem;
   color: var(--text-muted);
@@ -1444,9 +1404,8 @@ neo-dialog.search dialog {
 
 /* ── Print ───────────────────────────────────────── */
 
-/* A printed page holds only its text, in the light theme, which suits paper
-   whatever theme the screen shows. Code blocks and tables wrap instead of
-   scrolling, which paper can't. */
+/* Print only page text in the paper-friendly light theme.
+   Wrap code and tables instead of using unavailable scrolling. */
 @media print {
   :root,
   :root[data-theme] {

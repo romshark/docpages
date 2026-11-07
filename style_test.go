@@ -7,14 +7,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testStyle is a style.css with a comment, spaces between its tokens and a
-// nested rule, which a minified copy leaves out and keeps.
+// testStyle has a comment, token spacing, and a nested rule; minification drops
+// the first two and keeps the last.
 const testStyle = "/* The colors. */\n:root {\n  --bg: light-dark(#ffffff, #000000);\n\n" +
 	"  .docs-page & {\n    color: red;\n  }\n}\n"
 
-// TestStyleMinified tests that the site holds the style.css of the docs
-// directory minified, without its comment and spaces, and that [Handler],
-// which reads with served, serves it as written.
+// TestStyleMinified checks that sites minify docs style.css comments and spaces,
+// while [Handler]'s served mode keeps it unchanged.
 func TestStyleMinified(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/style.css"] = &fstest.MapFile{Data: []byte(testStyle)}
@@ -33,8 +32,7 @@ func TestStyleMinified(t *testing.T) {
 	require.Equal(t, testStyle, string(files["main/style.css"]))
 }
 
-// TestStyleChecked tests that a mistake in the style.css of the docs directory
-// fails the read, whether [Handler] serves the site or not.
+// TestStyleChecked checks that invalid docs style.css fails in static and served modes.
 func TestStyleChecked(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/style.css"] = &fstest.MapFile{Data: []byte("a {\n  colr: red;\n}\n")}

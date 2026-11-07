@@ -2,14 +2,12 @@ package docpages
 
 import "github.com/romshark/morpheus/neo"
 
-// themeScript applies the theme chosen with [themeSwitch] or [themeSelect] and
-// marks the choice in both. It runs in <head>, which sets the theme before the
-// first paint. Without a choice the stylesheet follows the system theme.
+// themeScript applies the [themeSwitch] or [themeSelect] choice and marks it in both.
+// Running in <head> sets it before first paint; no choice follows the system.
 //
-// A <picture> picks its <source> by prefers-color-scheme, which follows the
-// system and not the choice. The media of each such source states the chosen
-// theme instead, as a condition that always or never holds, and its own
-// media again without a choice.
+// <picture> selects <source> by system prefers-color-scheme, not this choice.
+// Each source's media instead states the chosen theme as an always/never
+// condition, or returns to its original media when no choice exists.
 templ themeScript() {
 	<script>
 		(() => {
@@ -46,7 +44,7 @@ templ themeScript() {
 				for (const b of document.querySelectorAll("[data-theme-choice]")) {
 					b.setAttribute("aria-pressed", String(b.dataset.themeChoice === current));
 				}
-				// The attribute, because the select may not be upgraded yet.
+				// Use the attribute because the select may not be upgraded yet.
 				for (const select of document.querySelectorAll("neo-select.theme-select")) {
 					select.setAttribute("value", current);
 				}
@@ -65,8 +63,8 @@ templ themeScript() {
 				apply(choice);
 			};
 			apply(stored());
-			// With a choice, each source that the parser adds takes it at once,
-			// which keeps the image of the system theme from loading first.
+			// Apply choices to parser-added sources immediately so the system-theme
+			// image does not load first.
 			const parsing = new MutationObserver((records) => {
 				for (const r of records) {
 					for (const n of r.addedNodes) {
@@ -101,20 +99,37 @@ templ themeScript() {
 // themeSwitch lets the visitor choose the system, the light or the dark theme.
 templ themeSwitch() {
 	<div class="theme-switch" role="group" aria-label="Theme">
-		<button type="button" data-theme-choice="system" aria-pressed="true" aria-label="System theme" title="System theme">
+		<button
+			type="button"
+			data-theme-choice="system"
+			aria-pressed="true"
+			aria-label="System theme"
+			title="System theme"
+		>
 			@icon("monitor")
 		</button>
-		<button type="button" data-theme-choice="light" aria-pressed="false" aria-label="Light theme" title="Light theme">
+		<button
+			type="button"
+			data-theme-choice="light"
+			aria-pressed="false"
+			aria-label="Light theme"
+			title="Light theme"
+		>
 			@icon("sun")
 		</button>
-		<button type="button" data-theme-choice="dark" aria-pressed="false" aria-label="Dark theme" title="Dark theme">
+		<button
+			type="button"
+			data-theme-choice="dark"
+			aria-pressed="false"
+			aria-label="Dark theme"
+			title="Dark theme"
+		>
 			@icon("moon")
 		</button>
 	</div>
 }
 
-// themeSelect is the theme switch of a documentation page on a narrow screen.
-// Its trigger shows the icon of the chosen theme.
+// themeSelect is the narrow-screen docs theme switch; its trigger shows the choice icon.
 templ themeSelect() {
 	@neo.SelectAttrs(neo.SelectOpts{
 		Value:             neo.Set("system"),
@@ -136,8 +151,8 @@ templ themeSelect() {
 	}
 }
 
-// themeOption is the option of [themeSelect] for the theme choice. It shows the
-// children, an icon, before the label, and only the icon on the trigger.
+// themeOption is a [themeSelect] choice. children is an icon shown before the
+// label and alone in the trigger.
 templ themeOption(choice, label string) {
 	@neo.Option(neo.OptionOpts{Value: neo.Set(choice), Label: neo.Set(label)}) {
 		@neo.OptionTrigger() {

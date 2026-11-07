@@ -1,6 +1,5 @@
-/* A technical look: monospace headings written as Markdown, square corners
-   and a violet accent. The tokens keep the light-dark() pairs of docpages,
-   so the theme switch still works. */
+/* Technical style: Markdown-like monospace headings, square corners,
+   and a violet accent. light-dark() pairs keep theme switching. */
 :root {
   --bg: light-dark(#ffffff, #0b0b10);
   --bg-card: light-dark(#f5f4fa, #15141d);

@@ -17,32 +17,29 @@ import (
 	"github.com/yuin/goldmark/v2/text"
 )
 
-// page is an entry of the navigation of the site: a page that shows a
-// Markdown file of the repository or, with url set, a link that leaves the site.
-// The pages of a version are under <version>/ of the output directory, which is
-// the root that their paths and links are relative to.
+// page is a navigation entry: a repository Markdown file or, when url is set,
+// an external link. A version's pages, paths, and links are rooted at
+// <version>/ in the output directory.
 type page struct {
-	// file is the path from the repository root of the Markdown file that the
-	// page shows, which its links are relative to.
+	// file is the repository-relative Markdown path that the page shows and its
+	// links use as their base.
 	file string
-	// stub is the path from the repository root of the file of the docs
-	// directory whose front matter makes file the source of the page.
-	// Empty for a page that shows its own file.
+	// stub is the repository-relative docs file whose front matter names file as
+	// the source. Empty when the page shows its own file.
 	stub  string
 	path  string // URL path from the root of the version. Empty for its first page.
 	url   string // Destination of a link that leaves the site.
 	title string // Title in the navigation and in <title>.
 	group int    // Index of the group of the navigation that lists the entry.
-	// suggested marks a page that the search offers while its field is empty.
+	// suggested makes search offer the page while its field is empty.
 	suggested bool
 }
 
 // external reports whether p is a link that leaves the site.
 func (p page) external() bool { return p.url != "" }
 
-// outFile returns the path of the file that holds p, relative to the root of
-// the version. GitHub Pages serves a path without "/" at the end from the file
-// with ".html" appended.
+// outFile returns p's path relative to the version root. GitHub Pages serves a
+// path without a trailing "/" from the corresponding ".html" file.
 func (p page) outFile() string {
 	if p.path == "" || strings.HasSuffix(p.path, "/") {
 		return p.path + "index.html"
@@ -50,22 +47,20 @@ func (p page) outFile() string {
 	return p.path + ".html"
 }
 
-// markdownFile returns the path of the Markdown copy of p,
-// relative to the root of the version.
+// markdownFile returns p's Markdown-copy path relative to the version root.
 func (p page) markdownFile() string {
 	return strings.TrimSuffix(p.outFile(), ".html") + ".md"
 }
 
-// markdownURL returns the URL of the Markdown copy of p, relative to the root
-// of the version, which a link of a Markdown copy or of llms.txt leads to.
-// It's [page.markdownFile] escaped, because a Markdown link ends at a space.
+// markdownURL returns p's Markdown-copy URL relative to the version root,
+// for links from other copies or llms.txt.
+// It escapes [page.markdownFile] because a space ends a Markdown link.
 func (p page) markdownURL() string {
 	return (&url.URL{Path: p.markdownFile()}).EscapedPath()
 }
 
-// urlPath returns the URL path of p, relative to the root of the version.
-// It is what a link of a page leads to, as [page.markdownURL] is what a link
-// of a Markdown copy leads to.
+// urlPath returns p's URL relative to the version root. Page links use it;
+// Markdown-copy links use [page.markdownURL].
 func (p page) urlPath() string { return p.path }
 
 // base returns the URL of the root of the version relative to p.
@@ -76,8 +71,8 @@ func (p page) base() string {
 	return "./"
 }
 
-// shows reports whether p shows file, its own or that of its source.
-// A directory leads to the page of its README.md, which GitHub shows for it.
+// shows reports whether p shows file, directly or as its source.
+// A directory resolves to its README.md, as on GitHub.
 func (p page) shows(file string) bool {
 	if p.external() {
 		return false
@@ -90,10 +85,9 @@ func (p page) shows(file string) bool {
 // maxTOCDepth is the deepest heading level that the contents of a page list.
 const maxTOCDepth = 4
 
-// tocDepth returns the deepest heading level that the contents of a page with
-// sections list: the deepest level up to [maxTOCDepth] at which no 2 headings
-// below level 2 share their text. Repeated headings, such as Flags and
-// Examples under each command of a reference, would repeat in the contents.
+// tocDepth returns the deepest contents level, up to [maxTOCDepth], before two
+// headings below level 2 repeat. This avoids repeated entries such as Flags or
+// Examples under each command in a reference.
 func tocDepth(sections []section) int {
 	depth := 2
 	for level := 3; level <= maxTOCDepth; level++ {
@@ -120,9 +114,8 @@ type doc struct {
 	sections    []section // Every heading, in the order of the page.
 	depth       int       // The deepest heading level that the contents list.
 	body        string
-	// markdown is the Markdown copy of the page, whose links lead to the
-	// Markdown copies of the other pages. markdownFromRoot links them as seen
-	// from the root of the version, which is where llms-full.txt lives.
+	// markdown is the page copy with links to other Markdown copies.
+	// markdownFromRoot resolves those links from the version root for llms-full.txt.
 	markdown         []byte
 	markdownFromRoot []byte
 	search           []searchEntry
@@ -142,9 +135,9 @@ type tocEntry struct {
 	Level int
 }
 
-// contents returns the contents of d: the level 1 heading that opens it,
-// which stands for the text above the first section, and its headings from
-// level 2 down to its depth. A page without such sections has none.
+// contents returns d's level 1 heading, representing text above the first
+// section, plus headings from level 2 through d.depth. It returns none if the
+// page has no such sections.
 func contents(d doc) []tocEntry {
 	var toc []tocEntry
 	for _, s := range d.sections {
@@ -164,8 +157,7 @@ func contents(d doc) []tocEntry {
 // suggestion is a page that the search offers while its field is empty.
 type suggestion struct {
 	Group, Title string
-	// Href is relative to the page that shows the search, or the URL of a link
-	// that leaves the site.
+	// Href is relative to the searching page, or an external URL.
 	Href string
 }
 
@@ -193,8 +185,7 @@ type navGroup struct {
 	Entries []navEntry
 }
 
-// navEntry is a link of the navigation or a previous or next link.
-// The zero navEntry is no link.
+// navEntry is a navigation, previous, or next link. Its zero value is no link.
 type navEntry struct {
 	Title    string
 	Href     string
@@ -250,8 +241,8 @@ type headerEntry struct {
 	Title string
 	Href  string
 	Icon  string // SVG markup, empty without an icon.
-	// Current is whether the link leads to the page that shows it, or to the
-	// first page while no other link of the header does.
+	// Current means the link reaches this page, or reaches the first page when
+	// no other header link reaches this page.
 	Current bool
 }
 
@@ -272,8 +263,7 @@ type docView struct {
 	edition    *edition
 	indexed    bool          // Whether search engines may index the page.
 	versions   []versionLink // The versions that the header offers.
-	// note is the HTML of the note of the edition, with its links as seen from
-	// the page. Empty without a note, which leaves the page without one.
+	// note is the edition-note HTML with page-relative links. Empty means no note.
 	note      string
 	suggested []suggestion
 	header    []headerEntry // The links of the header before the repository.
@@ -295,8 +285,8 @@ func (v docView) home() string {
 	}
 }
 
-// sourceURL returns the URL of the file of the page of v in the repository,
-// on main, which holds the files of every edition.
+// sourceURL returns the page file's repository URL on main,
+// which holds every edition's files.
 func (v docView) sourceURL() string {
 	return v.chrome.host.url(MainVersion, v.doc.page.file, false)
 }
@@ -307,28 +297,25 @@ func isAbsURL(u string) bool {
 	return err == nil && (p.Scheme != "" || p.Host != "")
 }
 
-// convertDocs converts srcs, the Markdown files of pages, to HTML with GitHub
-// Flavored Markdown and an ID on every heading. srcs[i] is the file of
-// pages[i] and nil for a link that leaves the site. s gives the Git ref and the
-// host of the links to the repository. A page without a title takes the text
-// of its level 1 heading.
+// convertDocs converts page Markdown in srcs to GitHub Flavored HTML with a heading ID
+// on every heading. srcs[i] belongs to pages[i] and is nil for an external link.
+// s supplies the repository-link Git ref and host.
+// A page with no title uses its level 1 heading.
 //
-// A link is relative to the file that contains it, as on GitHub. A link to the
-// file of a page leads to that page. A link to another file of the repository
-// is rewritten to the file at the Git ref in the repository. The site contains
-// none of these files.
+// Links resolve from their files, as on GitHub. A page-file link opens that page;
+// any other repository-file link is rewritten to its Git-ref URL because
+// the site does not contain the file.
 //
-// A link to a fragment must name a heading of its page. goldmark derives the ID
-// of a heading with "_" or a non-ASCII letter differently from GitHub, which
-// would leave a link that works on GitHub dead on the site.
+// A fragment must name a page heading. goldmark derives IDs containing "_" or
+// non-ASCII letters differently from GitHub, so an unchecked link could work
+// on GitHub but fail here.
 func convertDocs(pages []page, srcs [][]byte, s *site) ([]doc, error) {
 	p := newParser(parser.WithAutoHeadingID())
 	s.pages = pages
 	s.ids = make([]map[string]bool, len(pages))
 	docs := make([]doc, len(pages))
 	nodes := make([]ast.Node, len(pages))
-	// Links are resolved after all files are parsed because a link can name a
-	// heading of a page that is parsed later.
+	// Resolve links after parsing all files; a link may name a later page's heading.
 	pageRefs := make([]refs, len(pages))
 	for i, src := range srcs {
 		if pages[i].external() {
@@ -386,9 +373,8 @@ func convertDocs(pages []page, srcs [][]byte, s *site) ([]doc, error) {
 		}
 		d := &docs[i]
 		d.page = pages[i]
-		// copyAt returns the Markdown copy of the page read from base, the URL
-		// of the root of the version. The copies are rewritten from the
-		// destinations as written, which the HTML below replaces.
+		// copyAt returns the page's Markdown copy as read from base, the version-root
+		// URL. It rewrites the original destinations, before the HTML edits below.
 		copyAt := func(base string) ([]byte, error) {
 			return pageRefs[i].rewrite(src,
 				func(dest string) (string, error) {
@@ -447,10 +433,9 @@ func convertDocs(pages []page, srcs [][]byte, s *site) ([]doc, error) {
 	return docs, nil
 }
 
-// templateIDs are the element IDs that [docsPage] writes around the converted Markdown.
-// goldmark gives a heading that would take one of them a suffix,
-// as main-content-1 for "Main content", which keeps the skip link
-// and the scripts pointing at the template's elements.
+// templateIDs are IDs that [docsPage] writes around converted Markdown.
+// goldmark suffixes a colliding heading ID, such as main-content-1 for "Main content",
+// so skip links and scripts still target the template elements.
 var templateIDs = []string{
 	"main-content",
 	"docs-nav",
@@ -459,9 +444,8 @@ var templateIDs = []string{
 	"search-results",
 }
 
-// goldmarkIDs generates the IDs of goldmark's default generator.
-// Parse keeps the IDs put into a context only when the context names
-// its own generator, and replaces them with an empty set otherwise.
+// goldmarkIDs uses goldmark's default ID generation. Parse keeps IDs added to a
+// context only when that context names its own generator; otherwise it clears them.
 type goldmarkIDs struct{}
 
 func (goldmarkIDs) Generate(value []byte, kind ast.NodeKind) []byte {
@@ -474,20 +458,16 @@ type site struct {
 	ids   []map[string]bool // The heading IDs of every page.
 	ref   string            // The Git ref of the links to the repository.
 	host  *host             // Where the repository is hosted.
-	// root is the docs directory of a release, which its links do not leave,
-	// and empty for main.
+	// root is a release's docs directory, which its links cannot leave; empty for main.
 	root string
-	// served are the files of the repository that the links lead to, other
-	// than those of the pages, while [Handler] serves them, and nil otherwise.
-	// [Handler] serves them in place of the host, which shows them as Git has
-	// them and not as they are in the working tree.
+	// served holds linked repository files other than pages while [Handler]
+	// serves them, and is nil otherwise. The handler replaces the host, which
+	// would show Git versions rather than working-tree files.
 	served map[string]bool
 	fsys   fs.FS // The repository, which holds the media files.
-	// media are the copies of the media files that the pages show, by the
-	// path of the file from the repository root.
+	// media maps repository-relative media paths to the copies pages show.
 	media map[string]mediaCopy
-	// linked are the files and directories of the repository that the links
-	// lead to, other than those of the pages.
+	// linked holds repository files and directories linked outside the pages.
 	linked map[string]bool
 }
 
@@ -496,17 +476,16 @@ func (s *site) resolveLink(from int, dest string) (string, error) {
 	return s.resolve(from, dest, s.pages[from].base(), page.urlPath)
 }
 
-// resolve returns the URL that the link dest of the file of pages[from] has on
-// the site. base is the URL of the root of the version from where the URL is read,
-// and target returns the URL of a page relative to that root.
+// resolve returns dest's site URL from pages[from]. base is the version-root
+// URL at the read location; target returns a page URL relative to that root.
 func (s *site) resolve(
 	from int, dest, base string, target func(page) string,
 ) (string, error) {
 	return s.resolveOn(from, from, dest, base, target)
 }
 
-// resolveOn is resolve for the link dest of the file of pages[from] that the
-// page with index on shows. A link to the page that shows it is a fragment.
+// resolveOn resolves dest from pages[from] as shown on page on.
+// A self-link is only a fragment.
 func (s *site) resolveOn(
 	on, from int, dest, base string, target func(page) string,
 ) (string, error) {
@@ -544,8 +523,7 @@ func (s *site) resolveOn(
 	return page + "#" + u.Fragment, nil
 }
 
-// target returns the index of the page that the link dest of the file of
-// pages[from] leads to, or -1 for a link that leads to no page.
+// target returns the page index reached by dest from pages[from], or -1.
 func (s *site) target(from int, dest string) int {
 	u, ok := repoLink(dest)
 	if !ok {
@@ -554,9 +532,8 @@ func (s *site) target(from int, dest string) int {
 	return s.pageOf(repoPath(s.pages[from].file, u.Path))
 }
 
-// repoLink returns the link dest parsed, and whether it names a file or a
-// directory of the repository: whether it parses and has a path but neither
-// a scheme nor a host.
+// repoLink parses dest and reports whether it names a repository file or
+// directory: it must have a path but no scheme or host.
 func repoLink(dest string) (*url.URL, bool) {
 	u, err := url.Parse(dest)
 	if err != nil || u.Scheme != "" || u.Host != "" || u.Path == "" {
@@ -570,8 +547,7 @@ func (s *site) pageOf(file string) int {
 	return slices.IndexFunc(s.pages, func(p page) bool { return p.shows(file) })
 }
 
-// repoPath returns the path from the repository root of what the link path p
-// names in the file from.
+// repoPath returns the repository-relative path named by p in file from.
 func repoPath(from, p string) string {
 	if strings.HasPrefix(p, "/") {
 		return path.Clean(p[1:])
@@ -579,12 +555,11 @@ func repoPath(from, p string) string {
 	return path.Join(path.Dir(from), p)
 }
 
-// fileURL returns the URL of file, a path from the repository root,
-// of a directory if dir, with the query and the fragment of the link u: the URL of
-// file at the Git ref in the repository, or, while [Handler] serves the files
-// that the links lead to, the URL of the file it serves, which it adds to served.
-// base is the URL of the root of the version from where the URL is read.
-// It adds file to linked.
+// fileURL returns repository-relative file's URL, treating it as a directory
+// when dir and preserving u's query and fragment. It uses the repository's Git-ref URL,
+// or [Handler]'s URL while the handler serves linked files; then it also adds
+// file to served. base is the version-root URL at the read location.
+// It always adds file to linked.
 func (s *site) fileURL(file string, dir bool, base string, u *url.URL) string {
 	if s.linked == nil {
 		s.linked = make(map[string]bool)
@@ -620,15 +595,14 @@ type edit struct {
 	text string
 }
 
-// newParser returns a parser of GitHub Flavored Markdown with opts. The pages,
-// their notes and the copies of [Snapshot] are all parsed alike, which keeps
-// their links and their raw HTML at the same places.
+// newParser returns a GitHub Flavored Markdown parser with opts. Parsing pages,
+// notes, and [Snapshot] copies alike keeps links and raw HTML in the same places.
 func newParser(opts ...parser.Option) parser.Parser {
 	return parser.New(append(opts, parser.WithExtensions(extension.NewGFMParser()))...)
 }
 
-// refs are the nodes of a Markdown file that name other files: its links,
-// its images and its raw HTML, inline and blocks, whose media elements do.
+// refs are Markdown nodes that name other files: links, images, and inline or
+// block raw HTML containing media elements.
 type refs struct {
 	links  []*ast.Link
 	images []*ast.Image
@@ -659,14 +633,11 @@ func (r *refs) add(n ast.Node) {
 	}
 }
 
-// rewrite returns src, the Markdown that r was parsed from, with the
-// destination of each link replaced by what link returns for it, and that of
-// each image and each URL of the media elements of the raw HTML by what media
-// returns for it.
+// rewrite returns r's source Markdown with each link destination replaced by
+// link's result, and each image destination and raw-HTML media URL by media's.
 //
-// A reference definition that a link and an image share holds 1 destination
-// for both, which takes what media returns: the image needs the media file,
-// and the link can lead to it as well.
+// A reference definition shared by a link and image has one destination. It
+// uses media's result because the image needs the file and the link can open it.
 func (r refs) rewrite(
 	src []byte, link, media func(string) (string, error),
 ) ([]byte, error) {
@@ -698,17 +669,17 @@ func (r refs) rewrite(
 	return applyEdits(src, slices.Concat(linkEdits, imageEdits, rawEdits)), nil
 }
 
-// destEdits returns the edits of src that replace each of dests, the
-// destinations of links or images parsed from src, by what resolve returns for it.
+// destEdits returns edits that replace each parsed link or image destination in
+// src with resolve's result.
 func destEdits(
 	src []byte, dests []text.SingleLineValue, resolve func(dest string) (string, error),
 ) ([]edit, error) {
 	var edits []edit
-	// The links of 1 reference definition share its destination.
+	// Links using one reference definition share a destination.
 	seen := make(map[int]bool)
 	for _, d := range dests {
-		// An owned destination has no position in src, as for a destination
-		// with escapes, and keeps its text.
+		// An owned destination, such as one with escapes, has no source position
+		// and keeps its text.
 		if d.IsOwned() {
 			continue
 		}
@@ -747,8 +718,8 @@ func plainText(n ast.Node, src []byte) string {
 	return strings.TrimSpace(b.String())
 }
 
-// writePlainText writes the text of n without its inline markup to w.
-// A line break and the end of a block, as a list item or a table cell, become a space.
+// writePlainText writes n to w without inline markup. Line breaks and block endings,
+// such as for list items or table cells, become spaces.
 func writePlainText(w io.StringWriter, n ast.Node, src []byte) {
 	_ = ast.Walk(n, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {

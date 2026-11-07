@@ -39,7 +39,11 @@ templ docsPage(v docView) {
 				@reloadScript(v.base()+"../"+reloadPath, v.chrome.reload)
 			}
 		</head>
-		<body class="docs-page" data-site-root={ v.base() } data-version={ v.edition.version }>
+		<body
+			class="docs-page"
+			data-site-root={ v.base() }
+			data-version={ v.edition.version }
+		>
 			@skipLink()
 			@siteHeader(&v) {
 				@neo.ButtonAttrs(neo.ButtonOpts{
@@ -54,8 +58,7 @@ templ docsPage(v docView) {
 				}
 			}
 			<div class="docs">
-				// A column next to the text on a wide screen, and on a narrow one
-				// an overlay that the Menu button opens.
+				// A wide-screen column or narrow-screen overlay opened by Menu.
 				@neo.SidebarAttrs(neo.SidebarOpts{
 					AriaLabel:         neo.Set("Documentation"),
 					OverlayBreakpoint: neo.Set("56.25rem"),
@@ -64,16 +67,15 @@ templ docsPage(v docView) {
 						@docsNav(v.nav)
 					</nav>
 				}
-				// The footer sits here so the navigation reaches the end of the page.
+				// Keep the footer here so navigation reaches the page end.
 				<div class="docs-column">
 					<main class="docs-main" id="main-content" tabindex="-1">
 						if v.note != "" {
 							@versionNote(v.note)
 						}
-						// The contents of the page, while the screen is too narrow for
-						// their column. A bar that sticks below the header and opens
-						// the list over the text. It shows the title of the page until
-						// docs.js writes the title of the current section in its place.
+						// On screens too narrow for a contents column, a bar sticks below
+						// the header and opens over text. It shows the page title until
+						// docs.js replaces it with the current section title.
 						if len(v.toc) > 0 {
 							<details class="toc-inline">
 								<summary>
@@ -143,8 +145,8 @@ templ pageLinks(v *docView) {
 	</p>
 }
 
-// favicon links the icon of the browser tab, the file name in the root of the
-// version, base relative to the page. No-op for an empty name.
+// favicon links tab icon name at the version root, using page-relative base.
+// Empty name is a no-op.
 templ favicon(base, name string) {
 	if name != "" {
 		<link
@@ -155,23 +157,21 @@ templ favicon(base, name string) {
 	}
 }
 
-// morpheusIconBase points <neo-icon> at morpheus/icons/ of the version,
-// base relative to the page, replacing the /static/icons of morpheus.min.css.
-// <neo-icon> resolves the URL against the page.
+// morpheusIconBase points <neo-icon> to the version's morpheus/icons/ using
+// page-relative base, replacing morpheus.min.css's /static/icons. <neo-icon>
+// resolves the URL against the page.
 templ morpheusIconBase(base string) {
 	@templ.Raw(`<style>:root{--neo-icon-base:"` + base + `morpheus/icons"}</style>`)
 }
 
-// skipLink is the first element of every page. It shows only while it has the
-// focus, which the first Tab gives it, and leads past the header and the
-// navigation to the <main> element, as WCAG 2.4.1 requires.
+// skipLink is every page's first element. The first Tab reveals it; it skips
+// header and navigation to <main>, as WCAG 2.4.1 requires.
 templ skipLink() {
 	<a class="skip-link" href="#main-content">Skip to content</a>
 }
 
-// siteHeader is the header of the page of v: the logo, the menu of the versions
-// that the site serves, the links of the site, the search and the theme
-// controls. The children come first in the navigation, as the Menu button.
+// siteHeader renders v's logo, version menu, site links, search, and theme controls.
+// children, such as Menu, come first in navigation.
 templ siteHeader(v *docView) {
 	<header class="site-header">
 		<div class="brand">
@@ -189,7 +189,10 @@ templ siteHeader(v *docView) {
 			for _, l := range v.header {
 				@headerLink(l)
 			}
-			<a class="header-repository icon-link" href={ templ.SafeURL(v.chrome.host.repoURL) }>
+			<a
+				class="header-repository icon-link"
+				href={ templ.SafeURL(v.chrome.host.repoURL) }
+			>
 				@hostIcon(v.chrome.host)
 				{ v.chrome.host.name }
 			</a>
@@ -200,8 +203,7 @@ templ siteHeader(v *docView) {
 	</header>
 }
 
-// versionSelect is the menu of the versions that the site serves. docs.js opens
-// the same page in the version picked.
+// versionSelect lists served versions; docs.js opens this page in the selection.
 templ versionSelect(versions []versionLink) {
 	@neo.SelectAttrs(neo.SelectOpts{
 		Value:             neo.Set(currentVersion(versions)),
@@ -220,15 +222,15 @@ templ versionSelect(versions []versionLink) {
 	}
 }
 
-// versionNote shows note, the HTML of the note of the edition of a page.
+// versionNote shows a page edition's note HTML.
 templ versionNote(note string) {
 	<p class="version-note" role="note">
 		@templ.Raw(note)
 	</p>
 }
 
-// hostIcon is the icon of the links to the repository on h: the mark of GitHub
-// on the default host, the icon of the host setting, or none.
+// hostIcon is h's repository-link icon: GitHub's mark by default, the configured
+// host icon, or none.
 templ hostIcon(h *host) {
 	if h.icon != "" {
 		@templ.Raw(h.icon)
@@ -237,7 +239,7 @@ templ hostIcon(h *host) {
 	}
 }
 
-// headerLink is the link l of the header, with its icon before its title.
+// headerLink renders l with its icon before the title.
 templ headerLink(l headerEntry) {
 	<a
 		class={ "header-link", templ.KV("icon-link", l.Icon != "") }
@@ -253,8 +255,7 @@ templ headerLink(l headerEntry) {
 	</a>
 }
 
-// siteFooter is the footer of the page of v: the repository,
-// the links of the front matter, llms.txt and the license.
+// siteFooter renders v's repository, front-matter links, llms.txt, and license.
 templ siteFooter(v *docView) {
 	<footer class="site-footer">
 		<nav class="footer-links" aria-label="Project">
@@ -279,9 +280,8 @@ templ siteFooter(v *docView) {
 	</footer>
 }
 
-// searchDialog is the search button of the header and the dialog that it
-// opens. docs.js searches search.json and lists the results in the dialog.
-// While the field is empty, the dialog lists the suggested pages instead.
+// searchDialog renders the header search button and dialog. docs.js lists
+// search.json results, or suggested pages while the field is empty.
 templ searchDialog(suggested []suggestion) {
 	@neo.DialogAttrs(neo.DialogOpts{}, templ.Attributes{"class": "search"}) {
 		<button
@@ -310,8 +310,9 @@ templ searchDialog(suggested []suggestion) {
 					spellcheck="false"
 				/>
 			</div>
-			// The dialog grows and shrinks smoothly with what it lists.
-			@neo.ElasticAttrs(neo.ElasticOpts{}, templ.Attributes{"class": "search-body"}) {
+			// Smoothly resize the dialog with its list.
+			@neo.ElasticAttrs(neo.ElasticOpts{},
+				templ.Attributes{"class": "search-body"}) {
 				<p class="search-heading" hidden?={ len(suggested) == 0 }>Suggested</p>
 				<ul
 					class="search-results"
@@ -319,8 +320,7 @@ templ searchDialog(suggested []suggestion) {
 					role="listbox"
 					aria-label="Suggested pages"
 				>
-					// goldmark writes no "_" into the ID of a heading, which keeps
-					// these IDs apart from the heading IDs of the page.
+					// goldmark omits "_" from heading IDs, keeping these distinct.
 					for i, s := range suggested {
 						<li
 							id={ "search_suggestion_" + strconv.Itoa(i) }
@@ -384,7 +384,7 @@ templ docsContents(toc []tocEntry) {
 	</ul>
 }
 
-// copyButton copies the text of the element with the given ID, a code block.
+// copyButton copies text from the code block with the given ID.
 templ copyButton(id string) {
 	@neo.Clipcopy(neo.ClipcopyOpts{For: neo.Set(id)}) {
 		<button type="button" class="copy-button" aria-label="Copy the code">
@@ -398,9 +398,8 @@ templ copyButton(id string) {
 	}
 }
 
-// docsIndex is the index.html of the output directory, which opens the first
-// page of the edition in dir, relative to it. GitHub Pages serves files
-// without redirects.
+// docsIndex is root index.html, which opens the first page of the edition at
+// relative dir. GitHub Pages serves it without redirects.
 templ docsIndex(dir string, c *chrome) {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -416,15 +415,13 @@ templ docsIndex(dir string, c *chrome) {
 	</html>
 }
 
-// reloadScript reloads the page when the event stream at url, which [Handler]
-// serves, reports a state other than state, the state that the page shows.
-// The stream reconnects after a restart of the server.
+// reloadScript reloads when [Handler]'s event stream at url reports a value
+// other than state, the displayed page's state. It reconnects after server restarts.
 //
-// The page holds the stream only while it shows. A browser opens at most 6
-// connections to a server over HTTP/1.1, and the pages that it keeps for the
-// back button and those of hidden tabs would take them all, which leaves the
-// next page waiting. The stream reports the state when it opens, which reloads
-// a page that a file changed under while it did not show.
+// The page holds the stream only while visible. Browsers allow at most six
+// HTTP/1.1 connections per server; back-cache and hidden-tab pages could use
+// them all and stall the next page. The stream reports state on open, reloading
+// pages whose files changed while hidden.
 templ reloadScript(url, state string) {
 	<script data-url={ url } data-state={ state }>
 		(() => {

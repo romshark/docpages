@@ -13,9 +13,8 @@ import (
 	"github.com/tdewolff/parse/v2/css"
 )
 
-// cssAtRules are the at-rules that a stylesheet can hold, without their "@":
-// those of the specifications of the W3C, with the rules of the margins of a
-// page and of the features of a font.
+// cssAtRules are allowed at-rules without "@":
+// W3C rules plus page-margin and font-feature rules.
 var cssAtRules = map[string]bool{
 	"annotation": true, "bottom-center": true, "bottom-left": true,
 	"bottom-left-corner": true, "bottom-right": true, "bottom-right-corner": true,
@@ -32,19 +31,16 @@ var cssAtRules = map[string]bool{
 	"view-transition": true,
 }
 
-// cssMistake is a mistake in a stylesheet at its line and column, both
-// counted from 1.
+// cssMistake is a stylesheet error at a 1-based line and column.
 type cssMistake struct {
 	line, col int
 	msg       string
 }
 
-// minifyCSS returns src, the stylesheet of the file name, minified as esbuild
-// minifies it, or an error for each mistake in it, as name:line:column:
-// mistake. The mistakes are those that a browser skips, which leaves the page
-// without what the stylesheet meant: those that esbuild reports, as a { without
-// its }, a declaration without its colon and a property that CSS doesn't have,
-// and 2 that it passes, which [scanCSS] finds.
+// minifyCSS returns stylesheet src from name minified by esbuild, or errors as
+// name:line:column: mistake. It catches browser-skipped CSS: esbuild errors such
+// as unmatched {, missing declaration colons, and unknown properties, plus two
+// cases that esbuild accepts and [scanCSS] finds.
 func minifyCSS(name string, src []byte) ([]byte, error) {
 	r := api.Transform(string(src), api.TransformOptions{
 		Loader:           api.LoaderCSS,
@@ -70,8 +66,8 @@ func minifyCSS(name string, src []byte) ([]byte, error) {
 	return nil, errors.Join(errs...)
 }
 
-// esbuildMistake returns the message m of esbuild as a mistake, with its notes,
-// as the suggestion of a property for a typo or the place of a { without its }.
+// esbuildMistake converts message m and its notes—such as typo suggestions or
+// an unmatched {'s location—into a mistake.
 func esbuildMistake(m api.Message) cssMistake {
 	r := cssMistake{msg: m.Text}
 	if m.Location != nil {
@@ -91,10 +87,9 @@ func esbuildMistake(m api.Message) cssMistake {
 	return r
 }
 
-// scanCSS returns the mistakes in the stylesheet src that esbuild passes: an
-// at-rule other than those of [cssAtRules], as a typo, and a declaration
-// without a value, as color: ;. A name with a vendor prefix, as
-// @-webkit-keyframes, passes, as does a custom property without a value.
+// scanCSS finds errors esbuild accepts: at-rules outside [cssAtRules], such as
+// typos, and valueless declarations such as color: ;. Vendor-prefixed rules
+// such as @-webkit-keyframes and valueless custom properties pass.
 func scanCSS(src []byte) []cssMistake {
 	type token struct {
 		tt     css.TokenType
@@ -127,7 +122,9 @@ func scanCSS(src []byte) []cssMistake {
 				report(t.offset, "unknown at-rule @%s", rule)
 			}
 		// No selector holds a name, a colon and then a ; or a }.
-		case t.tt == css.IdentToken && i+2 < len(toks) && toks[i+1].tt == css.ColonToken &&
+		case t.tt == css.IdentToken &&
+			i+2 < len(toks) &&
+			toks[i+1].tt == css.ColonToken &&
 			(toks[i+2].tt == css.SemicolonToken || toks[i+2].tt == css.RightBraceToken):
 			report(t.offset, "%s without a value", strings.ToLower(t.data))
 		}

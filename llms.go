@@ -5,9 +5,9 @@ import (
 	"fmt"
 )
 
-// llmsTxt returns llms.txt, which lists the Markdown copies of the pages for language
-// models in the format of https://llmstxt.org. name is the name of the project,
-// docs[i] is the doc of pages[i], and the first page introduces the project.
+// llmsTxt returns https://llmstxt.org-formatted llms.txt listing page Markdown
+// copies for language models. name is the project; docs[i] matches pages[i];
+// the first page introduces it.
 func llmsTxt(name string, pages []page, groups []group, docs []doc) []byte {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "# %s\n\n> %s\n\n", name, docs[0].description)
@@ -29,8 +29,8 @@ func llmsTxt(name string, pages []page, groups []group, docs []doc) []byte {
 	return b.Bytes()
 }
 
-// llmsFullTxt returns llms-full.txt, the Markdown copies of all pages in the
-// order of the navigation with their links as seen from the root of the version.
+// llmsFullTxt returns all page Markdown copies in navigation order,
+// with links resolved from the version root.
 func llmsFullTxt(pages []page, docs []doc) []byte {
 	var b bytes.Buffer
 	for i, p := range pages {
@@ -46,9 +46,8 @@ func llmsFullTxt(pages []page, docs []doc) []byte {
 	return b.Bytes()
 }
 
-// versionsLlmsTxt returns the llms.txt of the output directory, which links the
-// llms.txt of each of editions, the releases from the latest followed by main.
-// name is the name of the project and description introduces it.
+// versionsLlmsTxt returns root llms.txt linking each edition's version, latest
+// release through main. name identifies the project; description introduces it.
 func versionsLlmsTxt(editions []*edition, name, description string) []byte {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "# %s\n\n> %s\n\n", name, description)

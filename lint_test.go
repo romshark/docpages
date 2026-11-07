@@ -11,12 +11,10 @@ import (
 // lintPage is the file of the test repository whose Markdown [TestLint] sets.
 const lintPage = "docs/2-guides/10-testing.md"
 
-// TestLint tests that what a page would show other than GitHub does, or not at
-// all, fails the build with the file and the line of each mistake, counting
-// the lines of the front matter: a code block in a language that Chroma
-// doesn't know, raw HTML that the page leaves out, lines that start with "|"
-// without a table and list items that CommonMark reads as text. It tests too
-// that what a page shows passes.
+// TestLint checks that rendering differences from GitHub or omitted content
+// fail with file and front-matter-aware line: unsupported Chroma languages,
+// omitted raw HTML, table-like "|" lines, and list items CommonMark reads as text.
+// It also checks accepted content.
 func TestLint(t *testing.T) {
 	for name, tt := range map[string]struct {
 		md   string
@@ -83,10 +81,9 @@ func TestLint(t *testing.T) {
 	}
 }
 
-// TestUnusedFiles tests that a file of the docs directory that no page shows
-// and no link or setting names fails the build, as an image that no page shows
-// or a page in a directory without a position, and that the files of a linked
-// directory and the icon of a group are used.
+// TestUnusedFiles checks that unshown docs files unnamed by links or settings fail,
+// such as obsolete images or pages in unpositioned directories,
+// while linked directory contents and group icons count as used.
 func TestUnusedFiles(t *testing.T) {
 	file := func(s string) *fstest.MapFile { return &fstest.MapFile{Data: []byte(s)} }
 

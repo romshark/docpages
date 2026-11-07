@@ -19,32 +19,25 @@ import (
 	"time"
 )
 
-// reloadPath is the path of the event stream of [Handler], relative to the
-// output directory. It reports the state of the files that the site reads.
+// reloadPath is [Handler]'s output-relative event stream for read-file state.
 const reloadPath = "_reload"
 
-// repositoryPath is the directory of [Handler], relative to the output
-// directory, that holds the files of the repository that the links lead to.
+// repositoryPath is [Handler]'s output-relative directory for linked repository files.
 const repositoryPath = "_repository"
 
-// pollInterval is how often [Handler] looks for
-// a change of the files that the site reads.
+// pollInterval is how often [Handler] checks read files for changes.
 const pollInterval = 250 * time.Millisecond
 
-// Handler serves the files of the site of o at their paths relative to the
-// output directory, as [Site.Write] writes them. It reads the docs directory
-// on every request for a file, which shows a change without a restart,
-// and the pages reload when a file that the site reads changes.
-// It serves the stylesheet and the script unminified. Paths resolve as on GitHub Pages.
-// A path that ends in "/" serves its index.html, and a path that names no file
-// serves the file with ".html" appended, also a path with a dot, as guide/v1.2-notes.
-// An error, such as a link to a missing heading, is a page, which reloads too.
+// Handler serves o's site at output-relative paths, as [Site.Write] lays it out.
+// It rereads docs per file request so changes appear without restart, and pages
+// reload when any read file changes. Styles and scripts are unminified.
+// Paths follow GitHub Pages: trailing "/" serves index.html; a missing path serves
+// its ".html" file, even with a dot as in guide/v1.2-notes. Errors such as a
+// missing link heading are reloadable pages too.
 //
-// A link to a file of the repository that no page shows leads to the file in
-// the working tree, not on the host, which has only what was pushed.
-// Handler serves the files and directories that the links name and what
-// the directories hold, except names that start with ".", as .git.
-// It serves text as plain text and a directory as a list of its files.
+// Links to repository files no page shows open working-tree files, not the host's
+// pushed versions. Handler serves named files, directories, and their contents,
+// excluding dot names such as .git. Text is plain text; directories list files.
 func Handler(o Options) http.Handler {
 	w := &watcher{root: o.Root, dir: o.Dir}
 	mux := http.NewServeMux()
@@ -58,10 +51,8 @@ func Handler(o Options) http.Handler {
 		if name == "" || strings.HasSuffix(name, "/") {
 			name += "index.html"
 		}
-		// The page holds the state of the files that it was read from.
-		// A read records the sources of the pages, which the state counts,
-		// and a file can change during a read, which is why the read repeats
-		// while the state changes under it.
+		// The page records its source-file state. Reading discovers page sources
+		// included in that state, and files may change mid-read, so repeat until stable.
 		state := w.state()
 		files, err := w.files(o, state)
 		for range 2 {
@@ -100,12 +91,11 @@ func Handler(o Options) http.Handler {
 		if ctype != "" {
 			rw.Header().Set("Content-Type", ctype)
 		}
-		// A range request, as a video player makes, gets its range.
+		// Honor range requests, such as from video players.
 		http.ServeContent(rw, r, name, time.Time{}, bytes.NewReader(content))
 	})
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		// Without it, a reload can take the stylesheet from the cache, whose
-		// freshness the browser derives from the modification time.
+		// Otherwise reload may reuse cached CSS whose freshness comes from mtime.
 		rw.Header().Set("Cache-Control", "no-cache")
 		mux.ServeHTTP(rw, r)
 	})
@@ -115,13 +105,11 @@ func Handler(o Options) http.Handler {
 type watcher struct {
 	root, dir string
 	lock      sync.Mutex
-	// sources are the files outside the docs directory that the pages
-	// showed when the site was last read: sources of pages and media files.
+	// sources are files outside docs shown at the last read: page sources and media.
 	sources []string
 }
 
-// files reads the site of o and returns its files, the pages reloading when
-// the state of the files differs from state.
+// files reads o's site and reloads pages when its file state differs from state.
 func (w *watcher) files(o Options, state string) (map[string][]byte, error) {
 	s, err := readOptions(o, true)
 	if err != nil {
@@ -163,11 +151,9 @@ func (w *watcher) files(o Options, state string) (map[string][]byte, error) {
 	return files, nil
 }
 
-// state returns the state of the files of the docs directory and of the
-// sources of its pages, a hash of their paths, sizes and modification times.
-// A rename keeps the size and the modification time, and changes the path.
-// Names that start with "." are left out, as the site leaves them out,
-// which keeps .git out of a docs directory at the root of the repository.
+// state hashes paths, sizes, and mtimes of docs files and page sources.
+// Paths detect renames that preserve size and mtime. As the site does,
+// it excludes dot names, keeping .git out of root-level docs.
 func (w *watcher) state() string {
 	h := fnv.New64a()
 	consider := func(file string, info fs.FileInfo) {
@@ -204,8 +190,7 @@ func (w *watcher) state() string {
 	return fmt.Sprintf("%x", h.Sum64())
 }
 
-// serveEvents writes the state of the files as an event of a server-sent
-// event stream, at first and after each change, until the request ends.
+// serveEvents sends file state initially and after each change until the request ends.
 func (w *watcher) serveEvents(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "text/event-stream")
 	rc := http.NewResponseController(rw)
@@ -230,8 +215,8 @@ func (w *watcher) serveEvents(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// serveRepository serves the file of the repository of o at the path of r in
-// [repositoryPath], if the site serves it, a directory as a list of its files.
+// serveRepository serves o's repository file at r's [repositoryPath] path when
+// allowed, listing a directory's files.
 func serveRepository(o Options, rw http.ResponseWriter, r *http.Request) {
 	name := strings.TrimPrefix(r.URL.Path, "/"+repositoryPath+"/")
 	file := cmp.Or(strings.TrimSuffix(name, "/"), ".")
@@ -244,7 +229,7 @@ func serveRepository(o Options, rw http.ResponseWriter, r *http.Request) {
 		http.NotFound(rw, r)
 		return
 	}
-	// A root keeps a symbolic link from leading out of the repository.
+	// A rooted filesystem prevents symlinks from escaping the repository.
 	root, err := os.OpenRoot(o.Root)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -269,7 +254,7 @@ func serveRepository(o Options, rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if name != "" && !strings.HasSuffix(name, "/") {
-		// Relative, which holds under a prefix that the server strips.
+		// Keep links relative so they work below a stripped server prefix.
 		rw.Header().Set("Location", path.Base(file)+"/")
 		rw.WriteHeader(http.StatusMovedPermanently)
 		return
@@ -291,8 +276,7 @@ func serveRepository(o Options, rw http.ResponseWriter, r *http.Request) {
 		_, _ = fmt.Fprint(rw, `<li><a href="../">../</a></li>`)
 	}
 	for _, e := range entries {
-		// Stat follows a symbolic link in the repository and fails for one
-		// out of it, which the list leaves out as the handler does.
+		// Stat follows repository symlinks and rejects escapes, which the listing omits.
 		p := path.Join(file, e.Name())
 		info, err := fs.Stat(fsys, p)
 		if err != nil || !s.serves(p) {
@@ -308,9 +292,8 @@ func serveRepository(o Options, rw http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprint(rw, "</ul>")
 }
 
-// serves reports whether [Handler] serves file, a path from the repository root:
-// a file or directory of served, or what such a directory holds under
-// no name that starts with ".", as .git.
+// serves reports whether [Handler] serves repository-relative file: an entry in
+// served, or non-dot content below a served directory.
 func (s *Site) serves(file string) bool {
 	for f := range s.served {
 		var rest string
@@ -334,10 +317,9 @@ func (s *Site) serves(file string) bool {
 	return false
 }
 
-// repositoryType returns the media type of the file name of the repository
-// with the content data: that of its extension for an image, audio, a video or
-// a PDF, which the browser shows, and plain text for other text, as source code,
-// which the browser shows as it is.
+// repositoryType returns name's media type using data: extension-based for
+// images, audio, video, and PDFs the browser displays, and plain text for other
+// text such as source code.
 func repositoryType(name string, data []byte) string {
 	t := mime.TypeByExtension(path.Ext(name))
 	for _, media := range []string{"image/", "audio/", "video/", "application/pdf"} {

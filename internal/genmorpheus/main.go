@@ -1,10 +1,8 @@
-// Command genmorpheus writes the Morpheus bundle of the pages into static/morpheus/ of
-// the module: the components of [components] with those they require and the icons
-// of [icons]. It takes the version of Morpheus that go.mod requires, which the templ
-// components of the pages render and the bundle must match. The bundle has no theme:
-// the stylesheet of the pages sets the theme tokens of Morpheus to the colors of
-// the site, which the dark mode of theme-default.css would replace.
-// Run it in the root of the module, as go generate does.
+// Command genmorpheus writes the page bundle to static/morpheus/: [components]
+// and their dependencies plus [icons]. It uses go.mod's Morpheus version so the
+// bundle matches rendered templ components. The bundle omits a theme because
+// page CSS sets Morpheus tokens to site colors, which theme-default.css dark mode
+// would override. Run it at the module root, as go generate does.
 package main
 
 import (
@@ -17,13 +15,11 @@ import (
 
 const module = "github.com/romshark/morpheus"
 
-// components are the Morpheus components that the pages render.
-// "morpheus bundle" adds the components they require.
+// components are page-rendered Morpheus components; "morpheus bundle" adds dependencies.
 var components = []string{"button", "clipcopy", "dialog", "elastic", "select", "sidebar"}
 
-// icons are the icons of Morpheus that the pages show, by icon in icons.templ,
-// and that the components of the pages load, as the caret of <neo-select>.
-// The icons that Morpheus lacks are files of static/icons.
+// icons are Morpheus icons shown by icons.templ or loaded by page components,
+// such as <neo-select>'s caret. Missing Morpheus icons live in static/icons.
 var icons = []string{
 	"chevron-down", "chevrons-up-down", "file", "github", "menu", "moon", "search", "sun",
 }
@@ -42,7 +38,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("version of %s: %w", module, err)
 	}
-	// A component or icon dropped from the lists leaves no file behind.
+	// Removing a listed component or icon leaves no stale file.
 	if err := os.RemoveAll(dir); err != nil {
 		return err
 	}
@@ -74,8 +70,7 @@ func run() error {
 	return nil
 }
 
-// output returns the standard output of the command name with args,
-// without the line ending.
+// output returns command name's standard output without its line ending.
 func output(name string, args ...string) (string, error) {
 	out, err := exec.Command(name, args...).Output()
 	return strings.TrimSpace(string(out)), err

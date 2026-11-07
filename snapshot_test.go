@@ -12,11 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSnapshot tests that a snapshot copies the first page, the groups and the
-// files that their links name into the directory of the release, without the
-// chrome of the site and the settings of the README.md, with the text of each
-// source in its page and the links that leave the docs directory leading to the
-// page that shows their file or to GitHub at the release tag.
+// TestSnapshot checks that a release copy contains the first page, groups,
+// and linked files; omits site chrome and README settings; substitutes source text;
+// and sends outside links to a page showing the file or its release-tag GitHub URL.
 func TestSnapshot(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{
@@ -72,8 +70,7 @@ func TestSnapshot(t *testing.T) {
 		"docs/versions/v1.2 exists; remove it to snapshot v1.2.3 again")
 }
 
-// TestSnapshotWrite tests that Snapshot writes the copy into the repository,
-// from which the release reads.
+// TestSnapshotWrite checks that Snapshot writes the repository copy read by the release.
 func TestSnapshotWrite(t *testing.T) {
 	root := writeTestRepo(t)
 	o := Options{Root: root, Dir: "docs"}
@@ -87,10 +84,9 @@ func TestSnapshotWrite(t *testing.T) {
 	require.Equal(t, "v1.2", s.latest().version)
 }
 
-// TestSnapshotRootDocs tests that a snapshot of a docs directory at the root of
-// the repository takes only the README.md and the groups for the docs, as the
-// check of unused files does. A link to another file of the repository becomes
-// its URL at the tag, and an image elsewhere is copied into media/ of the copy.
+// TestSnapshotRootDocs checks that root-level docs snapshot only README.md and
+// groups, matching unused-file checks. Other repository links use tag URLs;
+// outside images move under the copy's media/.
 func TestSnapshotRootDocs(t *testing.T) {
 	fsys := fstest.MapFS{
 		"README.md": {Data: []byte("---\nrepository: https://github.com/o/r\n---\n\n" +
@@ -121,13 +117,13 @@ func TestSnapshotRootDocs(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestSnapshotRootedLink tests that a snapshot makes a link and a media file of
-// the docs directory that a path from the repository root names relative, which
-// leads to the copy in the release rather than to the file of main.
+// TestSnapshotRootedLink checks that snapshots make root-based docs links and
+// media paths relative to release copies instead of main files.
 func TestSnapshotRootedLink(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte("# Testing\n\n" +
-		"See [events](/docs/2-guides/01-events.md#dispatch) and [notes](/docs/notes.txt).\n\n" +
+		"See [events](/docs/2-guides/01-events.md#dispatch)" +
+		" and [notes](/docs/notes.txt).\n\n" +
 		"![Logo](/docs/img/logo.png)\n\n<img src=\"/docs/img/logo.png\" width=\"10\">\n")}
 	fsys["docs/notes.txt"] = &fstest.MapFile{Data: []byte("Notes.")}
 	fsys["docs/img/logo.png"] = &fstest.MapFile{Data: []byte("logo")}
@@ -145,10 +141,9 @@ func TestSnapshotRootedLink(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestSnapshotDirectoryLink tests that a snapshot gives a link to a directory
-// whose README.md a page shows the file of that page without a "/" after it.
-// The directories are 1 outside the docs directory, which a page shows as its
-// source, and a group, which a source links.
+// TestSnapshotDirectoryLink checks that links to directories whose README is a
+// page become file URLs without trailing "/". It covers an outside source
+// directory and a group linked by a source.
 func TestSnapshotDirectoryLink(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["examples/README.md"] = &fstest.MapFile{Data: []byte("# Examples of Demo\n")}
@@ -174,9 +169,8 @@ func TestSnapshotDirectoryLink(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestSnapshotFileWithSpace tests that a snapshot gives a link to a file of the
-// repository whose name holds a space its escaped URL at the tag,
-// which the release then shows as a link.
+// TestSnapshotFileWithSpace checks that spaced repository files get escaped
+// tag URLs, which releases display as links.
 func TestSnapshotFileWithSpace(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{
@@ -196,8 +190,7 @@ func TestSnapshotFileWithSpace(t *testing.T) {
 		`<a href="`+design+`">design</a>`)
 }
 
-// TestRelativeLink tests the link from a file to another file or directory,
-// which keeps the query and the fragment of the link.
+// TestRelativeLink checks file-to-file or directory links preserving query and fragment.
 func TestRelativeLink(t *testing.T) {
 	for name, tt := range map[string]struct {
 		from, to, link, want string

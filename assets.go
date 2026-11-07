@@ -12,15 +12,15 @@ import (
 	"github.com/romshark/morpheus/neo"
 )
 
-// static holds the stylesheet, the script, the icons and the Morpheus bundle of
-// the pages. generate.go writes style.min.css, docs.min.js and morpheus/.
+// static holds page styles, scripts, icons, and the Morpheus bundle.
+// generate.go writes style.min.css, docs.min.js, and morpheus/.
 //
 //go:embed static
 var static embed.FS
 
-// staticAssets maps the paths of the assets of a version to their files in [static].
-// A directory maps every file in it. The icons of the site join those of Morpheus
-// in morpheus/icons, the one directory that <neo-icon> loads icons from.
+// staticAssets maps version-relative asset paths to [static] files.
+// A directory includes every file. Site and Morpheus icons join under morpheus/icons,
+// the only directory <neo-icon> loads.
 var staticAssets = map[string]string{
 	"docpages.css":   "static/style.min.css",
 	"docpages.js":    "static/docs.min.js",
@@ -28,9 +28,8 @@ var staticAssets = map[string]string{
 	"morpheus/icons": "static/icons",
 }
 
-// iconDirs are the directories of [static] that hold the icons of the pages:
-// those drawn for the site and those of Morpheus, which genmorpheus copies.
-// No name is in both.
+// iconDirs hold site-drawn and genmorpheus-copied Morpheus page icons in [static].
+// Their names do not overlap.
 var iconDirs = []string{"static/icons", "static/morpheus/icons"}
 
 // icons holds the icons of the pages, the files of [iconDirs].
@@ -52,12 +51,10 @@ func (iconFS) Open(name string) (fs.File, error) {
 	return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
 }
 
-// <neo-icon> inlines the SVG of the icon, which spares the browser a request
-// before it draws the icon.
+// <neo-icon> inlines icon SVGs, avoiding a browser request before drawing.
 func init() { neo.SetIconFS(icons) }
 
-// siteAssets returns the assets of [staticAssets] by their path relative to
-// the directory of a version.
+// siteAssets returns [staticAssets] keyed by version-relative path.
 func siteAssets() (map[string][]byte, error) {
 	assets := make(map[string][]byte)
 	for name, file := range staticAssets {
@@ -76,13 +73,11 @@ func siteAssets() (map[string][]byte, error) {
 	return assets, nil
 }
 
-// svgStart matches the start tag of the root element of an SVG file and what
-// precedes it, such as an XML declaration or a comment.
+// svgStart matches an SVG root start tag plus preceding XML or comments.
 var svgStart = regexp.MustCompile(`(?s)^.*?<svg\b`)
 
-// inlineSVG returns the SVG file data as markup for an HTML page, without
-// what precedes its root element and with attrs added to that element,
-// each as name="value", unless the element sets the attribute already.
+// inlineSVG returns SVG data as HTML markup, dropping content before the root
+// and adding name="value" attrs not already set there.
 func inlineSVG(data []byte, attrs ...string) string {
 	data = bytes.TrimSpace(data)
 	loc := svgStart.FindIndex(data)

@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// writeTestRepo writes the files of [testRepoFS] into a new directory and returns it.
+// writeTestRepo writes [testRepoFS] to a new directory and returns it.
 func writeTestRepo(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
@@ -27,8 +27,7 @@ func writeTestRepo(t *testing.T) string {
 	return root
 }
 
-// get returns the status code and the body of the response of h to a request
-// for path.
+// get returns h's response status and body for path.
 func get(t *testing.T, h http.Handler, path string) (int, string) {
 	t.Helper()
 	rec := httptest.NewRecorder()
@@ -36,9 +35,8 @@ func get(t *testing.T, h http.Handler, path string) (int, string) {
 	return rec.Code, rec.Body.String()
 }
 
-// TestHandler tests that the handler serves the pages at the paths of GitHub
-// Pages with the script that reloads them, the unminified stylesheet, and an
-// error as a page that reloads too.
+// TestHandler checks GitHub Pages paths, reload scripts, unminified styles, and
+// errors served as reloadable pages.
 func TestHandler(t *testing.T) {
 	root := writeTestRepo(t)
 	notes := filepath.Join(root, "docs", "2-guides", "11-v1.2-notes.md")
@@ -49,8 +47,8 @@ func TestHandler(t *testing.T) {
 	require.Equal(t, http.StatusOK, code)
 	require.Contains(t, body, `<script data-url="../../_reload" data-state="`)
 
-	// The extension of guides/v1.2-notes is .2-notes, and GitHub Pages serves
-	// the page as it serves https://semver.org/spec/v2.0.0.
+	// guides/v1.2-notes has extension .2-notes; GitHub Pages still serves it like
+	// https://semver.org/spec/v2.0.0.
 	code, body = get(t, h, "/main/guides/v1.2-notes")
 	require.Equal(t, http.StatusOK, code)
 	require.Contains(t, body, "<title>Notes of v1.2 - Demo</title>")
@@ -82,10 +80,9 @@ func TestHandler(t *testing.T) {
 	require.Contains(t, body, `<script data-url="../../_reload"`)
 }
 
-// TestHandlerRepository tests that the links to the files of the repository
-// that no page shows lead to the files of the working tree that the handler
-// serves: those that the links name and what a directory among them holds,
-// except hidden names and a symbolic link out of the repository.
+// TestHandlerRepository checks that non-page repository links open handler-served
+// working-tree targets and directory contents,
+// excluding hidden names and escaping symlinks.
 func TestHandlerRepository(t *testing.T) {
 	root := writeTestRepo(t)
 	write := func(name, data string) {
@@ -162,9 +159,8 @@ func TestHandlerRepository(t *testing.T) {
 	require.Equal(t, "example/", rec.Header().Get("Location"))
 }
 
-// TestHandlerEvents tests that the event stream reports at first the state that
-// a page holds, which counts the sources of the pages outside the docs
-// directory, and another state after a file of the docs directory changes.
+// TestHandlerEvents checks that the stream first reports page state, including
+// outside sources, then a new state after a docs file changes.
 func TestHandlerEvents(t *testing.T) {
 	root := writeTestRepo(t)
 	h := Handler(Options{Root: root, Dir: "docs"})
@@ -200,8 +196,7 @@ func TestHandlerEvents(t *testing.T) {
 	first := next()
 	require.Contains(t, body, `data-state="`+first+`"`)
 
-	// The modification time of the file is the state, which a coarse clock
-	// of the file system would leave unchanged by an immediate write.
+	// State uses mtime, which a coarse filesystem clock may not change immediately.
 	future := time.Now().Add(time.Hour)
 	p := filepath.Join(root, "docs", "2-guides", "10-testing.md")
 	require.NoError(t, os.WriteFile(p, []byte("# Testing\n\nChanged.\n"), 0o644))
@@ -209,9 +204,8 @@ func TestHandlerEvents(t *testing.T) {
 	require.NotEqual(t, first, next())
 }
 
-// TestWatcherState tests that the state of the files changes when a file is
-// renamed, as to reorder the pages, and not when a hidden file changes, as a
-// file of .git in a docs directory at the root of the repository.
+// TestWatcherState checks that renames, such as page reordering, change state
+// while hidden-file changes, such as .git under root-level docs, do not.
 func TestWatcherState(t *testing.T) {
 	root := writeTestRepo(t)
 	w := &watcher{root: root, dir: "docs"}

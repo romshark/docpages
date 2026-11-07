@@ -16,26 +16,25 @@ import (
 	goldhtml "github.com/yuin/goldmark/v2/renderer/html"
 )
 
-// codeFormatter writes tokens as <span> elements with the short class names of
-// Chroma, such as "k" for a keyword, which style.css colors.
+// codeFormatter writes tokens as <span> elements with Chroma's short classes,
+// such as "k" for keywords, colored by style.css.
 var codeFormatter = chromahtml.New(
 	chromahtml.WithClasses(true),
 	chromahtml.PreventSurroundingPre(true),
 )
 
-// codeTitle finds the title in the info string of a code block, as in
-// ```go title="app/app.go". GitHub reads the first word of the info string as
-// the language and ignores the rest.
+// codeTitle finds a title in a code-block info string such as
+// ```go title="app/app.go". GitHub uses its first word as the language and
+// ignores the rest.
 var codeTitle = regexp.MustCompile(`\btitle="([^"]*)"`)
 
-// codeBlocks returns the renderer of the code blocks of 1 page. It shows the
-// title of a block above it and a button that copies it, and highlights it in
-// the language of its info string if Chroma has a lexer for that language.
-// A block in the language mermaid is a diagram, which docs.js draws, as GitHub does.
+// codeBlocks returns one page's code-block renderer. It shows optional titles
+// above blocks, adds copy buttons, and uses Chroma when the info-string language
+// has a lexer. docs.js draws mermaid blocks as diagrams, as GitHub does.
 //
-// It is a decorator because goldmark applies the renderers of its extensions,
-// CommonMark among them, after a renderer given as an option. The blocks of a page
-// are numbered for the copy buttons, which makes the renderer valid for 1 page only.
+// It is a decorator because goldmark applies extension renderers, including
+// CommonMark, after option renderers. Per-page block numbering supplies copy IDs,
+// so one renderer cannot span pages.
 func codeBlocks() func(goldhtml.NodeRenderer) goldhtml.NodeRenderer {
 	n := 0
 	return func(goldhtml.NodeRenderer) goldhtml.NodeRenderer {
@@ -52,14 +51,12 @@ func codeBlocks() func(goldhtml.NodeRenderer) goldhtml.NodeRenderer {
 				return ast.WalkSkipChildren, err
 			}
 			n++
-			// goldmark writes no "_" into the ID of a heading, which keeps this
-			// ID apart from the heading IDs of the page.
+			// goldmark omits "_" from heading IDs, keeping this ID distinct.
 			id := "code_" + strconv.Itoa(n)
 			button := func() error {
 				return copyButton(id).Render(context.Background(), w)
 			}
-			// The button of a block with a title is in the title, which
-			// centers it on the title.
+			// Put a titled block's button in the title to center them together.
 			title := codeTitle.FindStringSubmatch(b.Info.Value(source))
 			_, _ = io.WriteString(w, `<div class="code-block">`)
 			if title != nil {
@@ -86,8 +83,7 @@ func codeBlocks() func(goldhtml.NodeRenderer) goldhtml.NodeRenderer {
 	}
 }
 
-// writeCode writes b as a <pre> element, highlighted in the language of its
-// info string if Chroma has a lexer for that language.
+// writeCode writes b as <pre>, using its info-string language when Chroma supports it.
 func writeCode(w io.Writer, b *ast.CodeBlock, source []byte) error {
 	code := b.Value.Str(source)
 	lang, _ := b.Language(source)
@@ -103,7 +99,7 @@ func writeCode(w io.Writer, b *ast.CodeBlock, source []byte) error {
 		if err != nil {
 			return err
 		}
-		// The style only sets colors, which the classes leave to style.css.
+		// The classes leave colors to style.css, so the style sets colors only.
 		if err := codeFormatter.Format(w, styles.Fallback, tokens); err != nil {
 			return err
 		}

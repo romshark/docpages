@@ -18,23 +18,19 @@ import (
 	"github.com/yuin/goldmark/v2/text"
 )
 
-// MainVersion is the version of the pages of the docs directory, which document
-// the main branch, and the branch that the links to the repository lead to.
+// MainVersion names docs-directory pages and the repository-link branch they describe.
 const MainVersion = "main"
 
-// versionsDir is the directory of the docs directory that holds a docs
-// directory for each release, named after its feature version, as v1.2.
+// versionsDir holds each release's docs, named by feature version such as v1.2.
 const versionsDir = "versions"
 
-// featureVersion matches the name of the directory of a release in
-// versionsDir, as v1.2, which holds the docs of every patch release of v1.2.
+// featureVersion matches a release directory such as v1.2, shared by all v1.2 patches.
 var featureVersion = regexp.MustCompile(`^v([0-9]+)\.([0-9]+)$`)
 
 // releaseTag matches a release tag, as v1.2.3.
 var releaseTag = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+$`)
 
-// edition is a version of the documentation: main, whose pages the docs
-// directory holds, or a release, whose pages a directory of versionsDir holds.
+// edition is main, stored in docs, or a release stored under versionsDir.
 type edition struct {
 	version string // MainVersion or a feature version, as v1.2.
 	dir     string // The docs directory of the edition, from the repository root.
@@ -42,8 +38,8 @@ type edition struct {
 	groups  []group
 	docs    []doc
 	links   *site
-	// note is the Markdown of the note above every page, from the front matter
-	// of the README.md of dir. Empty for none.
+	// note is dir/README.md's front-matter Markdown shown above every page;
+	// empty for none.
 	note string
 }
 
@@ -53,10 +49,9 @@ func (e *edition) isMain() bool { return e.version == MainVersion }
 // outDir returns the directory of the pages of e, relative to the output directory.
 func (e *edition) outDir() string { return e.version + "/" }
 
-// readEdition reads the docs directory dir of fsys as the edition of version
-// and converts its pages. A release must keep its links and its sources within dir,
-// since the files outside it document main and not the release. served is the
-// [site] served of its links.
+// readEdition reads and converts dir in fsys as version. Release links and
+// sources must stay in dir because outside files describe main.
+// served is the link [site]'s served map.
 func readEdition(
 	fsys fs.FS, dir, version string, h *host, served map[string]bool,
 ) (*edition, error) {
@@ -92,11 +87,9 @@ func readEdition(
 	}, nil
 }
 
-// noteHTML returns the HTML of the note of e on the page with index i, or ""
-// without a note. The links and the images of the note lead where those of the
-// README.md of e lead, except that a link to a page of another of editions
-// leads to that page, which lets the note of a release name another version.
-// The note is 1 paragraph, which the page shows without <p>.
+// noteHTML returns e's note HTML on page i, or "". Note links and images resolve
+// like e's README, except links may open pages in other editions so release
+// notes can name other versions. The page omits <p> around the single paragraph.
 func (e *edition) noteHTML(i int, editions []*edition) (string, error) {
 	if e.note == "" {
 		return "", nil
@@ -111,7 +104,7 @@ func (e *edition) noteHTML(i int, editions []*edition) (string, error) {
 		if !entering {
 			return ast.WalkContinue, nil
 		}
-		// Image paths are relative to README.md, page 0.
+		// Image paths are relative to README.md (page 0).
 		if img, ok := n.(*ast.Image); ok {
 			dest, err := e.links.mediaURL(
 				0, img.Destination.Value(src), e.pages[i].base(),
@@ -151,11 +144,11 @@ func (e *edition) noteHTML(i int, editions []*edition) (string, error) {
 	return strings.TrimSuffix(strings.TrimPrefix(h, "<p>"), "</p>"), nil
 }
 
-// editionLink returns the URL of the page of another of editions that the link
-// dest of the README.md of e leads to, from the page with index i of e, and
-// whether dest leads to such a page: a file in the docs directory of that
-// edition that the page shows.
-func (e *edition) editionLink(i int, dest string, editions []*edition) (string, bool, error) {
+// editionLink returns dest's URL from page i of e when e's README link reaches
+// a page in another edition: a displayed file in that edition's docs directory.
+func (e *edition) editionLink(
+	i int, dest string, editions []*edition,
+) (string, bool, error) {
 	u, ok := repoLink(dest)
 	if !ok {
 		return "", false, nil
@@ -181,8 +174,7 @@ func (e *edition) editionLink(i int, dest string, editions []*edition) (string, 
 	return "", false, nil
 }
 
-// releases returns the feature versions of the releases in the versions
-// directory of the docs directory dir, the latest first.
+// releases returns feature versions under dir's versions directory, latest first.
 func releases(fsys fs.FS, dir string) ([]string, error) {
 	entries, err := fs.ReadDir(fsys, path.Join(dir, versionsDir))
 	if errors.Is(err, fs.ErrNotExist) {
@@ -233,13 +225,11 @@ type versionLink struct {
 	Current bool // Whether the page belongs to this version.
 	// Href is the same page in this version, relative to the page.
 	Href string
-	// Fallback is the first page of this version, which docs.js opens when
-	// this version lacks the page.
+	// Fallback is this version's first page, used by docs.js when it lacks the page.
 	Fallback string
 }
 
-// versionLink returns the link to the page at path in e, from a page whose
-// version root is base, and current.
+// versionLink links from version-root URL base to path in e and records current.
 func (e *edition) versionLink(base, path string, current bool) versionLink {
 	root := strings.TrimPrefix(base, "./") + "../" + e.outDir()
 	return versionLink{

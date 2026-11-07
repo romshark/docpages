@@ -16,8 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testRoot is the front matter of the README.md of the test docs directory,
-// which sets every setting of the site.
+// testRoot is a test docs README front matter that sets every site option.
 const testRoot = `---
 name: Demo
 home: ../
@@ -43,8 +42,7 @@ license: MIT License © 2026 Jane Doe
 Demo is a web framework.
 `
 
-// testRepoFS returns a repository with a docs directory, docs/, that uses
-// every convention of the layout.
+// testRepoFS returns a repository whose docs/ uses every layout convention.
 func testRepoFS() fstest.MapFS {
 	file := func(s string) *fstest.MapFile { return &fstest.MapFile{Data: []byte(s)} }
 	return fstest.MapFS{
@@ -82,8 +80,7 @@ func testRepoFS() fstest.MapFS {
 // noRemote is the Git remote of a repository without one.
 func noRemote() (string, error) { return "", errors.New("no remote") }
 
-// newTestSite returns the site of the docs directory of [testRepoFS], which
-// holds no releases.
+// newTestSite returns [testRepoFS]'s release-free docs site.
 func newTestSite(t *testing.T) *Site {
 	t.Helper()
 	s, err := read(testRepoFS(), "docs", noRemote, false)
@@ -91,8 +88,7 @@ func newTestSite(t *testing.T) *Site {
 	return s
 }
 
-// withReleases returns fsys with a snapshot of its docs directory, docs/, for
-// each of tags.
+// withReleases adds a docs/ snapshot to fsys for every tag.
 func withReleases(t *testing.T, fsys fstest.MapFS, tags ...string) fstest.MapFS {
 	t.Helper()
 	for _, tag := range tags {
@@ -105,17 +101,18 @@ func withReleases(t *testing.T, fsys fstest.MapFS, tags ...string) fstest.MapFS 
 	return fsys
 }
 
-// pageHTML returns the HTML of the page of main of s at the URL path p.
+// pageHTML returns s's main-page HTML at URL path p.
 func pageHTML(t *testing.T, s *Site, p string) string {
 	t.Helper()
 	return editionPageHTML(t, s, MainVersion, p)
 }
 
-// editionPageHTML returns the HTML of the page of s at the URL path p in the
-// edition of version.
+// editionPageHTML returns s's HTML at path p in version.
 func editionPageHTML(t *testing.T, s *Site, version, p string) string {
 	t.Helper()
-	i := slices.IndexFunc(s.editions, func(e *edition) bool { return e.version == version })
+	i := slices.IndexFunc(s.editions, func(e *edition) bool {
+		return e.version == version
+	})
 	require.GreaterOrEqual(t, i, 0, version)
 	e := s.editions[i]
 	j := slices.IndexFunc(e.pages, func(pg page) bool { return pg.path == p })
@@ -123,15 +120,18 @@ func editionPageHTML(t *testing.T, s *Site, version, p string) string {
 	return render(t, docsPage(s.view(e, j)))
 }
 
-// TestReadLayout tests that the docs directory yields its pages in the order of
-// the prefixes, the README.md of the docs directory opening the first group and
-// that of a group opening it, with URL paths and titles without the prefixes.
+// TestReadLayout checks prefix order, the docs README opening the first group,
+// each group README opening its group, and prefix-free paths and titles.
 func TestReadLayout(t *testing.T) {
 	l, err := readLayout(testRepoFS(), "docs")
 	require.NoError(t, err)
 	require.Equal(t, []page{
 		{file: "docs/README.md", path: "", suggested: true},
-		{file: "docs/1-get-started/1-installation.md", path: "get-started/installation", suggested: true},
+		{
+			file:      "docs/1-get-started/1-installation.md",
+			path:      "get-started/installation",
+			suggested: true,
+		},
 		{file: "docs/1-get-started/2-upgrading.md", path: "get-started/upgrading"},
 		{file: "docs/2-guides/README.md", path: "guides/", title: "Overview", group: 1},
 		{file: "docs/2-guides/01-events.md", path: "guides/events", group: 1},
@@ -163,13 +163,15 @@ func TestReadLayout(t *testing.T) {
 	require.Empty(t, l.groups[1].icon)
 	require.Equal(t, "Demo", l.settings.Name)
 	require.Nil(t, l.srcs[8], "a link that leaves the site has no Markdown")
-	require.Equal(t, "# Demo Specification\n\n## Pages\n\n### Actions\n", string(l.srcs[6]))
+	require.Equal(t,
+		"# Demo Specification\n\n## Pages\n\n### Actions\n",
+		string(l.srcs[6]))
 	require.True(t, strings.HasPrefix(string(l.srcs[1]), "\n# Installation"),
 		"the Markdown starts after the front matter")
 }
 
-// TestReadLayoutErr tests that a docs directory that the navigation cannot
-// show completely or a front matter that contradicts itself is an error.
+// TestReadLayoutErr checks that incomplete navigation and contradictory front
+// matter fail.
 func TestReadLayoutErr(t *testing.T) {
 	for name, tt := range map[string]struct {
 		files map[string]string
@@ -278,9 +280,8 @@ func TestReadLayoutErr(t *testing.T) {
 	}
 }
 
-// TestGroupTitle tests that the title of a group has spaces for the hyphens of
-// its directory name and its first letter in title case, also when that letter
-// takes more than 1 byte.
+// TestGroupTitle checks that group titles replace hyphens with spaces and title-case
+// the first letter, including multibyte letters.
 func TestGroupTitle(t *testing.T) {
 	for slug, want := range map[string]string{
 		"get-started": "Get started",
@@ -294,8 +295,8 @@ func TestGroupTitle(t *testing.T) {
 	}
 }
 
-// TestParseFrontMatter tests that front matter opens a file between 2 lines of
-// ---, with any line ending, and that the Markdown follows it.
+// TestParseFrontMatter checks front matter between two --- lines with any line ending,
+// followed by Markdown.
 func TestParseFrontMatter(t *testing.T) {
 	for name, tt := range map[string]struct {
 		data   string
@@ -332,9 +333,8 @@ func TestParseFrontMatter(t *testing.T) {
 	require.ErrorContains(t, err, "front matter has no closing ---")
 }
 
-// TestSiteLicense tests that the footer ends with the license setting as
-// written, that without it the footer has no such line although the repository
-// has a LICENSE file, and that the README.md of a release can't set it.
+// TestSiteLicense checks that the footer ends with the configured license,
+// ignores a repository LICENSE when unset, and rejects a release README license.
 func TestSiteLicense(t *testing.T) {
 	for name, tt := range map[string]struct {
 		setting string // The line of the front matter, empty for none.
@@ -362,16 +362,28 @@ func TestSiteLicense(t *testing.T) {
 	require.ErrorContains(t, err, "a release takes the settings of the site")
 }
 
-// TestHTTPSRepoURL tests that the URL of a Git remote over SSH or HTTPS
-// becomes the HTTPS URL of the repository.
+// TestHTTPSRepoURL checks conversion of SSH and HTTPS remotes to repository HTTPS.
 func TestHTTPSRepoURL(t *testing.T) {
 	for name, tt := range map[string]struct{ remote, want string }{
-		"ssh":        {remote: "git@github.com:o/demo.git", want: "https://github.com/o/demo"},
-		"https":      {remote: "https://github.com/o/demo.git\n", want: "https://github.com/o/demo"},
-		"no suffix":  {remote: "https://github.com/o/demo", want: "https://github.com/o/demo"},
-		"ssh scheme": {remote: "ssh://git@github.com/o/demo.git", want: "https://github.com/o/demo"},
+		"ssh": {
+			remote: "git@github.com:o/demo.git",
+			want:   "https://github.com/o/demo",
+		},
+		"https": {
+			remote: "https://github.com/o/demo.git\n",
+			want:   "https://github.com/o/demo",
+		},
+		"no suffix": {
+			remote: "https://github.com/o/demo",
+			want:   "https://github.com/o/demo",
+		},
+		"ssh scheme": {
+			remote: "ssh://git@github.com/o/demo.git",
+			want:   "https://github.com/o/demo",
+		},
 		"credentials": {
-			remote: "https://x:token@github.com/o/demo.git", want: "https://github.com/o/demo",
+			remote: "https://x:token@github.com/o/demo.git",
+			want:   "https://github.com/o/demo",
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -384,8 +396,8 @@ func TestHTTPSRepoURL(t *testing.T) {
 	require.ErrorContains(t, err, "has no host")
 }
 
-// TestInlineSVG tests that an SVG file loses what precedes its root element
-// and gains the attributes that its root element does not set.
+// TestInlineSVG checks removal before the SVG root and addition of missing root
+// attributes.
 func TestInlineSVG(t *testing.T) {
 	for name, tt := range map[string]struct {
 		data  string
@@ -415,11 +427,9 @@ func TestInlineSVG(t *testing.T) {
 	}
 }
 
-// TestSiteChrome tests what every page shows of the settings of the site: the
-// name in the title, the logo that leads home, the links of the header and the
-// footer with their icons, the link of the header to the page marked current,
-// or that to the first page on a page that no link leads to, the license, the
-// favicon and the stylesheet of the docs directory.
+// TestSiteChrome checks page rendering of all site settings: title name, home
+// logo, header and footer links and icons, current header link or first-page
+// fallback, license, favicon, and docs stylesheet.
 func TestSiteChrome(t *testing.T) {
 	s := newTestSite(t)
 	for name, tt := range map[string]struct {
@@ -476,10 +486,8 @@ func TestSiteChrome(t *testing.T) {
 	}
 }
 
-// TestSiteDefaults tests the chrome of a docs directory without settings,
-// logo, favicon, stylesheet and license: the name of the repository, the logo
-// as text that leads to the first page, a header that links the first page as
-// Docs, and no favicon or license.
+// TestSiteDefaults checks unset chrome: the repository name, a text logo linking
+// the first page, a "Docs" header link there, and no favicon, stylesheet, or license.
 func TestSiteDefaults(t *testing.T) {
 	fsys := fstest.MapFS{
 		"README.md":    {Data: []byte("# Intro\n\nA tool.\n")},
@@ -511,15 +519,15 @@ func TestSiteDefaults(t *testing.T) {
 	require.ErrorContains(t, err, "set repository in the front matter of README.md")
 }
 
-// TestSiteHeader tests that an empty header leaves the header without links
-// and that a missing icon of a link of the header fails the read.
+// TestSiteHeader checks that an empty header has no links and a missing header
+// icon fails reading.
 func TestSiteHeader(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/README.md"] = &fstest.MapFile{Data: []byte(strings.Replace(testRoot,
 		"header:\n  - title: Guide\n    url: README.md\n    icon: icons/book.svg\n"+
 			"  - title: Examples\n    url: 4-more/1-examples.md\n",
 		"header: []\n", 1))}
-	// The icon of the link that the header lost, which nothing uses now.
+	// Nothing uses the removed header link's icon now.
 	delete(fsys, "docs/icons/book.svg")
 	s, err := read(fsys, "docs", noRemote, false)
 	require.NoError(t, err)
@@ -531,9 +539,8 @@ func TestSiteHeader(t *testing.T) {
 	require.ErrorContains(t, err, `icon of the header link "Guide"`)
 }
 
-// TestSiteLinks tests that the links of a page lead to the pages of the files
-// that they name, a source through its stub or directly, and to GitHub for
-// other files, and that a dead link of the front matter fails the read.
+// TestSiteLinks checks links to named-file pages, sources through stubs or
+// directly, and other files on GitHub, plus failure for dead front-matter links.
 func TestSiteLinks(t *testing.T) {
 	s := newTestSite(t)
 	html := pageHTML(t, s, "guides/events")
@@ -555,9 +562,8 @@ func TestSiteLinks(t *testing.T) {
 		`link "4-more/1-examples.md#missing" names no heading`)
 }
 
-// TestPageNameWithSpace tests that the Markdown copies, llms-full.txt and
-// llms.txt link a page whose name holds a space by its escaped URL, because a
-// Markdown link ends at a space.
+// TestPageNameWithSpace checks that Markdown copies, llms-full.txt, and llms.txt
+// escape a spaced page URL because a space ends a Markdown link.
 func TestPageNameWithSpace(t *testing.T) {
 	fsys := fstest.MapFS{
 		"docs/README.md": {
@@ -581,10 +587,8 @@ func TestPageNameWithSpace(t *testing.T) {
 		"- [First steps](guide/first%20steps.md): Run it.")
 }
 
-// TestSiteFiles tests that the site holds the files of each edition under
-// main/ or <feature version>/ with the assets that the pages load, and index.html
-// and llms.txt beside them, and that the pages of a release show its sources
-// from its own directory.
+// TestSiteFiles checks edition files and assets under main/ or <feature-version>/,
+// root index.html and llms.txt, and release pages using sources from their directory.
 func TestSiteFiles(t *testing.T) {
 	s, err := read(withReleases(t, testRepoFS(), "v1.2.3"), "docs", noRemote, false)
 	require.NoError(t, err)
@@ -609,17 +613,16 @@ func TestSiteFiles(t *testing.T) {
 			require.Contains(t, files, dir+name)
 		}
 		require.NotContains(t, files, dir+"reference/go-api.html")
-		// The style.css of the docs directory as esbuild minifies it.
+		// esbuild's minified docs style.css.
 		require.Equal(t, []byte("body{color:red}\n"), files[dir+"style.css"])
-		// The copy of a page with front matter starts with the line after it.
+		// A page copy starts after its front matter.
 		require.Equal(t, "# Demo Specification\n\n## Pages\n\n### Actions\n",
 			strings.TrimLeft(string(files[dir+"reference/specification.md"]), "\n"))
 	}
 }
 
-// TestWrite tests that a run removes what an earlier run wrote, as the
-// directory of a release that the docs no longer hold, and keeps other files
-// of the output directory.
+// TestWrite checks that a run removes stale generated files, including removed
+// releases, but keeps other output files.
 func TestWrite(t *testing.T) {
 	out := t.TempDir()
 	for _, name := range []string{"v0.9/index.html", "main/old.html", "index.html", "landing.html"} {
@@ -641,8 +644,7 @@ func TestWrite(t *testing.T) {
 	require.Contains(t, string(index), `url=main/`)
 }
 
-// TestSearchSuggestions tests that the search offers the pages that their
-// front matter marks as suggested, under their group.
+// TestSearchSuggestions checks that search groups front-matter suggestions.
 func TestSearchSuggestions(t *testing.T) {
 	html := pageHTML(t, newTestSite(t), "guides/events")
 	require.Regexp(t, `<a href="../" tabindex="-1">`+
@@ -652,8 +654,8 @@ func TestSearchSuggestions(t *testing.T) {
 	require.Equal(t, 2, strings.Count(html, `id="search_suggestion_`))
 }
 
-// TestStaticAssets tests that every asset that the pages load is embedded,
-// the script minified, and that the sources that [Handler] serves are too.
+// TestStaticAssets checks that all loaded assets and [Handler]-served sources
+// are embedded, with a minified script.
 func TestStaticAssets(t *testing.T) {
 	assets, err := siteAssets()
 	require.NoError(t, err)
@@ -682,9 +684,8 @@ func TestStaticAssets(t *testing.T) {
 	}
 }
 
-// TestIcons tests that every icon that the templates show is a file of icons,
-// which the site publishes in morpheus/icons, and that no icon drawn for the
-// site has the name of an icon of Morpheus.
+// TestIcons checks that every template icon exists and is published under
+// morpheus/icons, and that site and Morpheus icon names do not overlap.
 func TestIcons(t *testing.T) {
 	templates, err := filepath.Glob("*.templ")
 	require.NoError(t, err)
@@ -712,8 +713,7 @@ func TestIcons(t *testing.T) {
 	}
 }
 
-// TestDocsDirectories tests that the docs of docpages in docs/ and those of
-// the examples in example/ build.
+// TestDocsDirectories checks that docpages and example docs build.
 func TestDocsDirectories(t *testing.T) {
 	for _, dir := range []string{"docs", "example/cli/docs", "example/library/docs"} {
 		t.Run(dir, func(t *testing.T) {

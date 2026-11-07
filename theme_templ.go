@@ -11,14 +11,12 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "github.com/romshark/morpheus/neo"
 
-// themeScript applies the theme chosen with [themeSwitch] or [themeSelect] and
-// marks the choice in both. It runs in <head>, which sets the theme before the
-// first paint. Without a choice the stylesheet follows the system theme.
+// themeScript applies the [themeSwitch] or [themeSelect] choice and marks it in both.
+// Running in <head> sets it before first paint; no choice follows the system.
 //
-// A <picture> picks its <source> by prefers-color-scheme, which follows the
-// system and not the choice. The media of each such source states the chosen
-// theme instead, as a condition that always or never holds, and its own
-// media again without a choice.
+// <picture> selects <source> by system prefers-color-scheme, not this choice.
+// Each source's media instead states the chosen theme as an always/never
+// condition, or returns to its original media when no choice exists.
 func themeScript() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -36,7 +34,7 @@ func themeScript() templ.Component {
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script>\n\t\t(() => {\n\t\t\tconst root = document.documentElement;\n\t\t\tconst stored = () => {\n\t\t\t\ttry {\n\t\t\t\t\treturn localStorage.getItem(\"theme\");\n\t\t\t\t} catch {\n\t\t\t\t\treturn null;\n\t\t\t\t}\n\t\t\t};\n\t\t\tconst scheme = /\\(\\s*prefers-color-scheme\\s*:\\s*(light|dark)\\s*\\)/g;\n\t\t\tconst fit = (source) => {\n\t\t\t\tconst media = source.dataset.media ?? source.getAttribute(\"media\") ?? \"\";\n\t\t\t\tif (!media.includes(\"prefers-color-scheme\")) {\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tsource.dataset.media = media;\n\t\t\t\tconst theme = root.dataset.theme;\n\t\t\t\tconst next = theme\n\t\t\t\t\t? media.replace(scheme, (_, s) => (s === theme ? \"(width >= 0)\" : \"(width < 0)\"))\n\t\t\t\t\t: media;\n\t\t\t\tif (source.getAttribute(\"media\") !== next) {\n\t\t\t\t\tsource.setAttribute(\"media\", next);\n\t\t\t\t}\n\t\t\t};\n\t\t\tconst apply = (choice) => {\n\t\t\t\tif (choice === \"light\" || choice === \"dark\") {\n\t\t\t\t\troot.dataset.theme = choice;\n\t\t\t\t} else {\n\t\t\t\t\tdelete root.dataset.theme;\n\t\t\t\t}\n\t\t\t\tconst current = root.dataset.theme ?? \"system\";\n\t\t\t\tfor (const b of document.querySelectorAll(\"[data-theme-choice]\")) {\n\t\t\t\t\tb.setAttribute(\"aria-pressed\", String(b.dataset.themeChoice === current));\n\t\t\t\t}\n\t\t\t\t// The attribute, because the select may not be upgraded yet.\n\t\t\t\tfor (const select of document.querySelectorAll(\"neo-select.theme-select\")) {\n\t\t\t\t\tselect.setAttribute(\"value\", current);\n\t\t\t\t}\n\t\t\t\tfor (const source of document.querySelectorAll(\"picture > source[media]\")) {\n\t\t\t\t\tfit(source);\n\t\t\t\t}\n\t\t\t};\n\t\t\tconst choose = (choice) => {\n\t\t\t\ttry {\n\t\t\t\t\tif (choice === \"system\") {\n\t\t\t\t\t\tlocalStorage.removeItem(\"theme\");\n\t\t\t\t\t} else {\n\t\t\t\t\t\tlocalStorage.setItem(\"theme\", choice);\n\t\t\t\t\t}\n\t\t\t\t} catch {}\n\t\t\t\tapply(choice);\n\t\t\t};\n\t\t\tapply(stored());\n\t\t\t// With a choice, each source that the parser adds takes it at once,\n\t\t\t// which keeps the image of the system theme from loading first.\n\t\t\tconst parsing = new MutationObserver((records) => {\n\t\t\t\tfor (const r of records) {\n\t\t\t\t\tfor (const n of r.addedNodes) {\n\t\t\t\t\t\tif (n.nodeName === \"SOURCE\" && n.parentNode?.nodeName === \"PICTURE\") {\n\t\t\t\t\t\t\tfit(n);\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t});\n\t\t\tif (root.dataset.theme) {\n\t\t\t\tparsing.observe(root, { childList: true, subtree: true });\n\t\t\t}\n\t\t\tdocument.addEventListener(\"DOMContentLoaded\", () => {\n\t\t\t\tparsing.disconnect();\n\t\t\t\tapply(stored());\n\t\t\t});\n\t\t\tdocument.addEventListener(\"click\", (e) => {\n\t\t\t\tconst button = e.target.closest(\"[data-theme-choice]\");\n\t\t\t\tif (button) {\n\t\t\t\t\tchoose(button.dataset.themeChoice);\n\t\t\t\t}\n\t\t\t});\n\t\t\tdocument.addEventListener(\"neo-select-change\", (e) => {\n\t\t\t\tif (e.target.matches(\".theme-select\")) {\n\t\t\t\t\tchoose(e.detail.value);\n\t\t\t\t}\n\t\t\t});\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script>\n\t\t(() => {\n\t\t\tconst root = document.documentElement;\n\t\t\tconst stored = () => {\n\t\t\t\ttry {\n\t\t\t\t\treturn localStorage.getItem(\"theme\");\n\t\t\t\t} catch {\n\t\t\t\t\treturn null;\n\t\t\t\t}\n\t\t\t};\n\t\t\tconst scheme = /\\(\\s*prefers-color-scheme\\s*:\\s*(light|dark)\\s*\\)/g;\n\t\t\tconst fit = (source) => {\n\t\t\t\tconst media = source.dataset.media ?? source.getAttribute(\"media\") ?? \"\";\n\t\t\t\tif (!media.includes(\"prefers-color-scheme\")) {\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tsource.dataset.media = media;\n\t\t\t\tconst theme = root.dataset.theme;\n\t\t\t\tconst next = theme\n\t\t\t\t\t? media.replace(scheme, (_, s) => (s === theme ? \"(width >= 0)\" : \"(width < 0)\"))\n\t\t\t\t\t: media;\n\t\t\t\tif (source.getAttribute(\"media\") !== next) {\n\t\t\t\t\tsource.setAttribute(\"media\", next);\n\t\t\t\t}\n\t\t\t};\n\t\t\tconst apply = (choice) => {\n\t\t\t\tif (choice === \"light\" || choice === \"dark\") {\n\t\t\t\t\troot.dataset.theme = choice;\n\t\t\t\t} else {\n\t\t\t\t\tdelete root.dataset.theme;\n\t\t\t\t}\n\t\t\t\tconst current = root.dataset.theme ?? \"system\";\n\t\t\t\tfor (const b of document.querySelectorAll(\"[data-theme-choice]\")) {\n\t\t\t\t\tb.setAttribute(\"aria-pressed\", String(b.dataset.themeChoice === current));\n\t\t\t\t}\n\t\t\t\t// Use the attribute because the select may not be upgraded yet.\n\t\t\t\tfor (const select of document.querySelectorAll(\"neo-select.theme-select\")) {\n\t\t\t\t\tselect.setAttribute(\"value\", current);\n\t\t\t\t}\n\t\t\t\tfor (const source of document.querySelectorAll(\"picture > source[media]\")) {\n\t\t\t\t\tfit(source);\n\t\t\t\t}\n\t\t\t};\n\t\t\tconst choose = (choice) => {\n\t\t\t\ttry {\n\t\t\t\t\tif (choice === \"system\") {\n\t\t\t\t\t\tlocalStorage.removeItem(\"theme\");\n\t\t\t\t\t} else {\n\t\t\t\t\t\tlocalStorage.setItem(\"theme\", choice);\n\t\t\t\t\t}\n\t\t\t\t} catch {}\n\t\t\t\tapply(choice);\n\t\t\t};\n\t\t\tapply(stored());\n\t\t\t// Apply choices to parser-added sources immediately so the system-theme\n\t\t\t// image does not load first.\n\t\t\tconst parsing = new MutationObserver((records) => {\n\t\t\t\tfor (const r of records) {\n\t\t\t\t\tfor (const n of r.addedNodes) {\n\t\t\t\t\t\tif (n.nodeName === \"SOURCE\" && n.parentNode?.nodeName === \"PICTURE\") {\n\t\t\t\t\t\t\tfit(n);\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t});\n\t\t\tif (root.dataset.theme) {\n\t\t\t\tparsing.observe(root, { childList: true, subtree: true });\n\t\t\t}\n\t\t\tdocument.addEventListener(\"DOMContentLoaded\", () => {\n\t\t\t\tparsing.disconnect();\n\t\t\t\tapply(stored());\n\t\t\t});\n\t\t\tdocument.addEventListener(\"click\", (e) => {\n\t\t\t\tconst button = e.target.closest(\"[data-theme-choice]\");\n\t\t\t\tif (button) {\n\t\t\t\t\tchoose(button.dataset.themeChoice);\n\t\t\t\t}\n\t\t\t});\n\t\t\tdocument.addEventListener(\"neo-select-change\", (e) => {\n\t\t\t\tif (e.target.matches(\".theme-select\")) {\n\t\t\t\t\tchoose(e.detail.value);\n\t\t\t\t}\n\t\t\t});\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -94,8 +92,7 @@ func themeSwitch() templ.Component {
 	})
 }
 
-// themeSelect is the theme switch of a documentation page on a narrow screen.
-// Its trigger shows the icon of the chosen theme.
+// themeSelect is the narrow-screen docs theme switch; its trigger shows the choice icon.
 func themeSelect() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -208,8 +205,8 @@ func themeSelect() templ.Component {
 	})
 }
 
-// themeOption is the option of [themeSelect] for the theme choice. It shows the
-// children, an icon, before the label, and only the icon on the trigger.
+// themeOption is a [themeSelect] choice. children is an icon shown before the
+// label and alone in the trigger.
 func themeOption(choice, label string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -273,7 +270,7 @@ func themeOption(choice, label string) templ.Component {
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `theme.templ`, Line: 147, Col: 9}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `theme.templ`, Line: 162, Col: 9}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {

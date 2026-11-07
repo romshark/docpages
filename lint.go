@@ -33,38 +33,29 @@ const chromaLanguages = "https://github.com/alecthomas/chroma#supported-language
 var (
 	// tableRow matches a line of a paragraph that starts as a row of a table.
 	tableRow = regexp.MustCompile(`^\s*\|`)
-	// unspacedItem matches a line of a paragraph that starts as a list item
-	// without the space after its marker, as -item or 1.item. A * is left
-	// out, which starts emphasis as often.
+	// unspacedItem matches paragraph lines beginning with an unspaced list
+	// marker, such as -item or 1.item. It omits *, which often begins emphasis.
 	unspacedItem = regexp.MustCompile(`^\s*([-+]|[0-9]{1,9}[.)])\pL`)
-	// versionX matches a line that starts with a version whose minor version is x,
-	// as 2.x, which [unspacedItem] would take for an item.
+	// versionX matches versions such as 2.x that [unspacedItem] would mistake for items.
 	versionX = regexp.MustCompile(`^\s*[0-9]+\.[xX]\b`)
-	// orderedItem matches a line of a paragraph that starts as an item of an
-	// ordered list. A number of 4 digits or more, as the year in "2019.
-	// It grew.", starts a sentence rather than a list.
+	// orderedItem matches a paragraph line beginning an ordered-list item.
+	// Four-plus digits, such as the year in "2019. It grew.", begin a sentence.
 	orderedItem = regexp.MustCompile(`^\s*([0-9]{1,3})[.)][ \t]+\S`)
 )
 
-// lintMarkdown returns the mistakes in the Markdown of the tree n of src that
-// the site would show other than GitHub does, or not at all:
+// lintMarkdown returns src/tree n differences from GitHub rendering or content
+// the site would omit:
 //
-//   - A code block in a language that Chroma doesn't highlight, which would
-//     stay plain.
-//   - Raw HTML that the page would leave out: anything but the elements of
-//     [mediaElements] with the attributes of [mediaAttrs] and what
-//     [collapsibles] writes of a <details>. A comment is no mistake, which
-//     GitHub doesn't show either.
-//   - Lines that start with "|" without the delimiter row of a table, which
-//     would be text.
-//   - A list item without a space after its marker, as -item, and an ordered
-//     list that starts at another number than 1 right below a paragraph, which
-//     CommonMark reads as text of the paragraph.
+//   - Code blocks in languages Chroma cannot highlight, which stay plain.
+//   - Raw HTML except [mediaElements] with [mediaAttrs] and <details> output
+//     from [collapsibles]. Comments are valid because GitHub also hides them.
+//   - Lines beginning with "|" but lacking a table delimiter row, which stay text.
+//   - List items without marker spacing, such as -item, and ordered lists
+//     starting above 1 directly below a paragraph, which CommonMark folds into it.
 func lintMarkdown(n ast.Node, src []byte) []lintError {
 	var errs []lintError
-	// The raw HTML of a page is read as the page renders it: in the order of
-	// its nodes, through 1 [collapsibles], whose <details> span nodes. A
-	// <details> out of order, which the rendering reports, ends the reading.
+	// Read raw HTML in render order through one [collapsibles], whose <details>
+	// span nodes. Stop on malformed order, which rendering also reports.
 	c := &collapsibles{}
 	ordered := true
 	readHTML := func(raw string, pos int) {
@@ -109,15 +100,15 @@ func lintMarkdown(n ast.Node, src []byte) []lintError {
 // shownElements names what a page shows of raw HTML, for the errors.
 const shownElements = mediaElementList + ", and <details> with its <summary>"
 
-// lintHTML returns the mistakes in raw, raw HTML at the byte offset pos, which
-// c reads as the page renders it, and whether its <details> are in order.
+// lintHTML returns mistakes in raw HTML at byte offset pos as c renders it,
+// plus whether <details> are ordered.
 func lintHTML(c *collapsibles, raw string, pos int) (errs []lintError, ordered bool) {
 	report := func(format string, args ...any) {
 		errs = append(errs, lintError{pos, fmt.Sprintf(format, args...)})
 	}
 	z := html.NewTokenizer(strings.NewReader(raw))
 	var scratch strings.Builder
-	// The text of an element that is reported, as a <script>, is not.
+	// Do not also report text inside an already reported element such as <script>.
 	left := false
 	for {
 		tt := z.Next()
@@ -136,9 +127,16 @@ func lintHTML(c *collapsibles, raw string, pos int) (errs []lintError, ordered b
 			for _, a := range tok.Attr {
 				switch {
 				case !mediaAttrs[a.Key]:
-					report("attribute %s of <%s>, which a page leaves out", a.Key, tok.Data)
-				case (a.Key == "src" || a.Key == "poster") && goldhtml.IsDangerousURL(a.Val):
-					report("%s %q of <%s>, a URL that a page leaves out", a.Key, a.Val, tok.Data)
+					report(
+						"attribute %s of <%s>, which a page leaves out",
+						a.Key, tok.Data,
+					)
+				case (a.Key == "src" || a.Key == "poster") &&
+					goldhtml.IsDangerousURL(a.Val):
+					report(
+						"%s %q of <%s>, a URL that a page leaves out",
+						a.Key, a.Val, tok.Data,
+					)
 				}
 			}
 		default:
@@ -156,15 +154,17 @@ func lintHTML(c *collapsibles, raw string, pos int) (errs []lintError, ordered b
 				report("text %q of raw HTML, which a page leaves out: it shows %s",
 					excerpt(tok.Data), shownElements)
 			case wrote && tag:
-				// [collapsibles] keeps the open of a <details> and no other attribute.
+				// [collapsibles] keeps only a <details> open attribute.
 				for _, a := range tok.Attr {
 					if tok.Data != "details" || a.Key != "open" {
-						report("attribute %s of <%s>, which a page leaves out", a.Key, tok.Data)
+						report(
+							"attribute %s of <%s>, which a page leaves out",
+							a.Key, tok.Data,
+						)
 					}
 				}
 			}
-			// An end tag that writes nothing closes an element that its start
-			// tag reported.
+			// A non-rendered end tag closes an element reported at its start.
 		}
 	}
 }
@@ -182,7 +182,8 @@ func lintParagraph(p *ast.Paragraph, src []byte) []lintError {
 		if m := unspacedItem.FindStringSubmatch(line); m != nil &&
 			!versionX.MatchString(line) {
 			errs = append(errs, lintError{seg.Start, fmt.Sprintf(
-				"%q starts as a list item without the space after %q, which makes it text",
+				"%q starts as a list item without the space after %q,"+
+					" which makes it text",
 				excerpt(line), m[1])})
 		}
 		if m := orderedItem.FindStringSubmatch(line); m != nil && i > 0 {
@@ -204,7 +205,7 @@ func lintParagraph(p *ast.Paragraph, src []byte) []lintError {
 	return errs
 }
 
-// excerpt returns line, without the space around it, shortened to 40 bytes.
+// excerpt trims line and shortens it to 40 bytes.
 func excerpt(line string) string {
 	line = strings.TrimSpace(line)
 	if len(line) > 40 {
@@ -213,9 +214,8 @@ func excerpt(line string) string {
 	return line
 }
 
-// lintErrors returns errs, the mistakes in src, the Markdown of file, each as
-// file:line: mistake. src leaves out the front matter of file, whose lines the
-// line counts when fsys holds file.
+// lintErrors formats src mistakes as file:line: mistake. src omits front matter,
+// but line numbers include it when fsys contains file.
 func lintErrors(fsys fs.FS, file string, src []byte, errs []lintError) error {
 	offset := 0
 	if fsys != nil {
@@ -230,8 +230,7 @@ func lintErrors(fsys fs.FS, file string, src []byte, errs []lintError) error {
 	return errors.Join(r...)
 }
 
-// lineOf returns the number of the line of src that holds the byte offset pos,
-// counted from 1.
+// lineOf returns the 1-based src line containing byte offset pos.
 func lineOf(src []byte, pos int) int {
 	if pos < 0 || pos > len(src) {
 		return 0
@@ -239,10 +238,12 @@ func lineOf(src []byte, pos int) int {
 	return bytes.Count(src[:pos], []byte("\n")) + 1
 }
 
-// settingFiles returns the files of the docs directory dir that the settings of
-// the site c take: the logo, the favicon, style.css and the icons of links, the
-// header and the footer as written, and of the host h, nil without a setting.
-func settingFiles(dir string, c chrome, links []frontMatterLink, h *hostSettings) []string {
+// settingFiles returns files used by site settings c in docs directory dir:
+// logo, favicon, style.css, original header/footer link icons, and host h's
+// icon when configured.
+func settingFiles(
+	dir string, c chrome, links []frontMatterLink, h *hostSettings,
+) []string {
 	var r []string
 	if c.logo != "" {
 		r = append(r, path.Join(dir, "logo.svg"))
@@ -264,13 +265,10 @@ func settingFiles(dir string, c chrome, links []frontMatterLink, h *hostSettings
 	return r
 }
 
-// unusedFiles returns an error for each file of the docs directory of each
-// edition of s in fsys that s doesn't use: no page shows it, no link names it
-// and no setting takes it, where settings are the files that the settings
-// take. Such a file is an image that no page shows any more, or a Markdown file
-// in a directory without a position, which the navigation leaves out. A docs
-// directory at the root of the repository has its groups checked alone, as the
-// rest of it is the repository.
+// unusedFiles reports every edition docs file in fsys unused by s: not shown by
+// a page, named by a link, or used by settings. Examples are an obsolete image
+// or Markdown in an unpositioned directory omitted from navigation.
+// For root-level docs, it checks only groups because the rest is repository content.
 func unusedFiles(fsys fs.FS, s *Site, settings []string) error {
 	used := make(map[string]bool)
 	for _, f := range settings {
@@ -312,9 +310,10 @@ func unusedFiles(fsys fs.FS, s *Site, settings []string) error {
 				return nil
 			case d.IsDir(), used[p]:
 				return nil
-			// The icon of a group is that of its directory.
+			// A group icon belongs to its directory.
 			case d.Name() == "icon.svg" && path.Dir(rel) != "." &&
-				!strings.Contains(path.Dir(rel), "/") && orderPrefix.MatchString(path.Dir(rel)):
+				!strings.Contains(path.Dir(rel), "/") &&
+				orderPrefix.MatchString(path.Dir(rel)):
 				return nil
 			case slices.ContainsFunc(linked, func(l string) bool { return inDir(p, l) }):
 				return nil

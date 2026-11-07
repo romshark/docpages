@@ -1,8 +1,6 @@
-/* The look of a man page in a terminal: monospace text, headings in capitals
-   with the text indented below them, options in bold and square corners.
-   Black on white with blue links in the light theme, gray on black with green
-   links in the dark one. The tokens keep the light-dark() pairs of docpages,
-   so the theme switch still works. */
+/* Terminal man-page style: monospace, uppercase headings, indented text,
+   bold options, and square corners. Light mode is black on white with blue links;
+   dark is gray on black with green links. light-dark() pairs keep theme switching. */
 :root {
   --bg: light-dark(#ffffff, #000000);
   --bg-card: light-dark(#f2f2f2, #111111);
@@ -14,12 +12,9 @@
   --accent-hover: light-dark(#000099, #99ffb3);
   --font-sans: var(--font-mono);
 
-  /* The tokens of Morpheus, whose components draw the menus, the search
-     dialog, the buttons and the navigation in their shadow DOM, which the
-     rules below do not reach: square corners, no shadows, no lift on hover
-     and no animation, as in a terminal. */
+  /* Morpheus shadow-DOM tokens for menus, search, buttons, and navigation:
+     terminal-like square corners, no shadows, hover lift, or animation. */
   --page-radius: 0px;
-  --neo-link-radius: 0px;
   --neo-button-shadow: none;
   --neo-button-hover-shadow: none;
   --neo-button-active-shadow: none;
@@ -30,16 +25,15 @@
   --neo-duration-scale: 0;
 }
 
-/* The rules of docpages that round corners are more specific than any one
-   rule here could override them all. */
+/* Override docpages corner rules together because their specificity varies. */
 *,
 *::before,
 *::after {
   border-radius: 0 !important;
 }
 
-/* The selected option of the version menu and the theme switch, in reverse
-   video. docpages sets these tokens on the menus and not on :root. */
+/* Reverse-video selected version and theme options.
+   docpages sets these tokens on menus, not :root. */
 .version-select,
 .theme-select {
   --neo-select-option-selected-bg: var(--text);
@@ -80,12 +74,12 @@
     border: 0;
   }
 
-  /* The text below the headings, indented as in a man page. */
+  /* Indent text below headings as in a man page. */
   > :not(h1, h2) {
     margin-inline-start: 4ch;
   }
 
-  /* Commands and options in bold, as man shows them. */
+  /* Bold commands and options, as man does. */
   code {
     font-size: inherit;
     font-weight: 700;

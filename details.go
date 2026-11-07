@@ -9,49 +9,45 @@ import (
 	"golang.org/x/net/html"
 )
 
-// summaryElements are the HTML elements that a page keeps in the <summary> of
-// a <details>, without their attributes, around the text that it keeps.
+// summaryElements are attribute-free HTML elements preserved around <summary> text.
 var summaryElements = map[string]bool{
 	"code": true, "b": true, "strong": true, "i": true, "em": true,
 }
 
-// detailsIcon returns the markup of the icon at the start of the <summary> of a
-// <details>, which CSS turns as the <details> opens. It renders the icon once,
-// after the init of assets.go gives <neo-icon> the icons to inline.
+// detailsIcon returns a <summary>'s leading icon, which CSS rotates on open.
+// It renders once after assets.go initializes icons for <neo-icon> to inline.
 var detailsIcon = sync.OnceValue(func() string {
 	var b strings.Builder
 	_ = icon("chevron-down").Render(context.Background(), &b)
 	return b.String()
 })
 
-// rawTextElements are the HTML elements whose text is code or markup rather
-// than text, which a <details> leaves out with them.
+// rawTextElements contain code or markup rather than text; <details> omits them and it.
 var rawTextElements = map[string]bool{
 	"iframe": true, "noembed": true, "noframes": true, "noscript": true,
 	"plaintext": true, "script": true, "style": true, "textarea": true,
 	"title": true, "xmp": true,
 }
 
-// collapsibles writes the <details> of a page, a <summary> and the text that it
-// hides, as GitHub shows them. The tags of 1 <details> lie in several nodes of
-// raw HTML, around the Markdown of its text, which the page renders in between.
-// A <neo-elastic> of Morpheus holds the text, which animates its height as it
-// shows and hides. That of a closed <details> starts at the height 0, with
-// open="false", which spares it measuring the text that the browser hides.
+// collapsibles renders page <details> like GitHub: a <summary> and hidden text.
+// One element's tags span raw-HTML nodes around Markdown rendered between them.
+// Morpheus <neo-elastic> wraps the text to animate its height. Closed details
+// start at height 0 with open="false", avoiding measurement of browser-hidden text.
 type collapsibles struct {
-	// outer are the <details> around the node, the innermost last.
+	// outer lists surrounding <details>, innermost last.
 	outer   []openDetails
 	summary bool // Whether the node is in a <summary>.
-	// skip is the element of [rawTextElements] that the node is in, whose
-	// text it leaves out. Empty outside one.
+	// skip is the containing [rawTextElements] element whose text is omitted;
+	// empty outside one.
 	skip string
 }
 
-// write writes to b what the page shows of tok, a token of raw HTML other than
-// a media element, of type tt, and reports whether it wrote any: the tags of
-// a <details> and of its <summary> with what the <summary> holds of [summaryElements],
-// and the text in either. It leaves out the rest.
-func (c *collapsibles) write(b *strings.Builder, tt html.TokenType, tok html.Token) (bool, error) {
+// write emits to b the visible part of non-media raw-HTML token tok of type tt:
+// <details>/<summary> tags, [summaryElements] content, and text within either.
+// It omits everything else and reports whether it wrote anything.
+func (c *collapsibles) write(
+	b *strings.Builder, tt html.TokenType, tok html.Token,
+) (bool, error) {
 	start := tt == html.StartTagToken || tt == html.SelfClosingTagToken
 	switch {
 	case c.skip != "":
@@ -60,7 +56,7 @@ func (c *collapsibles) write(b *strings.Builder, tt html.TokenType, tok html.Tok
 		}
 		return false, nil
 	case tt == html.TextToken:
-		// The spaces between the tags of a <summary> are its text too.
+		// Spaces between <summary> tags are text too.
 		if !c.summary && (!c.inBody() || strings.TrimSpace(tok.Data) == "") {
 			return false, nil
 		}
@@ -86,8 +82,7 @@ func (c *collapsibles) write(b *strings.Builder, tt html.TokenType, tok html.Tok
 		if len(c.outer) == 0 {
 			return false, errors.New("</details> closes no <details>")
 		}
-		// The <details> closes even with a mistake, which leaves the rest of
-		// the page to read without another for its end.
+		// Close malformed <details> so later page content needs no extra end tag.
 		body, summary := c.inBody(), c.summary
 		c.outer, c.summary = c.outer[:len(c.outer)-1], false
 		switch {

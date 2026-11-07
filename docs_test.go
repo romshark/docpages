@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testPages are pages at paths that cover [page.base]: 1 for a directory,
-// 1 in it, 1 in the root of the version, and a link that leaves the site.
+// testPages covers [page.base]: a directory page, a page within it,
+// a version-root page, and an external link.
 var testPages = []page{
 	{
 		file:  "guide/README.md",
@@ -66,8 +66,7 @@ var testSite = &site{
 // blob is the URL of the files of the main branch on GitHub.
 const blob = testRepo + "/blob/main/"
 
-// convertTest converts srcs as the files of the first len(srcs)
-// test pages at the Git ref.
+// convertTest converts srcs as the first len(srcs) test pages at Git ref.
 func convertTest(t *testing.T, ref string, srcs ...string) []doc {
 	t.Helper()
 	pages := slices.Clone(testPages[:len(srcs)])
@@ -82,9 +81,8 @@ func convertTest(t *testing.T, ref string, srcs ...string) []doc {
 	return docs
 }
 
-// TestResolveLink tests that a link relative to the file of a page leads to the
-// page of the file it names, that a link to another file of the repository
-// resolves to the file on GitHub and that every other link stays as written.
+// TestResolveLink checks that page-file links open their pages, other
+// repository-file links open GitHub, and all other links stay unchanged.
 func TestResolveLink(t *testing.T) {
 	for name, tt := range map[string]struct {
 		from       int
@@ -159,8 +157,7 @@ func TestResolveLink(t *testing.T) {
 	}
 }
 
-// TestResolveLinkErr tests that a fragment naming no heading of the linked page
-// and an invalid URL are errors.
+// TestResolveLinkErr checks that missing headings and invalid URLs fail.
 func TestResolveLinkErr(t *testing.T) {
 	for name, dest := range map[string]string{
 		"unknown heading":               "#missing",
@@ -175,8 +172,8 @@ func TestResolveLinkErr(t *testing.T) {
 	}
 }
 
-// TestResolveMarkdownLink tests that a link of a Markdown copy leads to the Markdown
-// copy of the page it names, as seen from the copy and as seen from the site root.
+// TestResolveMarkdownLink checks links to page Markdown copies from both
+// another copy and the site root.
 func TestResolveMarkdownLink(t *testing.T) {
 	for name, tt := range map[string]struct {
 		base, dest, want string
@@ -215,9 +212,8 @@ func TestResolveMarkdownLink(t *testing.T) {
 	}
 }
 
-// TestConvertDocs tests that each file of a page yields its title, its
-// description, its headings and its body, and that its links lead to the other
-// pages in the HTML and to their Markdown copies in the Markdown copy.
+// TestConvertDocs checks that each page file produces its title, description,
+// headings, and body; HTML links open pages and copy links open Markdown copies.
 func TestConvertDocs(t *testing.T) {
 	docs := convertTest(t, MainVersion,
 		"# Introduction\n\n"+
@@ -268,9 +264,8 @@ func TestConvertDocs(t *testing.T) {
 	require.Zero(t, docs[3])
 }
 
-// TestConvertDocsDeadFragment tests that a link to a fragment naming no heading
-// fails the conversion. GitHub derives the ID use_it from the heading,
-// goldmark derives use-it.
+// TestConvertDocsDeadFragment checks that an unknown fragment fails conversion.
+// GitHub derives use_it from the heading; goldmark derives use-it.
 func TestConvertDocsDeadFragment(t *testing.T) {
 	_, err := convertDocs(slices.Clone(testPages[:1]), [][]byte{
 		[]byte("# Title\n\nSee [usage](#use_it).\n\n## Use_it\n"),
@@ -279,8 +274,8 @@ func TestConvertDocsDeadFragment(t *testing.T) {
 		`guide/README.md: link "#use_it" names no heading`)
 }
 
-// TestConvertDocsTitle tests that a page without a title takes the text of its
-// level 1 heading, and that a page with neither is an error.
+// TestConvertDocsTitle checks that a missing title uses the level 1 heading and
+// that missing both is an error.
 func TestConvertDocsTitle(t *testing.T) {
 	pages := []page{{file: "a.md"}}
 	_, err := convertDocs(pages, [][]byte{[]byte("# The `App`\n")}, &site{})
@@ -291,9 +286,8 @@ func TestConvertDocsTitle(t *testing.T) {
 	require.ErrorContains(t, err, "b.md has no level 1 heading and no title")
 }
 
-// TestContents tests that the contents of a page list its title,
-// then its headings from level 2 down to the depth of the page,
-// and that a page without such headings has no contents.
+// TestContents checks that contents list the title, then headings from level 2
+// through the page depth, and are absent without those headings.
 func TestContents(t *testing.T) {
 	sections := []section{
 		{ID: "spec", Title: "Spec", Level: 1},
@@ -346,11 +340,12 @@ func TestContents(t *testing.T) {
 	}
 }
 
-// TestTOCDepth tests that the contents list headings down to level 4 unless
-// headings below level 2 repeat their text at a level, which stops the
-// contents above that level.
+// TestTOCDepth checks that contents reach level 4 unless text repeats below
+// level 2, which stops them above that level.
 func TestTOCDepth(t *testing.T) {
-	h := func(level int, title string) section { return section{Title: title, Level: level} }
+	h := func(level int, title string) section {
+		return section{Title: title, Level: level}
+	}
 	for name, tt := range map[string]struct {
 		sections []section
 		want     int
@@ -382,8 +377,8 @@ func TestTOCDepth(t *testing.T) {
 	}
 }
 
-// TestNavigation tests that the navigation groups the pages in their order,
-// links them relative to the current page and marks it.
+// TestNavigation checks page order and groups, current-relative links,
+// and the current mark.
 func TestNavigation(t *testing.T) {
 	require.Equal(t, []navGroup{
 		{Title: "Get started", Entries: []navEntry{
@@ -403,8 +398,7 @@ func TestNavigation(t *testing.T) {
 	}, navigation(testPages, testGroups, 1))
 }
 
-// TestNeighbors tests that the previous and next links of a page lead to the
-// pages next to it and skip links that leave the site.
+// TestNeighbors checks that previous and next links skip external entries.
 func TestNeighbors(t *testing.T) {
 	for name, tt := range map[string]struct {
 		page       int
@@ -438,11 +432,9 @@ func convert(t *testing.T, md string) doc {
 	return convertTest(t, MainVersion, md)[0]
 }
 
-// TestCodeBlocks tests that a code block in a language that Chroma has a lexer
-// for gets token classes, that a code block without a language stays plain text,
-// and that every block gets its title and a copy button for its own ID,
-// which a block with a title shows in the title. [TestLint] tests that a
-// language that Chroma doesn't know fails the build.
+// TestCodeBlocks checks Chroma classes for known languages, plain text without
+// a language, and per-block titles, IDs, and copy buttons. Titled blocks put
+// the button in the title. [TestLint] covers unknown-language failures.
 func TestCodeBlocks(t *testing.T) {
 	const goFunc = `<pre><code class="language-go"><span class="kd">func</span>`
 	for name, tt := range map[string]struct {
@@ -484,8 +476,8 @@ func TestCodeBlocks(t *testing.T) {
 	}
 }
 
-// TestCallouts tests that a blockquote that starts with a GitHub alert marker
-// becomes a callout without the marker and that other blockquotes stay.
+// TestCallouts checks that GitHub-alert blockquotes become marker-free callouts
+// and other blockquotes stay unchanged.
 func TestCallouts(t *testing.T) {
 	for name, tt := range map[string]struct {
 		md, want, unwanted string
@@ -522,11 +514,10 @@ func TestCallouts(t *testing.T) {
 	}
 }
 
-// TestDetails tests that a <details> holds its summary, with the icon and the
-// formatting of its text alone, and its text in a <neo-elastic>, whether the
-// text is Markdown or raw HTML, that it keeps open, that it nests, that the
-// Markdown copy keeps it as written. [TestLint] tests that what a <details>
-// leaves out, as a script, fails the build.
+// TestDetails checks that <details> holds a summary with an icon and only its
+// text formatting, wraps Markdown or raw-HTML content in <neo-elastic>,
+// keeps open, nests, and remains unchanged in the Markdown copy.
+// [TestLint] covers omitted content such as scripts.
 func TestDetails(t *testing.T) {
 	summary := func(open, title string) string {
 		elastic := ` open="false"`
@@ -576,8 +567,8 @@ func TestDetails(t *testing.T) {
 	}
 }
 
-// TestDetailsErr tests that a <details> that lacks its <summary> or its end,
-// and a <summary> or </details> outside a <details>, fail the conversion.
+// TestDetailsErr checks that missing summaries or closing tags, and orphaned
+// <summary> or </details> tags, fail conversion.
 func TestDetailsErr(t *testing.T) {
 	for md, want := range map[string]string{
 		"<details>\n\nText.\n\n</details>\n":                  "<details> has no <summary>",
@@ -597,7 +588,7 @@ func TestDetailsErr(t *testing.T) {
 	}
 }
 
-// TestHeadingLinks tests that every heading below level 1 ends with a link to itself.
+// TestHeadingLinks checks that every heading below level 1 links to itself.
 func TestHeadingLinks(t *testing.T) {
 	body := convert(t, "# Title\n\n## The `App` type\n").body
 	require.Contains(t, body, `<h1 id="title">Title</h1>`)
@@ -606,9 +597,8 @@ func TestHeadingLinks(t *testing.T) {
 		` aria-label="Link to this section"></a></h2>`)
 }
 
-// TestPlainTextAutoLinks tests that the title, the description and the search
-// text of a page keep the text of its autolinks: a bare URL, which GFM links,
-// a URL and an email address in <>.
+// TestPlainTextAutoLinks checks that page titles, descriptions, and search text
+// preserve bare GFM-linked URLs and angle-bracketed URLs and emails.
 func TestPlainTextAutoLinks(t *testing.T) {
 	d := convert(t, "# Install from <https://go.dev>\n\n"+
 		"See https://example.com and <https://go.dev>, or write <dev@example.com>.\n")
@@ -618,8 +608,8 @@ func TestPlainTextAutoLinks(t *testing.T) {
 	require.Equal(t, "Install from https://go.dev "+text, d.search[0].Text)
 }
 
-// TestPlainTextBlocks tests that the search text of a page keeps the words of
-// 2 blocks in 1 node apart, as those of 2 list items and of 2 table cells.
+// TestPlainTextBlocks checks that search text separates two blocks in one node,
+// such as two list items or table cells.
 func TestPlainTextBlocks(t *testing.T) {
 	d := convert(t,
 		"# Writing\n\n- A list\n  - with a nested item\n- [x] A done task\n\n"+
@@ -629,13 +619,15 @@ func TestPlainTextBlocks(t *testing.T) {
 		d.search[0].Text)
 }
 
-// TestSearchEntries tests that a page yields 1 search entry for the text above
-// its first section and 1 for each heading down to its depth, without code.
+// TestSearchEntries checks that a page yields one code-free entry above its
+// first section and one per heading through its depth.
 func TestSearchEntries(t *testing.T) {
-	docs, err := convertDocs(slices.Clone(testPages[1:2]), [][]byte{[]byte("# Events\n\n" +
-		"Events update\nother tabs.\n\n```go\nfunc hidden() {}\n```\n\n" +
-		"## Dispatch\n\nUse a `Dispatcher`.\n\n### Details\n\n- a list\n\n" +
-		"### Details\n\n- again\n")},
+	docs, err := convertDocs(
+		slices.Clone(testPages[1:2]),
+		[][]byte{[]byte("# Events\n\n" +
+			"Events update\nother tabs.\n\n```go\nfunc hidden() {}\n```\n\n" +
+			"## Dispatch\n\nUse a `Dispatcher`.\n\n### Details\n\n- a list\n\n" +
+			"### Details\n\n- again\n")},
 		&site{ref: MainVersion, host: githubHost(testRepo)})
 	require.NoError(t, err)
 	require.Equal(t, []searchEntry{
@@ -653,8 +645,8 @@ func TestSearchEntries(t *testing.T) {
 	}, docs[0].search)
 }
 
-// TestTruncate tests that a long text is cut at a space, and without one before
-// the character that holds byte n, and that a short one stays.
+// TestTruncate checks that long text cuts at a space, or before the character
+// containing byte n when none exists, while short text stays unchanged.
 func TestTruncate(t *testing.T) {
 	for name, tt := range map[string]struct {
 		s    string
@@ -673,9 +665,8 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
-// TestLLMSTxt tests that llms.txt names the project with the description of
-// the first page and lists every entry under its group, the pages by their
-// Markdown copy.
+// TestLLMSTxt checks that llms.txt names the project, includes the first-page
+// description, and groups all entries with page links to Markdown copies.
 func TestLLMSTxt(t *testing.T) {
 	docs := []doc{
 		{description: "Demo is a web framework for Go."},
@@ -697,9 +688,8 @@ func TestLLMSTxt(t *testing.T) {
 		string(llmsTxt("Demo", testPages, testGroups, docs)))
 }
 
-// TestSuggestions tests that the search of a page offers the suggested pages,
-// linked relative to the page, a link that leaves the site by its URL,
-// and hides its heading without them.
+// TestSuggestions checks that search offers suggested pages with page-relative
+// links, uses an external link's URL, and hides the heading when none exist.
 func TestSuggestions(t *testing.T) {
 	pages := []page{
 		{path: "", title: "Introduction", group: 0, suggested: true},
@@ -746,15 +736,13 @@ func render(t *testing.T, c templ.Component) string {
 	return b.String()
 }
 
-// TestHeadingKeepsTemplateIDs tests that a heading that would take the ID of
-// an element of the template gets another one.
+// TestHeadingKeepsTemplateIDs checks that a heading cannot take a template ID.
 func TestHeadingKeepsTemplateIDs(t *testing.T) {
 	body := convert(t, "# T\n\n## Main content\n").body
 	require.Contains(t, body, `<h2 id="main-content-1">`)
 }
 
-// TestSkipLink tests that the first element of every page is the link to its
-// <main> element, which every page has exactly 1 of.
+// TestSkipLink checks that every page starts with a link to its sole <main>.
 func TestSkipLink(t *testing.T) {
 	html := pageHTML(t, newTestSite(t), "guides/events")
 	body := html[strings.Index(html, "<body"):]
@@ -765,8 +753,8 @@ func TestSkipLink(t *testing.T) {
 	require.Contains(t, html, `id="main-content" tabindex="-1">`)
 }
 
-// TestTemplateIDs tests that templateIDs lists every element ID that the template of
-// a docs page writes, which the code blocks and headings of the page do not take.
+// TestTemplateIDs checks that templateIDs covers every docs-template ID,
+// keeping them unavailable to code blocks and headings.
 func TestTemplateIDs(t *testing.T) {
 	s := newTestSite(t)
 	html := pageHTML(t, s, "guides/events")
@@ -775,11 +763,13 @@ func TestTemplateIDs(t *testing.T) {
 	for _, m := range ids.FindAllStringSubmatch(html, -1) {
 		written[m[1]] = true
 	}
-	for _, sec := range s.main().docs[s.main().links.pageOf("docs/2-guides/01-events.md")].sections {
+	for _, sec := range s.main().
+		docs[s.main().links.pageOf("docs/2-guides/01-events.md")].
+		sections {
 		delete(written, sec.ID)
 	}
-	// goldmark writes no "_" into the ID of a heading, which keeps the
-	// numbered IDs of the code blocks and the suggestions apart from them.
+	// goldmark omits "_" from heading IDs, keeping numbered block and suggestion
+	// IDs distinct.
 	for id := range written {
 		if strings.Contains(id, "_") {
 			delete(written, id)
@@ -792,9 +782,8 @@ func TestTemplateIDs(t *testing.T) {
 	require.Equal(t, want, written)
 }
 
-// TestPageLinks tests that a docs page links its Markdown copy on the site and
-// its file on GitHub, the source of a page with one, and that these links and
-// the GitHub link of the header show their icon as icon links.
+// TestPageLinks checks links to a page's site Markdown and GitHub file, or its
+// source, and icon-link styling for them and the header's GitHub link.
 func TestPageLinks(t *testing.T) {
 	const blob = "https://github.com/o/demo/blob/main/"
 	s := newTestSite(t)
@@ -837,8 +826,8 @@ func TestPageLinks(t *testing.T) {
 	}
 }
 
-// TestMermaid tests that a mermaid code block becomes the element that docs.js
-// draws the diagram of, with the source escaped and without a copy button.
+// TestMermaid checks that a Mermaid block becomes the escaped,
+// button-free element that docs.js draws.
 func TestMermaid(t *testing.T) {
 	body := convert(t, "# T\n\n```mermaid\nflowchart LR\n    a --> b\n```\n").body
 	require.Contains(t, body,

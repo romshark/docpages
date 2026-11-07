@@ -11,10 +11,8 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "github.com/romshark/morpheus/neo"
 
-// icon is the icon of the pages named name, the SVG file name.svg of [icons].
-// <neo-icon> shows it in the color of the text around it, as large as the text
-// unless CSS sizes it. It is hidden from screen readers, because the element
-// that shows it names what it does.
+// icon renders [icons]/name.svg in the surrounding text color and, unless CSS
+// resizes it, text size. Screen readers ignore it because its host names the action.
 func icon(name string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

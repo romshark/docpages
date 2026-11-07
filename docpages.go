@@ -1,7 +1,5 @@
-// Package docpages renders the Markdown files of a docs directory of a Git
-// repository as a static documentation site with a version for main and a
-// version for each release. Links between the files work on the site as they
-// do on GitHub.
+// Package docpages renders a Git repository's docs directory as a static site,
+// with versions for main and each release. File links work as they do on GitHub.
 //
 // The layout of the docs directory makes the navigation:
 //
@@ -18,15 +16,13 @@
 //	versions/              the docs of the releases, optional
 //	  v1.2/                a docs directory of the same layout, for v1.2.x
 //
-// The numbers order the groups and the pages, and the site leaves them out of
-// URLs and titles. The front matter of a page sets its title, marks it as
-// suggested by the search, shows a file outside the docs directory with source,
-// or makes it a link that leaves the site with url. The front matter of the
-// README.md of the docs directory also holds the settings of the site. The
-// README of the module lists the keys.
+// Numbers order groups and pages but are omitted from URLs and titles. Page
+// front matter can set a title, suggest the page in search, show an external
+// file with source, or create an external link with url. The docs README front
+// matter also holds site settings; the module README lists its keys.
 //
-// The docs directory documents main. [Snapshot] copies it into versions/ for
-// a release, where its pages stay editable.
+// The docs directory describes main. [Snapshot] makes an editable release copy
+// under versions/.
 package docpages
 
 import (
@@ -55,17 +51,15 @@ type Options struct {
 	Dir string
 }
 
-// Site is the documentation of main and of every release in the versions
-// directory of the docs directory.
+// Site contains the docs for main and every release in the versions directory.
 type Site struct {
 	// editions are the releases, the latest first, followed by main.
 	editions []*edition
 	chrome   chrome
-	// assets are the files that the pages of each edition load from its own
-	// directory, by their path relative to it.
+	// assets maps edition-relative paths to files each edition loads locally.
 	assets map[string][]byte
-	// served are the files of the repository that [Handler] serves in place
-	// of the host, nil outside it. See [site].
+	// served holds repository files that [Handler] serves instead of the host;
+	// nil outside it. See [site].
 	served map[string]bool
 }
 
@@ -76,19 +70,18 @@ type chrome struct {
 	home   string // URL that the logo leads to, relative to the output directory.
 	host   *host
 	header []frontMatterLink
-	// footer are the links of the footer between the repository and llms.txt,
-	// their Icon replaced by the SVG markup of its file.
+	// footer links sit between the repository and llms.txt;
+	// each Icon contains its file's SVG markup.
 	footer  []frontMatterLink
 	license string // Last line of the footer, empty for none.
 	favicon string // Name of the icon of the browser tab, empty without one.
 	style   bool   // Whether the docs directory holds a style.css.
-	// reload is the state of the files that the pages show, as [Handler]
-	// reports it. The pages reload when the state changes. Empty outside [Handler].
+	// reload is [Handler]'s state for displayed files. Pages reload when it changes.
+	// Empty outside [Handler].
 	reload string
 }
 
-// faviconNames are the names of the icon of the browser tab in the docs
-// directory, in the order in which they are looked up.
+// faviconNames lists docs-directory tab icons in lookup order.
 var faviconNames = []string{"favicon.svg", "favicon.png", "favicon.ico"}
 
 // Read reads the documentation of o.Dir in o.Root and converts it.
@@ -96,17 +89,16 @@ func Read(o Options) (*Site, error) {
 	return readOptions(o, false)
 }
 
-// readOptions is [Read], whose links to the files of the repository that no
-// page shows lead to the files that [Handler] serves if served.
+// readOptions is [Read], but when served, non-page repository links use files
+// served by [Handler].
 func readOptions(o Options, served bool) (*Site, error) {
 	return read(os.DirFS(o.Root), path.Clean(filepath.ToSlash(o.Dir)),
 		func() (string, error) { return gitRemote(o.Root) }, served)
 }
 
-// read reads the documentation of the docs directory dir of the repository fsys.
-// remote returns the URL of the Git remote origin, which [frontMatter]
-// Repository replaces. If served, the links to the files of the repository that
-// no page shows lead to the files that [Handler] serves.
+// read reads docs directory dir from repository fsys. remote returns origin's URL,
+// overridden by [frontMatter].Repository. When served,
+// [Handler] serves non-page repository links.
 func read(
 	fsys fs.FS, dir string, remote func() (string, error), served bool,
 ) (*Site, error) {
@@ -174,8 +166,7 @@ func read(
 		if err != nil {
 			return nil, err
 		}
-		// [Handler] serves the stylesheet as written, as it serves that of
-		// docpages, which is easier to read in a browser.
+		// [Handler] serves both stylesheets unminified for easier browser reading.
 		if !served {
 			data = min
 		}
@@ -204,8 +195,7 @@ func read(
 		return nil, err
 	}
 	s.editions = append(s.editions, main)
-	// Rendering a note checks it and its links, which may lead to the pages
-	// of the other editions.
+	// Rendering validates a note and its links, including links to other editions.
 	for _, e := range s.editions {
 		if _, err := e.noteHTML(0, s.editions); err != nil {
 			return nil, fmt.Errorf("%s: note: %w", path.Join(e.dir, readmeName), err)
@@ -217,7 +207,7 @@ func read(
 				path.Join(dir, readmeName), l.Title, err)
 		}
 	}
-	// The pages, the links and the settings have named every file that the site uses.
+	// Pages, links, and settings have now named every file the site uses.
 	settings := settingFiles(dir, c, slices.Concat(header, set.Footer), set.Host)
 	if err := unusedFiles(fsys, s, settings); err != nil {
 		return nil, err
@@ -225,13 +215,11 @@ func read(
 	return s, nil
 }
 
-// defaultHeader is the header of a docs directory whose README.md sets none:
-// a link to the first page.
+// defaultHeader links the first page when the docs README sets no header.
 var defaultHeader = []frontMatterLink{{Title: "Docs", URL: readmeName}}
 
-// withIcons returns links, the links of the header or the footer as part
-// names it, with the Icon of each, a file of the docs directory dir of fsys,
-// replaced by its SVG markup.
+// withIcons returns header or footer links, as part names them, with each Icon
+// file from docs directory dir in fsys replaced by its SVG markup.
 func withIcons(
 	fsys fs.FS, dir, part string, links []frontMatterLink,
 ) ([]frontMatterLink, error) {
@@ -260,18 +248,17 @@ func (s *Site) latest() *edition {
 	return s.editions[0]
 }
 
-// defaultEdition returns the edition that the index.html of the output
-// directory opens: the latest release, or main without releases.
+// defaultEdition returns the edition opened by output index.html:
+// the latest release, or main when there are no releases.
 func (s *Site) defaultEdition() *edition { return s.editions[0] }
 
 // Description returns the text of the first paragraph of the first page of main.
 func (s *Site) Description() string { return s.main().docs[0].description }
 
-// Files returns the files of the site by their path relative to the output directory.
-// The directory of each edition, main/ or that of a release, as v1.2/, holds its pages,
-// their Markdown copies, search.json, llms.txt, llms-full.txt and the assets of
-// the pages. index.html and llms.txt of the output directory lead to the latest release,
-// or to main without releases.
+// Files returns site files by output-relative path. Each edition directory,
+// main/ or a release such as v1.2/, contains its pages, Markdown copies,
+// search.json, llms.txt, llms-full.txt, and page assets. Root index.html and
+// llms.txt lead to the latest release, or main when there are none.
 func (s *Site) Files() (map[string][]byte, error) {
 	pages := map[string]templ.Component{
 		"index.html": docsIndex(s.defaultEdition().outDir(), &s.chrome),
@@ -312,9 +299,8 @@ func (s *Site) Files() (map[string][]byte, error) {
 	return files, nil
 }
 
-// Write writes the files of the site into the directory out. It first removes
-// the files that a run writes, the directories of the editions among them,
-// which leaves no page that the docs directory no longer has.
+// Write writes the site to out. It first removes prior generated files,
+// including edition directories, so deleted docs leave no stale pages.
 func (s *Site) Write(out string) error {
 	files, err := s.Files()
 	if err != nil {
@@ -336,8 +322,8 @@ func (s *Site) Write(out string) error {
 	return writeFiles(out, files)
 }
 
-// writeFiles writes files, by their slash-separated path relative to dir,
-// into dir, creating the directories that they need.
+// writeFiles writes files by slash-separated, dir-relative path, creating
+// needed directories.
 func writeFiles(dir string, files map[string][]byte) error {
 	for name, content := range files {
 		p := filepath.Join(dir, filepath.FromSlash(name))
@@ -371,8 +357,8 @@ func (s *Site) view(e *edition, i int) docView {
 	}
 	// read checked the note, which leaves no error here.
 	v.note, _ = e.noteHTML(i, s.editions)
-	// A link to the first page stands for the whole documentation: it's the
-	// current one on every page that no other link of the header leads to.
+	// A first-page link represents all docs, so it is current when no other
+	// header link reaches the page.
 	var first []int
 	for _, l := range s.chrome.header {
 		href, to := s.chromeLink(e, i, l.URL)
@@ -395,10 +381,9 @@ func (s *Site) view(e *edition, i int) docView {
 	return v
 }
 
-// chromeLink returns the URL on the page with index i of e of dest, a link of
-// the front matter of the first page of main, and the index of the page of e
-// that it leads to, or -1. A link to a page of main leads to the page at the
-// same path in e, or to the page of main if e lacks it.
+// chromeLink returns dest's URL from page i of e and the target page index in e, or -1.
+// dest comes from main's first-page front matter.
+// A main-page link uses the same path in e, falling back to main if e lacks it.
 func (s *Site) chromeLink(e *edition, i int, dest string) (string, int) {
 	main, base := s.main(), e.pages[i].base()
 	to := main.links.target(0, dest)

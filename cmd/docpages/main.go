@@ -1,18 +1,16 @@
-// Command docpages renders the Markdown files of a docs directory of a GitHub
-// repository as a static documentation site. See the package
-// [github.com/romshark/docpages] for the layout of the docs directory.
+// Command docpages renders a GitHub repository's docs Markdown as a static site.
+// See [github.com/romshark/docpages] for the docs-directory layout.
 //
 // Usage:
 //
 //	docpages [flags] [dir]
 //
-// dir is the docs directory, the current directory by default. The pages of
-// main go into <out>/main/ and those of each release in the versions directory
-// of dir, as versions/v1.2/, into <out>/v1.2/. <out>/index.html and
-// <out>/llms.txt lead to the latest release, or to main without releases.
+// dir is the docs directory, defaulting to the current one. Main pages go to
+// <out>/main/; releases such as dir/versions/v1.2/ go to <out>/v1.2/.
+// <out>/index.html and <out>/llms.txt lead to the latest release, or main if none.
 //
-// -snapshot v1.2.3 copies dir into versions/v1.2/ of dir as the docs of the
-// release v1.2.3 instead of writing the site.
+// -snapshot v1.2.3 copies dir to dir/versions/v1.2/ as that release's docs
+// instead of writing the site.
 package main
 
 import (
@@ -61,9 +59,8 @@ func main() {
 			filepath.Join(o.Root, filepath.FromSlash(target)))
 		return
 	case *addr != "":
-		// The handler shows an error in the page, which reloads after the fix.
-		// Docs that don't build at the start, though, are most likely not
-		// those that were meant.
+		// The handler shows later errors in a page that reloads after fixes.
+		// An initial build failure more likely means these are the wrong docs.
 		if _, err := docpages.Read(o); err != nil {
 			fail(dir, err)
 		}
@@ -83,8 +80,8 @@ func main() {
 	}
 }
 
-// fail prints err, the error of the docs directory dir, and exits. A dir that
-// holds a docs directory of its own, as each example does, names that one.
+// fail prints dir's docs error and exits. If dir contains its own docs directory,
+// as examples do, it names that directory.
 func fail(dir string, err error) {
 	fmt.Fprintln(os.Stderr, err)
 	docs := filepath.Join(dir, "docs")
@@ -95,8 +92,7 @@ func fail(dir string, err error) {
 	os.Exit(1)
 }
 
-// options returns the options of the docs directory dir.
-// The repository root is the root of the Git repository of dir.
+// options returns dir's options, using its Git repository root.
 func options(dir string) (docpages.Options, error) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
@@ -106,7 +102,7 @@ func options(dir string) (docpages.Options, error) {
 	if err != nil {
 		return docpages.Options{}, err
 	}
-	// The root that Git reports has its symbolic links resolved.
+	// Git reports the root with symlinks resolved.
 	if abs, err = filepath.EvalSymlinks(abs); err != nil {
 		return docpages.Options{}, err
 	}

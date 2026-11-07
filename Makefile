@@ -1,12 +1,12 @@
-# gofumpt is the formatter that CI checks, at the same version.
+# CI checks formatting with this gofumpt version.
 GOFUMPT ?= go run mvdan.cc/gofumpt@latest
 
 .PHONY: fmt gen
 
-# fmt formats the Go files of the module with gofumpt.
+# Format module Go files with gofumpt.
 fmt:
 	$(GOFUMPT) -w .
 
-# gen rewrites the committed outputs of generate.go, which CI requires current.
+# Refresh generate.go outputs, which CI requires current.
 gen:
 	go generate ./...

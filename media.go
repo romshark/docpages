@@ -19,9 +19,8 @@ import (
 	"golang.org/x/net/html"
 )
 
-// mediaDir is the directory of an edition that holds the copies of the media
-// files that its pages show, each in a directory named after its content,
-// which keeps 2 files of the same name apart.
+// mediaDir holds an edition's displayed media copies.
+// Content-named subdirectories separate files with the same name.
 const mediaDir = "media"
 
 // mediaCopy is the copy of a media file in the site.
@@ -30,9 +29,8 @@ type mediaCopy struct {
 	data []byte
 }
 
-// mediaElements are the HTML elements that a page shows of the raw HTML of its
-// Markdown: images, videos and audio, with their sources and text tracks.
-// goldmark leaves out the rest of the raw HTML.
+// mediaElements are raw Markdown HTML that pages show: images, video, audio,
+// sources, and text tracks. goldmark omits all other raw HTML.
 var mediaElements = map[string]bool{
 	"img":     true,
 	"picture": true,
@@ -42,8 +40,8 @@ var mediaElements = map[string]bool{
 	"track":   true,
 }
 
-// mediaAttrs are the attributes that the media elements keep in a page,
-// which leaves out scripts, as onerror, and styles.
+// mediaAttrs are preserved media attributes;
+// scripts such as onerror and styles are omitted.
 var mediaAttrs = map[string]bool{
 	"alt": true, "title": true, "width": true, "height": true, "align": true,
 	"loading": true, "decoding": true, "src": true, "srcset": true, "sizes": true,
@@ -52,11 +50,10 @@ var mediaAttrs = map[string]bool{
 	"srclang": true, "label": true, "default": true,
 }
 
-// mediaURL returns the URL on the site of the media file dest, as the file of
-// pages[from] names it, where base is the URL of the root of the version from
-// where the URL is read. A URL with a scheme or a host stays as it is. A path
-// names a file of the repository relative to the file, as on GitHub, which
-// the site holds a copy of in [mediaDir].
+// mediaURL returns dest's site URL as named by pages[from]. base is the
+// version-root URL at the read location. URLs with a scheme or host stay
+// unchanged. Other paths resolve file-relative, as on GitHub, to repository
+// files copied into [mediaDir].
 func (s *site) mediaURL(from int, dest, base string) (string, error) {
 	u, err := url.Parse(dest)
 	if err != nil {
@@ -92,12 +89,10 @@ func (s *site) mediaURL(from int, dest, base string) (string, error) {
 	return withQueryFragment(base+(&url.URL{Path: c.name}).EscapedPath(), u), nil
 }
 
-// rewriteMedia returns what a page shows of raw, raw HTML: its media elements,
-// with the attributes of [mediaAttrs], each URL of their src, srcset and poster
-// attributes replaced by what resolve returns for it and no URL that runs a
-// script, and what c writes of the rest; c is nil for none. found reports
-// whether the result holds a media element or what c wrote. [mediaURLEdits]
-// replaces the URLs of the Markdown copy of a page.
+// rewriteMedia returns the visible parts of raw HTML: media elements limited to
+// [mediaAttrs], with src, srcset, and poster URLs replaced by resolve and
+// script-running URLs removed, plus anything c writes (nil means none). found
+// reports whether it kept media or c output. [mediaURLEdits] handles page copies.
 func rewriteMedia(
 	raw string, c *collapsibles, resolve func(string) (string, error),
 ) (out string, found bool, err error) {
@@ -163,9 +158,8 @@ func rewriteMedia(
 	}
 }
 
-// resolveMediaAttr returns the value of the attribute key, val, with each URL
-// in it replaced by what resolve returns for it. A srcset is a list of URLs,
-// each with an optional width or density after it.
+// resolveMediaAttr replaces each URL in attribute key's val with resolve's result.
+// A srcset contains URLs with optional widths or densities.
 func resolveMediaAttr(key, val string, resolve func(string) (string, error)) (string, error) {
 	if key != "srcset" {
 		return resolve(strings.TrimSpace(val))
@@ -185,11 +179,9 @@ func resolveMediaAttr(key, val string, resolve func(string) (string, error)) (st
 	return strings.Join(r, ", "), nil
 }
 
-// rawHTML returns the decorator of the renderer of raw HTML, as an HTML block
-// or an inline tag, that shows its media elements with the URLs of their files
-// replaced by what resolve returns for each, and its <details>, which c
-// writes. The renderer that it decorates renders raw HTML without either,
-// which goldmark leaves out.
+// rawHTML decorates block or inline raw-HTML rendering. It shows media with
+// URLs replaced by resolve and <details> written by c. The decorated renderer
+// handles other raw HTML, which goldmark omits.
 func rawHTML(
 	c *collapsibles, resolve func(string) (string, error),
 ) goldhtml.NodeRendererDecorator {
@@ -224,13 +216,10 @@ func rawHTML(
 	}
 }
 
-// rawHTMLEdits returns the edits of the Markdown file src that replace each URL
-// of the media elements of raws, the raw HTML parsed from src, by what resolve
-// returns for it. Each node is read whole, from its first line to its last,
-// where what lies between its lines reads as spaces: the indentation of a list
-// item, the > of a blockquote or the indentation of a line of a paragraph,
-// which goldmark leaves out of the node. That keeps whole a tag whose lines
-// lie apart in src.
+// rawHTMLEdits returns src edits replacing media URLs in parsed raw-HTML nodes
+// with resolve's results. It reads each node from first through last line,
+// treating omitted inter-line text—list indentation, blockquote ">", or
+// paragraph indentation—as spaces. This keeps split tags whole.
 func rawHTMLEdits(
 	src []byte, raws []ast.Node, resolve func(string) (string, error),
 ) ([]edit, error) {
@@ -252,7 +241,7 @@ func rawHTMLEdits(
 		if len(lines) == 0 {
 			continue
 		}
-		// The offsets in raw are those in src less start.
+		// raw offsets equal src offsets minus start.
 		start := lines[0].Start
 		raw := slices.Clone(src[start:lines[len(lines)-1].Stop])
 		for i := 1; i < len(lines); i++ {
@@ -275,15 +264,14 @@ func rawHTMLEdits(
 	return edits, nil
 }
 
-// mediaURLEdits returns the edits of raw, raw HTML, that replace each URL of the
-// src, srcset and poster attributes of its media elements by what resolve
-// returns for it, as the Markdown copy of a page shows them. The edits replace
-// the values of those attributes alone, which keeps the rest of raw as written,
-// a tag that raw ends in the middle of among it. A value without quotes gains them.
+// mediaURLEdits returns raw-HTML edits replacing media src, srcset, and poster
+// URLs with resolve's results, as shown in a page's Markdown copy. Only values
+// change, preserving all other raw text, including a trailing partial tag.
+// Unquoted values gain quotes.
 func mediaURLEdits(raw string, resolve func(string) (string, error)) ([]edit, error) {
 	z := html.NewTokenizer(strings.NewReader(raw))
 	var edits []edit
-	// at is the offset in raw of the token.
+	// at is the token's raw offset.
 	for at := 0; ; {
 		tt := z.Next()
 		if tt == html.ErrorToken {
@@ -309,7 +297,7 @@ func mediaURLEdits(raw string, resolve func(string) (string, error)) ([]edit, er
 					continue
 				}
 				v := vals[i]
-				// An attribute without a value names no file and keeps none.
+				// A valueless attribute names and keeps no file.
 				if v.start == v.end && !v.quoted {
 					continue
 				}
@@ -334,17 +322,16 @@ func mediaURLEdits(raw string, resolve func(string) (string, error)) ([]edit, er
 	}
 }
 
-// attrValue is where the value of an attribute lies in the raw text of its tag.
+// attrValue locates an attribute value in its raw tag.
 type attrValue struct {
 	key        string // Lower-cased, as [html.Token] holds it.
 	start, end int    // The value, inside its quotes if it has them.
 	quoted     bool
 }
 
-// attrValues returns where the values of the attributes of tag, the raw text
-// of a start tag, lie in it, in the order of [html.Token]. It reads them as the
-// tokenizer of golang.org/x/net/html does, which leaves out an attribute
-// without a key and the second of 2 with the same key.
+// attrValues locates attribute values in raw start tag tag, in [html.Token] order.
+// It follows golang.org/x/net/html tokenization, omitting keyless
+// attributes and duplicates after the first key.
 func attrValues(tag string) []attrValue {
 	space := func(i int) bool {
 		switch tag[i] {
@@ -361,13 +348,13 @@ func attrValues(tag string) []attrValue {
 	}
 	var vals []attrValue
 	seen := make(map[string]bool)
-	// The name, after the <.
+	// Name after "<".
 	i := 1
 	for i < len(tag) && !space(i) && tag[i] != '/' && tag[i] != '>' {
 		i++
 	}
 	for i = skip(i); i < len(tag) && tag[i] != '>'; i = skip(i) {
-		// The key, which an = at its start belongs to.
+		// Key, including a leading "=".
 		k := i
 		for i < len(tag) && !space(i) && tag[i] != '/' && tag[i] != '>' &&
 			(tag[i] != '=' || i == k) {
@@ -375,7 +362,7 @@ func attrValues(tag string) []attrValue {
 		}
 		key := lowerASCII(tag[k:i])
 		v := attrValue{start: i, end: i}
-		// The value, after an = and the spaces around it.
+		// Value after "=" and surrounding spaces.
 		switch j := skip(i); {
 		case j < len(tag) && tag[j] == '/':
 			i = j + 1
@@ -409,8 +396,7 @@ func attrValues(tag string) []attrValue {
 	return vals
 }
 
-// lowerASCII returns s with its ASCII letters in lower case, as the tokenizer of
-// golang.org/x/net/html lower-cases a key.
+// lowerASCII lowercases s's ASCII letters, matching HTML key tokenization.
 func lowerASCII(s string) string {
 	b := []byte(s)
 	for i, c := range b {

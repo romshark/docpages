@@ -12,18 +12,16 @@ import (
 	"golang.org/x/net/html"
 )
 
-// mediaName returns the path of the copy of the media file name with the
-// content data relative to the directory of an edition.
+// mediaName returns media file name's content-addressed, edition-relative copy path.
 func mediaName(data, name string) string {
 	sum := sha256.Sum256([]byte(data))
 	return path.Join(mediaDir, hex.EncodeToString(sum[:8]), name)
 }
 
-// TestMedia tests that the site holds a copy of each media file that a page
-// shows, of the docs directory or elsewhere in the repository, and that the
-// images of the Markdown and the media elements of its raw HTML lead to the
-// copies, on the page, in its Markdown copy and in llms-full.txt. [TestLint]
-// tests that the rest of the raw HTML and other attributes fail the build.
+// TestMedia checks copies of displayed media from docs or elsewhere in the repository,
+// and links to them from Markdown images and raw-HTML media on the page,
+// in its Markdown copy, and in llms-full.txt.
+// [TestLint] covers rejected raw HTML and attributes.
 func TestMedia(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte("# Testing\n\n" +
@@ -66,10 +64,8 @@ func TestMedia(t *testing.T) {
 	require.Contains(t, string(files["main/llms-full.txt"]), "![Shot]("+shot+")")
 }
 
-// TestMediaSharedReference tests that a link and an image that share a
-// reference definition each lead where they would alone on the page, and that
-// the definition in the Markdown copy, which holds 1 destination for both,
-// leads to the copy of the media file, which the link can open too.
+// TestMediaSharedReference checks that a page resolves a shared link/image reference
+// for each use, while its one copy destination opens the media file for both.
 func TestMediaSharedReference(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte("# Testing\n\n" +
@@ -94,9 +90,8 @@ func TestMediaSharedReference(t *testing.T) {
 	require.Contains(t, string(files["main/llms-full.txt"]), "[shot]: "+shot+"\n")
 }
 
-// mediaAcrossLines is a page with tags of raw HTML whose lines lie apart in the
-// file: below a line that the tag starts, which ends no tag and so starts no
-// HTML block, in a list item and in a blockquote. dest names the media file.
+// mediaAcrossLines is a page with split raw-HTML tags: after an unclosed line
+// that starts no HTML block, in a list item, and in a blockquote. dest names the media.
 func mediaAcrossLines(dest string) string {
 	return "# Testing\n\n" +
 		"<img src=\"" + dest + "\"\n     alt=\"Shot\" width=\"10\">\n\n" +
@@ -104,9 +99,8 @@ func mediaAcrossLines(dest string) string {
 		"> [!TIP]\n> <img src=\"" + dest + "\"\n>   alt=\"Shot\">\n"
 }
 
-// TestMediaAcrossLines tests that the Markdown copy of a page keeps a tag of
-// raw HTML whose lines lie apart in the file whole and as written, with its URL
-// replaced, as the page shows it.
+// TestMediaAcrossLines checks that a page copy preserves split raw-HTML tags
+// exactly except for replaced URLs, as displayed.
 func TestMediaAcrossLines(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{
@@ -129,8 +123,7 @@ func TestMediaAcrossLines(t *testing.T) {
 	require.Contains(t, string(files["main/llms-full.txt"]), mediaAcrossLines(shot))
 }
 
-// TestMediaErr tests that a media file that the repository lacks and a media
-// file of a release outside its directory fail the build.
+// TestMediaErr checks failure for missing media and release media outside its directory.
 func TestMediaErr(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{
@@ -146,11 +139,11 @@ func TestMediaErr(t *testing.T) {
 		Data: []byte("# Testing\n\n<img src=\"../../../../assets/logo.png\">\n"),
 	}
 	_, err = read(fsys, "docs", noRemote, false)
-	require.ErrorContains(t, err, `media "../../../../assets/logo.png" is outside docs/versions/v1.2`)
+	require.ErrorContains(t,
+		err, `media "../../../../assets/logo.png" is outside docs/versions/v1.2`)
 }
 
-// testResolve resolves a URL of raw HTML for the tests: as [site.mediaURL], it
-// keeps a URL with a scheme.
+// testResolve resolves test raw-HTML URLs, preserving schemes like [site.mediaURL].
 func testResolve(dest string) (string, error) {
 	if strings.Contains(dest, ":") {
 		return dest, nil
@@ -158,9 +151,8 @@ func testResolve(dest string) (string, error) {
 	return "/r/" + dest, nil
 }
 
-// TestRewriteMedia tests that the HTML of a page holds the media elements of
-// raw HTML alone, with their URLs resolved, the attributes of [mediaAttrs]
-// and no URL that runs a script.
+// TestRewriteMedia checks that page HTML keeps only raw-HTML media, resolved
+// URLs, and [mediaAttrs], with no script-running URL.
 func TestRewriteMedia(t *testing.T) {
 	for raw, want := range map[string]string{
 		`<p align="center"><img src="a.png" width="50" onerror="x()"></p>`: `<img src="/r/a.png" width="50">`,
@@ -176,10 +168,9 @@ func TestRewriteMedia(t *testing.T) {
 	}
 }
 
-// TestMediaURLEdits tests that the Markdown copy of raw HTML replaces the URLs
-// of its media elements alone and keeps the rest as written: a tag that spans
-// lines, the quotes of a value, which a value without them gains, an
-// attribute without a value, and a tag that the raw HTML ends in the middle of.
+// TestMediaURLEdits checks that a raw-HTML Markdown copy changes only media URLs,
+// preserving split tags, existing quotes, valueless attributes, and trailing
+// partial tags, while adding quotes to unquoted values.
 func TestMediaURLEdits(t *testing.T) {
 	for raw, want := range map[string]string{
 		`<p><img class="x" src="a.png"> <b>B</b></p>`:       `<p><img class="x" src="/r/a.png"> <b>B</b></p>`,
@@ -198,8 +189,8 @@ func TestMediaURLEdits(t *testing.T) {
 	}
 }
 
-// TestAttrValues tests that attrValues finds the attributes of a tag that the
-// tokenizer of golang.org/x/net/html reads, with their values.
+// TestAttrValues checks that attrValues finds the tag attributes and values
+// read by golang.org/x/net/html.
 func TestAttrValues(t *testing.T) {
 	for _, tag := range []string{
 		`<img>`,
@@ -233,9 +224,8 @@ func TestAttrValues(t *testing.T) {
 	}
 }
 
-// TestSnapshotMedia tests that a snapshot copies the media files that its pages
-// show, those of the docs directory in their place and the others into media/
-// of the copy, whose pages then show them.
+// TestSnapshotMedia checks that snapshots keep docs media in place,
+// move other displayed media under media/, and show the copies.
 func TestSnapshotMedia(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte("# Testing\n\n" +
@@ -260,9 +250,8 @@ func TestSnapshotMedia(t *testing.T) {
 		html, `<img src="../`+mediaName("logo", "logo.png")+`" width="10">`)
 }
 
-// TestSnapshotMediaSharedReference tests that a snapshot gives a reference definition
-// that a link and an image share the destination of the image, the copy of
-// the media file, rather than the URL at the tag that the link alone would take.
+// TestSnapshotMediaSharedReference checks that a shared link/image reference
+// uses the image's media copy, not the tagged URL a lone link would use.
 func TestSnapshotMediaSharedReference(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte("# Testing\n\n" +
@@ -279,9 +268,8 @@ func TestSnapshotMediaSharedReference(t *testing.T) {
 		string(files[v+"2-guides/10-testing.md"]))
 }
 
-// TestSnapshotMediaAcrossLines tests that a snapshot keeps a tag of raw HTML
-// whose lines lie apart in the file whole and as written, with its URL replaced,
-// which the release then shows.
+// TestSnapshotMediaAcrossLines checks that a snapshot preserves split raw-HTML
+// tags except for replaced URLs, which the release displays.
 func TestSnapshotMediaAcrossLines(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{

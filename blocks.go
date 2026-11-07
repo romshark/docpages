@@ -12,8 +12,8 @@ import (
 	"github.com/yuin/goldmark/v2/text"
 )
 
-// headingLinks decorates next, the renderer of headings. It ends each heading below
-// level 1 with a link to the heading, which the reader copies to share the section.
+// headingLinks decorates heading renderer next, ending each heading below level 1
+// with a shareable self-link.
 func headingLinks(next goldhtml.NodeRenderer) goldhtml.NodeRenderer {
 	return renderer.NodeRendererFunc(func(
 		w io.Writer, source []byte, node ast.Node, entering bool, rc renderer.Context,
@@ -28,12 +28,11 @@ func headingLinks(next goldhtml.NodeRenderer) goldhtml.NodeRenderer {
 	})
 }
 
-// calloutAttr is the attribute of a blockquote that [markCallouts] turned into
-// a callout. Its value is the kind of the callout, such as NOTE.
+// calloutAttr marks blockquotes converted by [markCallouts];
+// its value is a kind such as NOTE.
 const calloutAttr = "data-callout"
 
-// calloutTitles are the kinds of GitHub alerts and the titles that the site
-// shows for them.
+// calloutTitles maps GitHub alert kinds to displayed titles.
 var calloutTitles = map[string]string{
 	"NOTE":      "Note",
 	"TIP":       "Tip",
@@ -42,12 +41,11 @@ var calloutTitles = map[string]string{
 	"CAUTION":   "Caution",
 }
 
-// calloutMarker is the first line of a blockquote that GitHub shows as an alert,
-// as in "> [!NOTE]".
+// calloutMarker matches a GitHub-alert blockquote's first line, such as "> [!NOTE]".
 var calloutMarker = regexp.MustCompile(`^\[!([A-Z]+)\]\s*$`)
 
-// markCallouts turns each blockquote of doc that GitHub shows as an alert into
-// a callout. It removes the marker line and sets [calloutAttr].
+// markCallouts converts GitHub-alert blockquotes in doc,
+// removing marker lines and setting [calloutAttr].
 func markCallouts(doc ast.Node, src []byte) {
 	var quotes []*ast.Blockquote
 	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -65,7 +63,7 @@ func markCallouts(doc ast.Node, src []byte) {
 		if m == nil || calloutTitles[string(m[1])] == "" {
 			continue
 		}
-		// The marker is the text up to the end of the first line.
+		// The marker spans through the first line's end.
 		for c := p.FirstChild(); c != nil; {
 			next := c.NextSibling()
 			p.RemoveChild(c)
@@ -82,8 +80,7 @@ func markCallouts(doc ast.Node, src []byte) {
 	}
 }
 
-// callouts decorates next, the renderer of blockquotes.
-// It renders the blockquotes that [markCallouts] marked as callouts.
+// callouts decorates blockquote renderer next, rendering [markCallouts] callouts.
 func callouts(next goldhtml.NodeRenderer) goldhtml.NodeRenderer {
 	return renderer.NodeRendererFunc(func(
 		w io.Writer, source []byte, node ast.Node, entering bool, rc renderer.Context,

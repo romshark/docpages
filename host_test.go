@@ -8,8 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// forgeHost is the front matter of a repository hosted on a forge other than
-// GitHub, which replaces the repository of [testRoot].
+// forgeHost replaces [testRoot]'s repository with non-GitHub forge settings.
 const forgeHost = `repository: https://git.example.com/o/demo
 host:
   name: Forge
@@ -29,9 +28,8 @@ func forgeRepoFS() fstest.MapFS {
 	return fsys
 }
 
-// TestHost tests that the host setting names the links to the repository,
-// gives them its icon, and makes the URLs of the files of the repository,
-// at main on the pages and at the release tag in a snapshot.
+// TestHost checks that host settings name and icon repository links, and build
+// file URLs at main on pages and at the release tag in snapshots.
 func TestHost(t *testing.T) {
 	const (
 		repo = "https://git.example.com/o/demo"
@@ -58,8 +56,8 @@ func TestHost(t *testing.T) {
 		"[main.go]("+repo+"/src/v1.2.3/main.go)")
 }
 
-// TestHostURL tests the URLs of a file and a directory of the repository, the
-// URL of a directory being that of a file without a dir setting.
+// TestHostURL checks repository file and directory URLs, with directories using
+// the file template when dir is unset.
 func TestHostURL(t *testing.T) {
 	h := githubHost("https://github.com/o/r")
 	require.Equal(t,
@@ -82,8 +80,7 @@ func TestHostURL(t *testing.T) {
 	require.False(t, h.github)
 }
 
-// TestHostErrors tests that a host setting has a name and a file URL, and that
-// its icon exists.
+// TestHostErrors checks required host names, file URLs, and existing icons.
 func TestHostErrors(t *testing.T) {
 	for name, tt := range map[string]struct {
 		host, want string

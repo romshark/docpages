@@ -1,12 +1,10 @@
-// The menu, the current section of the contents and the search of the
-// documentation pages. The pages load this file as a module, which runs it
-// after the document is parsed.
+// Documentation menus, current-section tracking, and search.
+// Pages load this module after parsing.
 
 const root = new URL(document.body.dataset.siteRoot || "./", location.href);
 
-// The navigation is a column on a wide screen and an overlay on a narrow one.
-// In the overlay a link closes it after the jump, which in the column it must not do.
-// The data-neo-sidebar-close attribute of Morpheus would close it in both.
+// Navigation is a wide-screen column and narrow-screen overlay. Links close
+// only the overlay after a jump; Morpheus's data-neo-sidebar-close would close both.
 const nav = document.getElementById("docs-nav");
 document.getElementById("docs-nav-toggle")?.addEventListener("click", () => nav.toggle());
 nav?.addEventListener("click", (e) => {
@@ -15,9 +13,8 @@ nav?.addEventListener("click", (e) => {
 	}
 });
 
-// openVersion opens href, the same page in another version of the site, or
-// fallback, the first page of that version, if the version lacks the page,
-// such as one added after the release.
+// openVersion opens href in another site version, or its first page at fallback
+// when that version lacks the page, as when the page was added after release.
 const openVersion = async (href, fallback) => {
 	let target = new URL(href, location.href).href;
 	try {
@@ -26,12 +23,12 @@ const openVersion = async (href, fallback) => {
 			target = new URL(fallback, location.href).href;
 		}
 	} catch {
-		// Without an answer the page opens as linked.
+		// With no response, open the original link.
 	}
 	location.href = target;
 };
 
-// The version menu of the header opens the page in the version picked.
+// The header's version menu opens this page in the selected version.
 const versions = document.querySelector("neo-select.version-select");
 if (versions) {
 	const current = versions.getAttribute("value");
@@ -42,8 +39,7 @@ if (versions) {
 			openVersion(option.dataset.href, option.dataset.fallback);
 		}
 	});
-	// Back from the other version, the browser restores this page with the
-	// version that was picked.
+	// On return, the browser restores this page with the chosen version.
 	addEventListener("pageshow", (e) => {
 		if (e.persisted) {
 			versions.value = current;
@@ -51,23 +47,21 @@ if (versions) {
 	});
 }
 
-// A <details> of a page holds its text in a <neo-elastic>, which animates its
-// height: open="false" pins it at 0 and no open attribute lets it follow the text.
-// The page writes open="false" on that of a closed <details>. The text grows
-// from 0 as the <details> opens, from a click, a search in the page or a link
-// to a heading in it. A click on the summary of an open <details> shrinks the
-// text away first, which the browser would hide at once, and a second click
-// during that grows it back.
+// Each page <details> wraps its text in a height-animating <neo-elastic>.
+// open="false" pins it at 0; no open attribute follows the text height.
+// Closed details start pinned, then grow when opened by click, in-page search, or a
+// heading link. Clicking an open summary shrinks text before the browser hides it;
+// clicking again while it shrinks reopens it.
 for (const details of document.querySelectorAll(".docs-content .details")) {
 	const summary = details.querySelector(":scope > summary");
 	const body = details.querySelector(":scope > .details-body");
 	const closing = () => body.getAttribute("open") === "false";
-	// collapse pins the text at 0 at once. A transition in a closed <details>
-	// waits for it to open, and then starts from the height that it had.
+	// collapse pins text at 0 immediately. A closed-details transition waits to open,
+	// then starts at its previous height.
 	const collapse = () => {
 		body.style.transition = "none";
 		body.setAttribute("open", "false");
-		// <neo-elastic> pins the height in a microtask, before the frame.
+		// <neo-elastic> pins the height in a pre-frame microtask.
 		requestAnimationFrame(() => {
 			void body.offsetHeight;
 			body.style.transition = "";
@@ -90,15 +84,15 @@ for (const details of document.querySelectorAll(".docs-content .details")) {
 			return;
 		}
 		body.setAttribute("open", "false");
-		// No transition ends without one, as with --neo-duration-scale: 0 or
-		// a text without height. getAnimations() starts any that is due.
+		// No transitionend fires without a transition, such as at
+		// --neo-duration-scale: 0 or zero height. getAnimations() starts any due.
 		requestAnimationFrame(() => {
 			if (closing() && body.getAnimations().length === 0) {
 				details.open = false;
 			}
 		});
 	});
-	// A <details> in the text ends its own animation, which bubbles up here.
+	// A nested <details> animation also bubbles here.
 	body.addEventListener("neo-elastic-end", (e) => {
 		if (e.target === body && closing()) {
 			details.open = false;
@@ -106,12 +100,10 @@ for (const details of document.querySelectorAll(".docs-content .details")) {
 	});
 }
 
-// The contents mark the section whose heading was scrolled past last,
-// in the column and in the bar, which shows its title too. Their first entry,
-// the title of the page, stands for the text above the first section and is marked
-// until a heading is scrolled past. At the end of the page, they mark the URL's
-// section if in view, else the last section in view.
-// Each section has 1 link in each of the 2 lists.
+// Both contents lists mark the last heading scrolled past; the bar also shows
+// its title. The first entry represents text above the first section and stays
+// marked until a heading passes. At page end, mark the URL section if visible,
+// otherwise the last visible section. Each section has one link in each list.
 const tocLinks = [...document.querySelectorAll(".toc a")];
 const sections = [...new Set(tocLinks.map((a) => a.hash))]
 	.map((hash) => [
@@ -125,7 +117,7 @@ if (sections.length > 0) {
 	const mark = () => {
 		scheduled = false;
 		const root = document.documentElement;
-		// The sticky header and the bar cover the scroll padding.
+		// The sticky header and bar cover the scroll padding.
 		const top = parseFloat(getComputedStyle(root).scrollPaddingTop) || 0;
 		const end = scrollY + innerHeight >= root.scrollHeight - 1;
 		const inView = (heading) => heading.getBoundingClientRect().top < innerHeight;
@@ -163,16 +155,15 @@ if (sections.length > 0) {
 		}
 	};
 	addEventListener("scroll", schedule, { passive: true });
-	// A link to a section in view at the end of the page does not scroll.
+	// Linking to an end-of-page section already in view does not scroll.
 	addEventListener("hashchange", schedule);
 	mark();
 }
 
-// The list of the bar ends 8px above the bottom of the viewport and scrolls
-// when longer. The room changes with the scroll, because at the top of the page
-// the bar sits below the position where it sticks. The bar closes after a jump
-// to a section, on a click outside it and on Escape. While it sticks, the bar
-// has the data-stuck attribute, which CSS cannot detect in every browser.
+// The bar list ends 8px above the viewport and scrolls if longer.
+// Its room changes while scrolling because the bar begins below its sticky position.
+// The bar closes after a section jump, outside click, or Escape. data-stuck
+// marks its sticky state, which CSS cannot detect in every browser.
 const bar = document.querySelector(".toc-inline");
 if (bar) {
 	const list = bar.querySelector(".toc");
@@ -209,8 +200,8 @@ if (bar) {
 	});
 }
 
-// The search lists the sections of search.json that contain every word of the query,
-// ranked by where the words occur: in the heading, in the page title, or in the text.
+// Search lists search.json sections containing every query word,
+// ranked by matches in the heading, page title, then text.
 const search = document.querySelector("neo-dialog.search");
 if (search) {
 	const trigger = search.querySelector("[data-neo-dialog-trigger]");
@@ -219,14 +210,12 @@ if (search) {
 	const list = search.querySelector(".search-results");
 	const heading = search.querySelector(".search-heading");
 	const status = search.querySelector(".search-status");
-	// The suggested pages, which the template writes into the list.
-	// The list shows them while the field is empty.
+	// The template writes suggested pages into the list, shown for an empty field.
 	const suggested = [...list.children];
 	const limit = 20;
 
-	// <neo-elastic> animates the height of the list. The closed dialog has
-	// none, which would grow the list from nothing at each open. The dialog
-	// opens at its height instead, the frame after the open taking it at once.
+	// <neo-elastic> animates list height. A closed dialog has none, which would
+	// regrow it on every open, so open at its height and adopt it next frame.
 	const body = search.querySelector(".search-body");
 	search.addEventListener("neo-dialog-open", () => {
 		body.style.transition = "none";
@@ -235,12 +224,10 @@ if (search) {
 		}));
 	});
 
-	// A screen keyboard covers the bottom of the viewport. iOS, and Android
-	// by default, keep the layout viewport and dvh whole under it: the visual
-	// viewport alone is what the keyboard leaves visible. fit places the
-	// dialog in it and gives the list the height between its top and the
-	// bottom of the visual viewport, less what the dialog shows below the
-	// list and 1rem of space.
+	// An on-screen keyboard covers the viewport bottom. iOS and default Android
+	// keep the layout viewport and dvh behind it; only the visual viewport
+	// stays visible. fit places the dialog there and sizes the list from its
+	// top to the visual-viewport bottom, minus content below it and 1rem.
 	const keys = search.querySelector(".search-keys");
 	const viewport = window.visualViewport;
 	const fit = () => {
@@ -252,7 +239,7 @@ if (search) {
 		const below = status.offsetHeight + keys.offsetHeight + 1 + 16;
 		const room = viewport.offsetTop + viewport.height -
 			list.getBoundingClientRect().top - below;
-		// A list with no room for a result would hide all of them.
+		// Keep enough room to show at least one result.
 		dialog.style.setProperty("--search-room", `${Math.max(room, 64)}px`);
 	};
 	viewport?.addEventListener("resize", fit);
@@ -304,7 +291,7 @@ if (search) {
 
 	const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-	// highlight appends s to el with every occurrence of the words in <mark>.
+	// highlight appends s to el, wrapping every word match in <mark>.
 	const highlight = (el, s, ws) => {
 		const re = new RegExp(ws.map(escapeRegExp).join("|"), "gi");
 		let last = 0;
@@ -318,7 +305,7 @@ if (search) {
 		el.append(s.slice(last));
 	};
 
-	// excerpt returns about 160 characters of t around the first word found.
+	// excerpt returns about 160 characters around t's first word match.
 	const excerpt = (t, ws) => {
 		const lower = t.toLowerCase();
 		let at = -1;
@@ -359,7 +346,7 @@ if (search) {
 		location.href = a.href;
 	};
 
-	// hover selects li, the option at index i, when the pointer moves over it.
+	// hover selects option li at index i when the pointer moves over it.
 	const hover = (li, i) => {
 		li.addEventListener("mousemove", () => {
 			if (active !== i) {
@@ -380,8 +367,7 @@ if (search) {
 
 	const item = (e, i, ws) => {
 		const li = document.createElement("li");
-		// goldmark writes no "_" into the ID of a heading, which keeps this
-		// ID apart from the heading IDs of the page.
+		// goldmark omits "_" from heading IDs, keeping this ID distinct.
 		li.id = "search_result_" + i;
 		li.setAttribute("role", "option");
 		const a = document.createElement("a");
@@ -448,8 +434,7 @@ if (search) {
 			e.preventDefault();
 			go(list.children[active].querySelector("a"));
 		} else if (e.key === "Escape") {
-			// A search field takes the first Escape to clear itself, which
-			// keeps the dialog from seeing it.
+			// Search fields consume the first Escape to clear, hiding it from the dialog.
 			e.preventDefault();
 			dialog.close();
 		}
@@ -462,8 +447,7 @@ if (search) {
 		}
 	});
 
-	// Loading the index when the pointer reaches the button saves the wait
-	// for it after the first key.
+	// Preload on button hover to avoid waiting after the first key.
 	trigger.addEventListener("pointerenter", () => load().catch(() => {}), { once: true });
 	trigger.addEventListener("click", () => {
 		load().catch(() => {});
@@ -484,10 +468,9 @@ if (search) {
 	});
 }
 
-// Mermaid diagrams. The renderer writes each mermaid code block as a
-// <pre class="mermaid">, which Mermaid replaces with an SVG in the colors of
-// the current theme, and draws again when the theme changes.
-// A page without a diagram does not load Mermaid.
+// The renderer writes Mermaid blocks as <pre class="mermaid">.
+// Mermaid replaces them with theme-colored SVGs and redraws on theme changes.
+// Pages without diagrams do not load Mermaid.
 const diagrams = [...document.querySelectorAll("pre.mermaid")];
 if (diagrams.length > 0) {
 	const sources = diagrams.map((d) => d.textContent);
@@ -502,9 +485,8 @@ if (diagrams.length > 0) {
 				mermaid.initialize({
 					startOnLoad: false,
 					theme: dark() ? "dark" : "neutral",
-					// Mermaid 12 wraps a label line at 120 px, which splits lines such
-					// as "events, templates". Mermaid 11 wrapped at 200 px, wide enough
-					// for every label line in guide/.
+					// Mermaid 12's 120px label width splits lines such as "events,
+					// templates". Version 11's 200px fit every label in guide/.
 					flowchart: { wrappingWidth: 200 },
 				});
 				diagrams.forEach((d, i) => {

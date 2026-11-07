@@ -10,23 +10,20 @@ import (
 	"strings"
 )
 
-// host is where the repository is hosted: the name and the icon of the links
-// to it, and the URLs of its files.
+// host describes a repository host: link name, icon, and file URLs.
 type host struct {
 	repoURL string // The URL of the repository, which {repository} stands for.
 	name    string // The name of the links to the repository, as "GitHub".
 	icon    string // SVG markup of the icon of the links, empty for none.
 	// github marks the default host, whose links show the mark of GitHub.
 	github bool
-	// file and dir are the URLs of a file and a directory of the repository,
-	// in which {repository} stands for repoURL, {ref} for the Git ref and
-	// {path} for the path from the repository root.
+	// file and dir are repository URL templates: {repository} is repoURL,
+	// {ref} the Git ref, and {path} the repository-relative path.
 	file, dir string
 }
 
-// hostSettings is the host setting of the front matter, which describes a
-// host other than GitHub. Icon is the path of an SVG file relative to the
-// README.md that declares it, and Dir defaults to File.
+// hostSettings configures a non-GitHub host.
+// Icon is an SVG path relative to the declaring README.md; Dir defaults to File.
 type hostSettings struct {
 	Name string `yaml:"name"`
 	Icon string `yaml:"icon"`
@@ -34,8 +31,7 @@ type hostSettings struct {
 	Dir  string `yaml:"dir"`
 }
 
-// githubHost returns the host of the repository at repoURL on GitHub, which
-// is the host without a host setting.
+// githubHost returns repoURL's default, unconfigured GitHub host.
 func githubHost(repoURL string) *host {
 	return &host{
 		repoURL: repoURL,
@@ -46,8 +42,8 @@ func githubHost(repoURL string) *host {
 	}
 }
 
-// readHost returns the host of the repository at repoURL that set describes,
-// [githubHost] without set. An icon is a file of the docs directory dir of fsys.
+// readHost returns set's host for repoURL, or [githubHost] without set.
+// Icons come from docs directory dir in fsys.
 func readHost(fsys fs.FS, dir, repoURL string, set *hostSettings) (*host, error) {
 	if set == nil {
 		return githubHost(repoURL), nil
@@ -71,9 +67,9 @@ func readHost(fsys fs.FS, dir, repoURL string, set *hostSettings) (*host, error)
 	return h, nil
 }
 
-// url returns the URL of file, a path from the repository root, at the Git ref,
-// of a directory if dir. {path} takes file escaped, because a Markdown copy and
-// a snapshot take the URL as it is, and a Markdown link ends at a space.
+// url returns repository-relative file's URL at ref, using the directory
+// template when dir. {path} uses escaped file because Markdown copies and
+// snapshots preserve it, and spaces end Markdown links.
 func (h *host) url(ref, file string, dir bool) string {
 	t := h.file
 	if dir {

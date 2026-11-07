@@ -10,9 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestReleases tests that the releases are the directories of the versions
-// directory, the latest first by their numbers, and that a directory named
-// otherwise fails the read.
+// TestReleases checks numeric latest-first version directories and rejection of
+// other directory names.
 func TestReleases(t *testing.T) {
 	dir := &fstest.MapFile{Mode: fs.ModeDir}
 	got, err := releases(fstest.MapFS{
@@ -34,10 +33,8 @@ func TestReleases(t *testing.T) {
 		"is named after its feature version, as v1.2")
 }
 
-// TestEditionPages tests what a docs page shows of its edition: the version
-// menu with the same page in each edition, the latest release first, no note
-// without one in the front matter, and noindex on the pages of main next to a
-// release.
+// TestEditionPages checks edition UI: same-page version links latest-first, no
+// note when unset, and noindex on main when a release exists.
 func TestEditionPages(t *testing.T) {
 	const noindex = `<meta name="robots" content="noindex">`
 	option := func(version string) string {
@@ -45,7 +42,8 @@ func TestEditionPages(t *testing.T) {
 			`" data-fallback="../../` + version + `/" data-href="../../` + version +
 			`/guides/events">` + version + `</neo-option>`
 	}
-	releases, err := read(withReleases(t, testRepoFS(), "v1.1.0", "v1.2.0"), "docs", noRemote, false)
+	releases, err := read(withReleases(t,
+		testRepoFS(), "v1.1.0", "v1.2.0"), "docs", noRemote, false)
 	require.NoError(t, err)
 	for name, tt := range map[string]struct {
 		s             *Site
@@ -88,14 +86,16 @@ func TestEditionPages(t *testing.T) {
 		})
 	}
 	html := editionPageHTML(t, releases, "main", "guides/events")
-	require.Less(t, strings.Index(html, option("v1.2")), strings.Index(html, option("v1.1")))
-	require.Less(t, strings.Index(html, option("v1.1")), strings.Index(html, option("main")))
+	require.Less(t,
+		strings.Index(html, option("v1.2")),
+		strings.Index(html, option("v1.1")))
+	require.Less(t,
+		strings.Index(html, option("v1.1")),
+		strings.Index(html, option("main")))
 }
 
-// TestReleaseLinks tests that the pages of a release lead to its own pages,
-// link the files that their snapshot took from outside the docs directory at
-// the release tag and their own file on main, and that a link of the header
-// to a page that the release lacks leads to the page of main.
+// TestReleaseLinks checks links to release pages, release-tag URLs for snapshotted
+// outside files, source files on main, and main fallbacks for missing header pages.
 func TestReleaseLinks(t *testing.T) {
 	fsys := withReleases(t, testRepoFS(), "v1.2.3")
 	fsys["docs/4-more/2-faq.md"] = &fstest.MapFile{Data: []byte("# FAQ\n")}
@@ -120,8 +120,8 @@ func TestReleaseLinks(t *testing.T) {
 		`<a class="header-link" href="../../main/more/faq">Examples</a>`)
 }
 
-// TestReleaseErrors tests that a release takes no settings of the site and
-// keeps its links and sources within its directory.
+// TestReleaseErrors checks that releases reject
+// site settings and outside links or sources.
 func TestReleaseErrors(t *testing.T) {
 	for name, tt := range map[string]struct {
 		file, data, want string
@@ -159,8 +159,7 @@ func TestReleaseErrors(t *testing.T) {
 	}
 }
 
-// TestDocsIndex tests that the index.html of the output directory opens the
-// first page of the edition that it names.
+// TestDocsIndex checks that root index.html opens its edition's first page.
 func TestDocsIndex(t *testing.T) {
 	html := render(t, docsIndex("v1.2/", &chrome{name: "Demo", favicon: "favicon.svg"}))
 	require.Contains(t, html, `<meta http-equiv="refresh" content="0; url=v1.2/">`)
@@ -169,8 +168,7 @@ func TestDocsIndex(t *testing.T) {
 	require.Contains(t, html, `<link rel="icon" href="v1.2/favicon.svg" type="image/svg+xml">`)
 }
 
-// TestDefaultEdition tests that index.html opens the latest release, or main
-// without releases.
+// TestDefaultEdition checks that index.html opens the latest release, or main if none.
 func TestDefaultEdition(t *testing.T) {
 	s, err := read(withReleases(t, testRepoFS(), "v1.1.0", "v1.2.0"), "docs", noRemote, false)
 	require.NoError(t, err)
@@ -182,8 +180,7 @@ func TestDefaultEdition(t *testing.T) {
 	require.Contains(t, string(files["index.html"]), `url=main/`)
 }
 
-// TestVersionsLlmsTxt tests that the llms.txt of the output directory links
-// the llms.txt of each edition, the latest release first.
+// TestVersionsLlmsTxt checks root llms.txt links to every edition, latest first.
 func TestVersionsLlmsTxt(t *testing.T) {
 	s, err := read(withReleases(t, testRepoFS(), "v1.1.0", "v1.2.0"), "docs", noRemote, false)
 	require.NoError(t, err)
@@ -198,9 +195,8 @@ func TestVersionsLlmsTxt(t *testing.T) {
 		string(versionsLlmsTxt(newTestSite(t).editions, "Demo", "Intro.")), "latest release")
 }
 
-// TestMorpheusAssets tests that a docs page loads the Morpheus bundle of its
-// version and points <neo-icon> at the icons of the version after
-// morpheus.min.css, whose /static/icons it replaces.
+// TestMorpheusAssets checks that pages load their version's Morpheus bundle and,
+// after morpheus.min.css, point <neo-icon> to version icons instead of /static/icons.
 func TestMorpheusAssets(t *testing.T) {
 	html := pageHTML(t, newTestSite(t), "guides/events")
 	for _, want := range []string{
@@ -216,9 +212,8 @@ func TestMorpheusAssets(t *testing.T) {
 	require.Less(t, strings.Index(html, `morpheus.min.css">`), base)
 }
 
-// TestMorpheusBundleVersion tests that the embedded Morpheus bundle is that of
-// the version of Morpheus that go.mod requires, whose templ components the
-// pages render. go generate writes the bundle.
+// TestMorpheusBundleVersion checks that go generate's embedded bundle matches
+// go.mod's Morpheus version used by rendered templ components.
 func TestMorpheusBundleVersion(t *testing.T) {
 	info, ok := debug.ReadBuildInfo()
 	require.True(t, ok)
@@ -235,10 +230,9 @@ func TestMorpheusBundleVersion(t *testing.T) {
 		"run go generate")
 }
 
-// TestVersionNote tests that the note of the README.md of an edition shows
-// above its pages, with its links as seen from each page, including those to
-// the pages of other editions, that the body names the version of the page,
-// and that a snapshot leaves the note of main behind.
+// TestVersionNote checks edition README notes above every page, page-relative
+// links including other editions, page-version naming in the body, and snapshots
+// omitting main's note.
 func TestVersionNote(t *testing.T) {
 	const intro = "\n\n# Introduction\n\nDemo is a web framework.\n"
 	fsys := withReleases(t, testRepoFS(), "v1.1.0", "v1.2.0")
@@ -306,9 +300,8 @@ func TestVersionNote(t *testing.T) {
 	require.NotContains(t, string(files["docs/versions/v1.3/README.md"]), "note")
 }
 
-// TestVersionNoteImage tests that an image of a note leads to the copy of its file,
-// as seen from each page, which the note alone makes used, and that the
-// note of a release takes its images from the release.
+// TestVersionNoteImage checks note-image copy links from every page,
+// note-only usage, and release notes using release images.
 func TestVersionNoteImage(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/README.md"] = &fstest.MapFile{
@@ -338,13 +331,18 @@ func TestVersionNoteImage(t *testing.T) {
 		err, `media "../../img/new.svg" is outside docs/versions/v1.2`)
 }
 
-// TestVersionNoteErrors tests that a note is 1 paragraph whose links lead to
-// headings that exist and stay within a release or lead to the pages of
-// another edition, and that only the README.md of a docs directory takes one.
+// TestVersionNoteErrors checks that notes are one paragraph, link to existing
+// headings within a release or pages in another edition, and appear only in a
+// docs-directory README.md.
 func TestVersionNoteErrors(t *testing.T) {
-	// main sets the note of main, in the front matter of the test docs.
+	// main sets its note in the test docs front matter.
 	main := func(note string) string {
-		return strings.Replace(testRoot, "suggested: true\n", "suggested: true\nnote: "+note+"\n", 1)
+		return strings.Replace(
+			testRoot,
+			"suggested: true\n",
+			"suggested: true\nnote: "+note+"\n",
+			1,
+		)
 	}
 	for name, tt := range map[string]struct {
 		file, data, want string

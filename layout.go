@@ -19,41 +19,37 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// frontMatter is the YAML block that may open a Markdown file of the docs
-// directory, between 2 lines of "---". GitHub shows it as a table above the text.
+// frontMatter is a docs Markdown file's optional YAML block between two "---" lines.
+// GitHub shows it as a table above the text.
 type frontMatter struct {
 	// Title replaces the level 1 heading in the navigation and in <title>.
 	Title string `yaml:"title"`
 	// Suggested marks a page that the search offers while its field is empty.
 	Suggested bool `yaml:"suggested"`
-	// Source is the Markdown file that the page shows in place of its own text,
-	// relative to the file. It includes a file outside the docs directory.
+	// Source is a file-relative Markdown path shown instead of the page text.
+	// It may be outside the docs directory.
 	Source string `yaml:"source"`
 	// URL makes the entry a link that leaves the site.
 	URL string `yaml:"url"`
 
-	// Note is the note above every page of the version, a paragraph of
-	// Markdown. Only the README.md of a docs directory, that of main or of a
-	// release, takes it. Without it, the pages show no note.
+	// Note is a Markdown paragraph above every version page.
+	// Only a main or release docs README.md accepts it; empty means no note.
 	Note string `yaml:"note"`
 
-	// The settings of the site, which only the README.md of the docs
-	// directory takes.
+	// Site settings, accepted only in the docs README.md.
 
-	// Name is the name of the project, which <title> and llms.txt show.
-	// The default is the last element of the repository URL.
+	// Name is the project name shown in <title> and llms.txt.
+	// It defaults to the repository URL's last element.
 	Name string `yaml:"name"`
-	// Home is the URL that the logo leads to, relative to the output directory.
-	// The default is the first page of the version.
+	// Home is the logo URL relative to the output directory.
+	// It defaults to the version's first page.
 	Home string `yaml:"home"`
-	// Repository is the URL of the repository. The default is the URL of the
-	// Git remote origin.
+	// Repository is the repository URL, defaulting to Git remote origin.
 	Repository string `yaml:"repository"`
 	// Host describes where the repository is hosted, GitHub without it.
 	Host *hostSettings `yaml:"host"`
-	// Header are the links of the header before the repository. Without it the
-	// header links the first page as "Docs". An empty list leaves the header
-	// without links.
+	// Header lists links before the repository link.
+	// If unset, it links the first page as "Docs"; an empty list gives no links.
 	Header []frontMatterLink `yaml:"header"`
 	// Footer are the links of the footer between the repository and llms.txt.
 	Footer []frontMatterLink `yaml:"footer"`
@@ -61,30 +57,27 @@ type frontMatter struct {
 	License string `yaml:"license"`
 }
 
-// frontMatterLink is a link of the header or the footer. URL is resolved as a
-// link of the README.md that declares it. Icon is the path of an SVG file
-// relative to that README.md, which the link shows before its title.
+// frontMatterLink is a header or footer link. URL resolves from the declaring
+// README.md. Icon is an SVG path relative to that README, shown before Title.
 type frontMatterLink struct {
 	Title string `yaml:"title"`
 	URL   string `yaml:"url"`
 	Icon  string `yaml:"icon"`
 }
 
-// readmeName is the file that GitHub shows for a directory. The README.md of the
-// docs directory is the first page, and that of a group opens the group.
+// readmeName is the file GitHub shows for a directory.
+// The docs README is the first page; a group README opens that group.
 const readmeName = "README.md"
 
-// orderPrefix matches the name of a group directory or a page file, which
-// starts with its position, as 1-get-started or 01-pages.md. The site leaves
-// the prefix out of URLs and titles.
+// orderPrefix matches a group or page name starting with its position,
+// such as 1-get-started or 01-pages.md. URLs and titles omit the prefix.
 var orderPrefix = regexp.MustCompile(`^([0-9]+)-(.+)$`)
 
 // layout is what the docs directory holds, before the Markdown is converted.
 type layout struct {
 	pages  []page
 	groups []group
-	// srcs[i] is the Markdown of pages[i] without its front matter,
-	// nil for a link that leaves the site.
+	// srcs[i] is pages[i]'s Markdown without front matter, or nil for an external link.
 	srcs     [][]byte
 	settings frontMatter
 }
@@ -95,14 +88,12 @@ type group struct {
 	icon  string // SVG of icon.svg in the directory, empty without it.
 }
 
-// readLayout reads the pages of the docs directory dir of fsys, the repository.
+// readLayout reads pages from docs directory dir in repository fsys.
 //
-// The README.md of dir is the first page. Each directory of dir whose name
-// starts with a number and "-" is a group, which the navigation lists in the
-// order of the numbers. Its README.md opens it, followed by its Markdown files
-// whose names start with a number and "-", in the order of the numbers.
-// A Markdown file or a directory with Markdown files outside this pattern is an
-// error, since the navigation would leave it out.
+// dir/README.md is first. Each directory beginning with a number and "-" is a group,
+// ordered numerically in navigation. Its README.md comes first,
+// followed numerically by Markdown files with the same prefix pattern.
+// Markdown outside this pattern is an error because navigation would omit it.
 func readLayout(fsys fs.FS, dir string) (layout, error) {
 	var l layout
 	root, err := readPage(fsys, path.Join(dir, readmeName), "", -1)
@@ -119,7 +110,9 @@ func readLayout(fsys fs.FS, dir string) (layout, error) {
 		return layout{}, err
 	}
 	if len(dirs) == 0 {
-		return layout{}, fmt.Errorf("%s has no group directory, such as 1-get-started", dir)
+		return layout{}, fmt.Errorf(
+			"%s has no group directory, such as 1-get-started", dir,
+		)
 	}
 	l.add(root)
 	for _, d := range dirs {
@@ -166,8 +159,8 @@ func readLayout(fsys fs.FS, dir string) (layout, error) {
 			return layout{}, fmt.Errorf("group %s has no page", gdir)
 		}
 	}
-	// The site leaves the prefixes out, which gives 1-setup.md and 2-setup.md 1
-	// file, and the README.md of a group shares index.html with 1-index.md.
+	// Omitting prefixes makes 1-setup.md and 2-setup.md share a file,
+	// as do a group README.md and 1-index.md.
 	written := make(map[string]string)
 	for _, p := range l.pages {
 		if p.external() {
@@ -183,8 +176,7 @@ func readLayout(fsys fs.FS, dir string) (layout, error) {
 	return l, nil
 }
 
-// readPageResult is a page that [readPage] read, with its Markdown and its
-// front matter.
+// readPageResult is a page read by [readPage], with Markdown and front matter.
 type readPageResult struct {
 	page page
 	src  []byte
@@ -220,10 +212,14 @@ func readPage(fsys fs.FS, file, urlPath string, gi int) (readPageResult, error) 
 	}
 	switch {
 	case fm.URL != "" && fm.Source != "":
-		return readPageResult{}, fmt.Errorf("%s: url and source exclude each other", file)
+		return readPageResult{}, fmt.Errorf(
+			"%s: url and source exclude each other", file,
+		)
 	case fm.URL != "":
 		if fm.Title == "" {
-			return readPageResult{}, fmt.Errorf("%s: a page with url needs a title", file)
+			return readPageResult{}, fmt.Errorf(
+				"%s: a page with url needs a title", file,
+			)
 		}
 		p.url = fm.URL
 		return readPageResult{page: p, fm: fm}, nil
@@ -231,14 +227,16 @@ func readPage(fsys fs.FS, file, urlPath string, gi int) (readPageResult, error) 
 		p.stub = file
 		p.file = repoPath(file, fm.Source)
 		if !fs.ValidPath(p.file) {
-			return readPageResult{}, fmt.Errorf("%s: source %q is outside the repository",
-				file, fm.Source)
+			return readPageResult{}, fmt.Errorf(
+				"%s: source %q is outside the repository",
+				file, fm.Source,
+			)
 		}
 		data, err := fs.ReadFile(fsys, p.file)
 		if err != nil {
 			return readPageResult{}, fmt.Errorf("%s: source: %w", file, err)
 		}
-		// The front matter of the source is its own, which the page does not take.
+		// The source keeps its own front matter; the page does not inherit it.
 		if _, src, err = parseFrontMatter(data); err != nil {
 			return readPageResult{}, fmt.Errorf("%s: %w", p.file, err)
 		}
@@ -265,10 +263,9 @@ type orderedEntry struct {
 	slug string // Name without the prefix.
 }
 
-// ordered returns the group directories of entries if dirs, or else the
-// page files, in the order of their prefixes. dir is the directory of entries.
-// A Markdown file without a prefix other than README.md is an error, as is a
-// prefix that 2 entries share.
+// ordered returns entries' group directories when dirs, otherwise its page files,
+// sorted by prefix. dir contains entries. A non-README Markdown file
+// without a prefix or a prefix shared by two entries is an error.
 func ordered(entries []fs.DirEntry, dir string, dirs bool) ([]orderedEntry, error) {
 	var r []orderedEntry
 	for _, e := range entries {
@@ -305,8 +302,8 @@ func ordered(entries []fs.DirEntry, dir string, dirs bool) ([]orderedEntry, erro
 	return r, nil
 }
 
-// noNestedGroups reports an error if entries, those of the group directory dir,
-// hold a directory with a position, which would be a group in a group.
+// noNestedGroups rejects a positioned directory in group directory dir,
+// which would nest a group.
 func noNestedGroups(entries []fs.DirEntry, dir string) error {
 	for _, e := range entries {
 		if e.IsDir() && orderPrefix.MatchString(e.Name()) {
@@ -316,8 +313,8 @@ func noNestedGroups(entries []fs.DirEntry, dir string) error {
 	return nil
 }
 
-// groupTitle returns the title of the group whose directory has the name slug
-// after its prefix, as "Get started" for get-started.
+// groupTitle turns a group's unprefixed directory slug into a title,
+// such as "Get started" from get-started.
 func groupTitle(slug string) string {
 	t := strings.ReplaceAll(slug, "-", " ")
 	r, n := utf8.DecodeRuneInString(t)
@@ -357,8 +354,8 @@ func parseFrontMatter(data []byte) (frontMatter, []byte, error) {
 	return fm, rest, nil
 }
 
-// cutLine returns the first line of data without its line ending and the data
-// after it. The last line may lack a line ending. ok is false for empty data.
+// cutLine returns data's first line without its ending and the remaining data.
+// The last line may lack an ending. ok is false when data is empty.
 func cutLine(data []byte) (line string, rest []byte, ok bool) {
 	if len(data) == 0 {
 		return "", nil, false
@@ -370,8 +367,8 @@ func cutLine(data []byte) (line string, rest []byte, ok bool) {
 	return strings.TrimSuffix(string(data[:i]), "\r"), data[i+1:], true
 }
 
-// httpsRepoURL returns the HTTPS URL of the repository of the Git remote
-// URL remote, as https://github.com/o/r for git@github.com:o/r.git.
+// httpsRepoURL converts Git remote URL remote to HTTPS, for example
+// git@github.com:o/r.git to https://github.com/o/r.
 func httpsRepoURL(remote string) (string, error) {
 	remote = strings.TrimSpace(remote)
 	if rest, ok := strings.CutPrefix(remote, "git@"); ok {

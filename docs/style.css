@@ -1,6 +1,5 @@
-/* The look of the docs of docpages: heavy rounded headings, soft rounded
-   corners, pill links and an emerald accent on warm paper. The colors keep the
-   light-dark() pairs of docpages, so the theme switch still works. */
+/* docpages docs: heavy rounded headings, soft corners, pill links, and an
+   emerald accent on warm paper. light-dark() pairs keep theme switching. */
 :root {
   --bg: light-dark(#fcfbf8, #111412);
   --bg-card: light-dark(#f2efe6, #1a1e1b);
@@ -16,15 +15,13 @@
   --page-radius: 0.75rem;
 }
 
-/* The images of these docs are screenshots of pages, whose background would
-   run into that of the page without a border. */
+/* Borders separate screenshot backgrounds from the page. */
 .docs-content :is(img, video) {
   border: 1px solid var(--border);
   border-radius: var(--page-radius);
 }
 
-/* The links of the header as pills, the current one filled, as high as the
-   controls of the header. */
+/* Header links are control-height pills, filled when current. */
 .site-header .header-link {
   display: inline-flex;
   align-items: center;
@@ -54,7 +51,7 @@
     letter-spacing: -0.03em;
   }
 
-  /* A short bar of the accent above each section in place of a rule below. */
+  /* A short accent above each section replaces a rule below. */
   h2 {
     padding-block-end: 0;
     border-block-end: 0;

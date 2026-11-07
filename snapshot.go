@@ -17,25 +17,21 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// Snapshot copies the docs directory of o into its versions directory as the
-// docs of the release tag, as versions/v1.2/ for v1.2.3, and returns that
-// directory relative to o.Root. The copy is a docs directory of its own,
-// which later patch releases share and whose pages stay editable:
+// Snapshot copies o's docs into its versions directory for release tag, such
+// as versions/v1.2/ for v1.2.3, and returns the o.Root-relative directory.
+// The editable copy is its own docs directory, shared by later patch releases:
 //
-//   - It holds the README.md, the groups and the other files of the docs
-//     directory that their links name. logo.svg, the favicon and style.css
-//     stay behind, since every edition shows those of the docs directory.
-//   - The README.md loses the settings of the site and the note of main from
-//     its front matter.
-//   - A page with a source holds the text of the source in place of its own.
-//   - A link to a file outside the docs directory becomes the URL of the file
-//     at tag in the repository, or leads to the page that shows the file.
-//   - A link or a media file named from the repository root, as /docs/a.md,
-//     becomes relative, which leads to its copy.
-//   - An image or another media file of a page that lies outside the docs
-//     directory is copied into media/ of the copy, which the page then shows.
+//   - It contains README.md, groups, and linked docs files. logo.svg, favicon,
+//     and style.css stay behind because every edition uses the docs versions.
+//   - README.md front matter loses site settings and main's note.
+//   - A sourced page contains its source text instead of its own.
+//   - A link outside docs becomes the file's repository URL at tag, or opens
+//     the page showing that file.
+//   - Root-based links and media paths such as /docs/a.md become relative paths
+//     to their copies.
+//   - Page media outside docs is copied under media/ and shown from there.
 //
-// A directory of the release that exists already is an error.
+// An existing release directory is an error.
 func Snapshot(o Options, tag string) (string, error) {
 	target, files, err := snapshot(os.DirFS(o.Root), path.Clean(filepath.ToSlash(o.Dir)),
 		tag, func() (string, error) { return gitRemote(o.Root) })
@@ -48,9 +44,8 @@ func Snapshot(o Options, tag string) (string, error) {
 	return target, nil
 }
 
-// snapshot returns the directory of the release tag in the versions directory
-// of the docs directory dir of fsys, and the files that [Snapshot] writes
-// there by their path from the repository root.
+// snapshot returns tag's release directory under docs directory dir in fsys,
+// plus [Snapshot]'s files keyed by repository-relative path.
 func snapshot(
 	fsys fs.FS, dir, tag string, remote func() (string, error),
 ) (string, map[string][]byte, error) {
@@ -64,7 +59,7 @@ func snapshot(
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return "", nil, err
 	}
-	// Reading the site checks the links of main, which the copy keeps.
+	// Reading checks main's links, which the copy preserves.
 	s, err := read(fsys, dir, remote, false)
 	if err != nil {
 		return "", nil, err
@@ -107,7 +102,7 @@ func snapshot(
 			return "", nil, err
 		}
 	}
-	// Copying a Markdown file can queue the files that its links name.
+	// Copying Markdown may queue linked files.
 	for i := 0; i < len(c.queue); i++ {
 		if err := c.copy(c.queue[i]); err != nil {
 			return "", nil, err
@@ -137,10 +132,9 @@ func (c *snapshotter) need(file string) {
 	}
 }
 
-// copy copies file of the docs directory into the directory of the release,
-// a Markdown file with its links rewritten, and a media file from elsewhere
-// in the repository into [mediaDir] of it.
-// A missing file, as a dead link names, and a directory are skipped.
+// copy copies a docs file into the release, rewriting Markdown links.
+// It copies repository media from elsewhere into [mediaDir].
+// Missing files, such as dead link targets, and directories are skipped.
 func (c *snapshotter) copy(file string) error {
 	info, err := fs.Stat(c.fsys, file)
 	if errors.Is(err, fs.ErrNotExist) || err == nil && info.IsDir() {
@@ -168,8 +162,7 @@ func (c *snapshotter) copy(file string) error {
 	return nil
 }
 
-// markdown returns the copy of the Markdown file of the docs directory with
-// the content data.
+// markdown returns the docs Markdown file's copy with content data.
 func (c *snapshotter) markdown(file string, data []byte) ([]byte, error) {
 	fm, body, err := parseFrontMatter(data)
 	if err != nil {
@@ -211,11 +204,9 @@ func (c *snapshotter) markdown(file string, data []byte) ([]byte, error) {
 	return slices.Concat(head, body), nil
 }
 
-// inside reports whether file, a path from the repository root, is a file of
-// the docs directory and not of a release. Of a docs directory at the root of
-// the repository, only README.md and the groups count, as for [unusedFiles],
-// and the rest is the repository, as source code, which a release links at
-// its tag rather than copies.
+// inside reports whether repository-relative file belongs to docs but not a release.
+// For root-level docs, only README.md and groups count, as in [unusedFiles];
+// the rest is repository content linked at the release tag.
 func (c *snapshotter) inside(file string) bool {
 	if inDir(file, path.Join(c.dir, versionsDir)) {
 		return false
@@ -227,10 +218,9 @@ func (c *snapshotter) inside(file string) bool {
 	return file == readmeName || orderPrefix.MatchString(top)
 }
 
-// media returns the destination of the media file dest in the copy of file,
-// the dest having been written in origin: file or its source. It queues the
-// media file, which a file of the docs directory keeps its place in the copy
-// and another file of the repository takes its path in [mediaDir] of it.
+// media returns dest's location in file's copy; dest was written in origin,
+// either file or its source. It queues the media: docs media keeps its copied
+// location, while other repository media moves under [mediaDir].
 func (c *snapshotter) media(file, origin, dest string) string {
 	u, ok := repoLink(dest)
 	if !ok {
@@ -247,16 +237,14 @@ func (c *snapshotter) media(file, origin, dest string) string {
 	return dest
 }
 
-// rooted reports whether the link u names a file by its path from the
-// repository root, as /docs/a.md. Such a path in a copy names the file of
-// main, which a release can't link, and not its copy.
+// rooted reports whether u names a repository-root path such as /docs/a.md.
+// Left unchanged in a release, it would name main's file instead of its copy.
 func rooted(u *url.URL) bool { return strings.HasPrefix(u.Path, "/") }
 
-// link returns the destination of the link dest in the copy of file, the dest
-// having been written in origin: file or its source. A link to a file of the
-// docs directory leads to its copy, which it queues, and a link to a file that
-// a page shows, as a source, to the copy of that page. A link to another file
-// of the repository becomes its URL at the release tag in the repository.
+// link returns dest's destination in file's copy; dest was written in origin,
+// either file or its source. A docs-file link queues and opens its copy; a link
+// to a displayed file such as a source opens that page's copy.
+// Other repository files use their release-tag URLs.
 func (c *snapshotter) link(file, origin, dest string) string {
 	u, ok := repoLink(dest)
 	if !ok {
@@ -270,8 +258,7 @@ func (c *snapshotter) link(file, origin, dest string) string {
 	}
 	if to := c.main.pageOf(t); to >= 0 {
 		p := c.main.pages[to]
-		// A link to a directory leads to the page of its README.md, a file,
-		// which takes no "/" after it.
+		// A directory link opens its README page, a file URL without trailing "/".
 		f := *u
 		f.Path = strings.TrimSuffix(f.Path, "/")
 		return relativeLink(file, cmp.Or(p.stub, p.file), &f)
@@ -283,8 +270,8 @@ func (c *snapshotter) link(file, origin, dest string) string {
 	return c.atTag.fileURL(t, strings.HasSuffix(u.Path, "/"), "", u)
 }
 
-// relativeLink returns the link from the file from to the file or directory
-// to, both paths from the repository root, with the query and the fragment of u.
+// relativeLink links repository-relative from to file or directory to,
+// preserving u's query and fragment.
 func relativeLink(from, to string, u *url.URL) string {
 	var dir []string
 	if d := path.Dir(from); d != "." {
@@ -307,8 +294,8 @@ func relativeLink(from, to string, u *url.URL) string {
 	return r.String()
 }
 
-// pageFrontMatter returns the front matter of the keys of fm that a page
-// takes, with its delimiters, or nil if fm sets none of them.
+// pageFrontMatter returns delimited front matter for page-level keys set in fm,
+// or nil if none are set.
 func pageFrontMatter(fm frontMatter) ([]byte, error) {
 	type keys struct {
 		Title     string `yaml:"title,omitempty"`
