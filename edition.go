@@ -93,9 +93,9 @@ func readEdition(
 }
 
 // noteHTML returns the HTML of the note of e on the page with index i, or ""
-// without a note. The links of the note lead where the links of the README.md
-// of e lead, except that a link to a page of another of editions leads to that
-// page, which lets the note of a release name another version.
+// without a note. The links and the images of the note lead where those of the
+// README.md of e lead, except that a link to a page of another of editions
+// leads to that page, which lets the note of a release name another version.
 // The note is 1 paragraph, which the page shows without <p>.
 func (e *edition) noteHTML(i int, editions []*edition) (string, error) {
 	if e.note == "" {
@@ -108,8 +108,24 @@ func (e *edition) noteHTML(i int, editions []*edition) (string, error) {
 		return "", errors.New("a note is 1 paragraph")
 	}
 	err := ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		// Image paths are relative to README.md, page 0.
+		if img, ok := n.(*ast.Image); ok {
+			dest, err := e.links.mediaURL(
+				0, img.Destination.Value(src), e.pages[i].base(),
+			)
+			if err != nil {
+				return ast.WalkStop, err
+			}
+			img.Destination = text.NewSingleLineValueFromString(
+				dest, text.IdentityDecoder,
+			)
+			return ast.WalkContinue, nil
+		}
 		l, ok := n.(*ast.Link)
-		if !ok || !entering {
+		if !ok {
 			return ast.WalkContinue, nil
 		}
 		raw := string(l.Destination.Value(src))

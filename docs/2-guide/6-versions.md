@@ -70,8 +70,8 @@ note: v1.1 is obsolete, use [v1.2](../v1.2/README.md).
 ---
 ```
 
-A note is 1 paragraph of Markdown, and its links work like the links of that
-`README.md`. A note can also link the pages of another version, as
+A note is 1 paragraph of Markdown, and its links and images work like those of
+that `README.md`. A note can also link the pages of another version, as
 `../v1.2/README.md` from a release, `versions/v1.2/README.md` from main or
 `../../README.md` from a release to main. A snapshot leaves the note of `main`
 behind.

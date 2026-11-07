@@ -306,6 +306,38 @@ func TestVersionNote(t *testing.T) {
 	require.NotContains(t, string(files["docs/versions/v1.3/README.md"]), "note")
 }
 
+// TestVersionNoteImage tests that an image of a note leads to the copy of its file,
+// as seen from each page, which the note alone makes used, and that the
+// note of a release takes its images from the release.
+func TestVersionNoteImage(t *testing.T) {
+	fsys := testRepoFS()
+	fsys["docs/README.md"] = &fstest.MapFile{
+		Data: []byte(strings.Replace(testRoot,
+			"suggested: true\n",
+			"suggested: true\nnote: \"![New](img/new.svg) Try v2.\"\n", 1,
+		)),
+	}
+	fsys["docs/img/new.svg"] = &fstest.MapFile{Data: []byte("<svg></svg>")}
+	s, err := read(fsys, "docs", noRemote, false)
+	require.NoError(t, err)
+	img := mediaName("<svg></svg>", "new.svg")
+	require.Contains(t, pageHTML(t, s, "guides/events"),
+		`<p class="version-note" role="note"><img src="../`+
+			img+`" alt="New"> Try v2.</p>`)
+	require.Contains(t, pageHTML(t, s, ""), `<img src="./`+img+`" alt="New">`)
+	files, err := s.Files()
+	require.NoError(t, err)
+	require.Equal(t, "<svg></svg>", string(files["main/"+img]))
+
+	fsys = withReleases(t, testRepoFS(), "v1.2.0")
+	fsys["docs/img/new.svg"] = &fstest.MapFile{Data: []byte("<svg></svg>")}
+	fsys["docs/versions/v1.2/README.md"] = &fstest.MapFile{Data: []byte(
+		"---\nnote: \"![New](../../img/new.svg)\"\n---\n\n# Introduction\n\nDemo.\n")}
+	_, err = read(fsys, "docs", noRemote, false)
+	require.ErrorContains(t,
+		err, `media "../../img/new.svg" is outside docs/versions/v1.2`)
+}
+
 // TestVersionNoteErrors tests that a note is 1 paragraph whose links lead to
 // headings that exist and stay within a release or lead to the pages of
 // another edition, and that only the README.md of a docs directory takes one.
