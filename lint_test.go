@@ -1,6 +1,7 @@
 package docpages
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -149,6 +150,17 @@ func TestLint(t *testing.T) {
 				require.True(t, strings.HasPrefix(lines[i], lintPage+":"+want),
 					"%q does not start with %q", lines[i], lintPage+":"+want)
 			}
+		})
+	}
+}
+
+// TestLintRepoDocs checks that the docs of docpages and the examples pass every
+// check of [Read], with the repository set in their front matter.
+func TestLintRepoDocs(t *testing.T) {
+	for _, dir := range []string{"docs", "example/cli/docs", "example/library/docs"} {
+		t.Run(dir, func(t *testing.T) {
+			_, err := read(os.DirFS("."), dir, noRemote, false)
+			require.NoError(t, err)
 		})
 	}
 }
