@@ -1,6 +1,15 @@
 # Example: a command-line tool
 
-[docs/](docs) documents wc, the Unix tool that counts lines, words and bytes, in the style of a man page in a terminal window. It shows a logo, a favicon, icons for the groups, callouts and a code block with a title. Its [template.templ](docs/template.templ) builds a page of its own from the parts of docpages, with a banner across the top, the navigation right of the text and no contents column. The text sits in a window between the title line and the footer line of a man page. Its [style.css](docs/style.css) overrides the color and font tokens of docpages, frames the window, shows the contents bar at every width and marks the current page in reverse video. It also adds the indentation, the capitals and the square corners of a man page.
+[docs/](docs) documents wc, the Unix tool that counts lines, words and bytes.
+
+It uses:
+
+- A [template](../../docs/2-guide/6-templates.md#a-page-of-your-own) that builds a page of its own from the parts of docpages
+- A [style.css](../../docs/2-guide/5-styling.md)
+- A [logo and a favicon](../../docs/2-guide/4-site-settings.md#logo-and-favicon)
+- [Icons](../../docs/2-guide/1-layout.md#icons) for the groups
+- [Callouts](../../docs/2-guide/2-writing.md#callouts)
+- A [code block with a title](../../docs/2-guide/2-writing.md#code)
 
 Serve the docs from the root of the repository, reloading on changes:
 

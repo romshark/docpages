@@ -24,6 +24,9 @@ templ Layout(p Page, parts Parts) {
 			}
 		}
 		@Body(p) {
+			if parts.Banner != nil {
+				@parts.Banner
+			}
 			@Header(p) {
 				if parts.HeaderLinks != nil {
 					@parts.HeaderLinks

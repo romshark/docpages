@@ -186,6 +186,8 @@ func (p Page) linkViews(part string, links []Link) ([]linkView, error) {
 type Parts struct {
 	// Head is appended to <head>, for example with template fonts or scripts.
 	Head templ.Component
+	// Banner opens <body> above the header, for example with a notice of a release.
+	Banner templ.Component
 	// HeaderLinks precedes the repository link, as written by [HeaderLinks].
 	HeaderLinks templ.Component
 	// FooterLinks sits between the repository and llms.txt, as written by [FooterLinks].

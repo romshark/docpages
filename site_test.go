@@ -186,7 +186,8 @@ func newTestSite(t *testing.T) *Site {
 // testPage is [testRepoFS]'s template using every [Layout] part.
 func testPage(p Page) templ.Component {
 	return Layout(p, Parts{
-		Head: templ.Raw(`<meta name="test" content="head">`),
+		Head:   templ.Raw(`<meta name="test" content="head">`),
+		Banner: templ.Raw(`<p class="test-banner">Upgrade</p>`),
 		HeaderLinks: HeaderLinks(p,
 			Link{Title: "Guide", URL: "README.md", Icon: testIcon("M2 2")},
 			Link{Title: "Examples", URL: "4-more/1-examples.md"},
@@ -599,8 +600,8 @@ func TestInlineSVG(t *testing.T) {
 }
 
 // TestSiteChrome checks rendered site settings and [Layout] parts: title name,
-// home logo, head, header and footer links and icons, current header link or
-// first-page fallback, footer end, favicon, and docs stylesheet.
+// home logo, head, banner, header and footer links and icons, current header
+// link or first-page fallback, footer end, favicon, and docs stylesheet.
 func TestSiteChrome(t *testing.T) {
 	s := newTestSite(t)
 	for name, tt := range map[string]struct {
@@ -616,6 +617,8 @@ func TestSiteChrome(t *testing.T) {
 				`<link rel="stylesheet" href="../style.css">`,
 				`<script type="module" src="../docpages.js"></script>` +
 					`<meta name="test" content="head"></head>`,
+				`Skip to content</a><p class="test-banner">Upgrade</p> ` +
+					`<header class="site-header">`,
 				`<a class="logo" href="../../../" aria-label="Demo home">` +
 					`<svg class="logo-svg" role="img" aria-label="Demo" ` +
 					`xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">`,

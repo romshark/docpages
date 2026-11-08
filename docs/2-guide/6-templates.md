@@ -40,6 +40,7 @@ Every `.templ` file of the docs folder is `package docs`, and 1 of them has `tem
 | Part | What it adds |
 | --- | --- |
 | `Head` | Elements at the end of `<head>`, as fonts or a script. |
+| `Banner` | A notice across the top of the page, above the header. |
 | `HeaderLinks` | Links of the header, before the link to your repository. |
 | `FooterLinks` | Links of the footer, between the link to your repository and `llms.txt`. |
 | `FooterEnd` | The end of the footer, as a license. |
@@ -57,6 +58,29 @@ For a link of your own, `p.URL` takes the same URLs:
 ```templ
 <a href={ p.URL("2-guide/1-events.md#dispatch") }>Dispatch</a>
 ```
+
+## Releases
+
+The template of the docs folder renders the pages of `main` and of every release. `p.Version` is `main` or the release, as `v1.2`, so the template can change the pages of a release:
+
+```templ
+templ DocpagesMain(p docpages.Page) {
+	@docpages.Layout(p, docpages.Parts{Banner: banner(p)})
+}
+
+func banner(p docpages.Page) templ.Component {
+	if p.Version == "v0.9" {
+		return oldBanner()
+	}
+	return nil
+}
+
+templ oldBanner() {
+	<p class="old-banner">v0.9 has a known vulnerability. Upgrade to v1.0.</p>
+}
+```
+
+Compare a version with `==`, since `<` sorts `v0.10` before `v0.9`. `p.Versions` lists the releases, the latest first, then `main`, and the `Href` of each leads to the same page in that version.
 
 ## A page of your own
 

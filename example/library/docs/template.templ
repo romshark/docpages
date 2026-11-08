@@ -2,9 +2,11 @@ package docs
 
 import "github.com/romshark/docpages"
 
-// DocpagesMain is the built-in page with ringbuf docs, API, and benchmark links.
+// DocpagesMain is the built-in page with ringbuf docs, API, and benchmark links,
+// and a security banner on the pages of v0.9.
 templ DocpagesMain(p docpages.Page) {
 	@docpages.Layout(p, docpages.Parts{
+		Banner: banner(p),
 		HeaderLinks: docpages.HeaderLinks(p,
 			docpages.Link{Title: "Docs", URL: "README.md"},
 			docpages.Link{Title: "API", URL: "2-reference/README.md"},
@@ -17,6 +19,26 @@ templ DocpagesMain(p docpages.Page) {
 			},
 		),
 	})
+}
+
+// banner returns the banner of p's version, or nil for none. The template of
+// main renders the pages of every release, so it switches on p.Version.
+func banner(p docpages.Page) templ.Component {
+	if p.Version == "v0.9" {
+		// p.Versions lists the latest release first.
+		return securityBanner(p.Versions[0])
+	}
+	return nil
+}
+
+// securityBanner warns of a made-up vulnerability of v0.9 and links the same
+// page in latest.
+templ securityBanner(latest docpages.VersionLink) {
+	<p class="security-banner" role="note">
+		<strong>Security:</strong>
+		v0.9 has some dangerous vulnerability.
+		<a href={ latest.Href }>Upgrade to { latest.Version }</a>.
+	</p>
 }
 
 templ gaugeIcon() {

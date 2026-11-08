@@ -1,6 +1,17 @@
 # Example: a Go library
 
-[docs/](docs) documents ringbuf, a made-up Go ring buffer, in a monospace style. It shows the name of the project in place of a logo, a group that a `README.md` opens, a Mermaid diagram, a link in the footer with an icon, links to the headings of another page, a `<details>` that opens and 2 releases in [docs/versions/](docs/versions): v1.0 and v0.9, whose note sends readers to v1.0. Its [style.css](docs/style.css) overrides the color and font tokens of docpages.
+[docs/](docs) documents ringbuf, a made-up Go ring buffer.
+
+It uses:
+
+- A [template](../../docs/2-guide/6-templates.md) with header and footer links, and a banner that depends on the version
+- A [style.css](../../docs/2-guide/5-styling.md)
+- [Releases](../../docs/2-guide/7-versions.md) with a [note](../../docs/2-guide/7-versions.md#notes)
+- The [project name](../../docs/2-guide/4-site-settings.md#logo-and-favicon) in place of a logo
+- A [group](../../docs/2-guide/1-layout.md#groups-and-pages) that its `README.md` opens
+- [Links](../../docs/2-guide/2-writing.md#links) to headings of another page
+- A [Mermaid diagram](../../docs/2-guide/2-writing.md#diagrams)
+- A [`<details>`](../../docs/2-guide/2-writing.md#details)
 
 Serve the docs from the root of the repository, reloading on changes:
 

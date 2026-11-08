@@ -42,6 +42,7 @@ It shows:
 - Links to the headings of another page
 - A `<details>` that opens
 - 2 releases, v1.0 and v0.9, whose note sends readers to v1.0
+- A [template](../2-guide/6-templates.md#releases) that adds a security banner to the pages of v0.9
 - A `style.css` that sets the colors and the fonts
 
 ```sh title="Terminal"

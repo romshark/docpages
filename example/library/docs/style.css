@@ -11,6 +11,21 @@
   --accent-hover: light-dark(#5428b8, #c3afff);
 }
 
+/* The banner of template.templ on the pages of v0.9,
+   in the colors of a CAUTION callout. */
+.security-banner {
+  --caution: light-dark(#cf222e, #f85149);
+  padding: 0.5rem 1.5rem;
+  border-block-end: 1px solid var(--caution);
+  background: color-mix(in srgb, var(--caution) 12%, var(--bg));
+  font-size: 0.875rem;
+  text-align: center;
+
+  strong {
+    color: var(--caution);
+  }
+}
+
 /* The name of the project, which shows without a logo.svg. */
 .logo-text {
   font-family: var(--font-mono);
