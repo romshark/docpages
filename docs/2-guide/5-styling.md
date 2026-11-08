@@ -29,6 +29,8 @@ Write each color as a `light-dark()` pair, the light one first. Then both themes
 | `--accent`, `--accent-hover` | Links and highlights |
 | `--font-sans`, `--font-mono` | The fonts of text and code |
 
+[Diagrams](2-writing.md#diagrams) take these colors too.
+
 ## Menus and dialogs
 
 The version menu, the theme menu, the search dialog and the navigation are Morpheus components. Your rules don't reach inside them, but these properties do:

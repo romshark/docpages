@@ -469,8 +469,8 @@ if (search) {
 }
 
 // The renderer writes Mermaid blocks as <pre class="mermaid">.
-// Mermaid replaces them with theme-colored SVGs and redraws on theme changes.
-// Pages without diagrams do not load Mermaid.
+// Mermaid replaces them with SVGs in the colors and font of the page and
+// redraws on theme changes. Pages without diagrams do not load Mermaid.
 const diagrams = [...document.querySelectorAll("pre.mermaid")];
 if (diagrams.length > 0) {
 	const sources = diagrams.map((d) => d.textContent);
@@ -479,20 +479,97 @@ if (diagrams.length > 0) {
 		const theme = document.documentElement.dataset.theme;
 		return theme ? theme === "dark" : system.matches;
 	};
+	// Mermaid parses only hex, rgb() and hsl(), and a token can hold
+	// light-dark() or any other CSS color. A probe in the text resolves a color
+	// in the current theme, and a canvas pixel turns the result into hex.
+	const probe = document.createElement("span");
+	probe.hidden = true;
+	const pixel = document.createElement("canvas").getContext("2d", {
+		willReadFrequently: true,
+	});
+	const hex = (css) => {
+		pixel.clearRect(0, 0, 1, 1);
+		pixel.fillStyle = css;
+		pixel.fillRect(0, 0, 1, 1);
+		const [r, g, b] = pixel.getImageData(0, 0, 1, 1).data;
+		return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+	};
+	// color returns css in hex, or "" if it is no color. An undefined property
+	// would fall back to the inherited color and hide a typo; left as written,
+	// it fails the diagram.
+	const color = (css) => {
+		const name = /^var\((--[\w-]+)\)$/.exec(css)?.[1];
+		if (name && !getComputedStyle(probe).getPropertyValue(name).trim()) {
+			return "";
+		}
+		probe.style.color = "";
+		probe.style.color = css;
+		return probe.style.color ? hex(getComputedStyle(probe).color) : "";
+	};
+	const token = (name) => color(`var(${name})`);
+	// The nearest opaque background behind the diagrams, as a template can
+	// place the text on another color than --bg.
+	const backdrop = () => {
+		for (let e = diagrams[0]; e; e = e.parentElement) {
+			const c = getComputedStyle(e).backgroundColor;
+			if (c !== "transparent" && !/^rgba\(.*,\s*0\)$/.test(c)) {
+				return hex(c);
+			}
+		}
+		return token("--bg");
+	};
+	const frontMatter = /^(\s*---\r?\n)([\s\S]*?)(\r?\n---[ \t]*(?:\r?\n|$))/;
+	const themedColor =
+		/(["']?)(light-dark\((?:[^()]|\([^()]*\))*\)|var\(--[\w-]+\))\1/g;
+	// themed replaces each var() and light-dark() in the front matter of
+	// source with its color in the current theme, as Mermaid takes neither.
+	// The value is quoted because YAML reads an unquoted "#" as a comment.
+	const themed = (source) =>
+		source.replace(frontMatter, (_, open, config, close) => {
+			const resolved = config.replace(themedColor, (m, _q, css) => {
+				const c = color(css);
+				return c ? `"${c}"` : m;
+			});
+			return open + resolved + close;
+		});
+	const themeVariables = () => {
+		const text = token("--text");
+		const card = token("--bg-card");
+		return {
+			darkMode: dark(),
+			// Mermaid's default shadow is light gray, a glow on dark pages.
+			dropShadow: `drop-shadow(1px 2px 2px rgb(0 0 0 / ${dark() ? 0.6 : 0.15}))`,
+			background: backdrop(),
+			// The font of the text, as <pre> takes the font of code.
+			fontFamily: getComputedStyle(diagrams[0].parentElement).fontFamily,
+			primaryColor: card,
+			primaryTextColor: text,
+			primaryBorderColor: token("--accent"),
+			lineColor: token("--text-muted"),
+			textColor: text,
+			noteBkgColor: card,
+			noteTextColor: text,
+			noteBorderColor: token("--border"),
+		};
+	};
 	import("https://cdn.jsdelivr.net/npm/mermaid@12.2.0/dist/mermaid.esm.min.mjs")
 		.then(({ default: mermaid }) => {
 			const draw = () => {
+				diagrams[0].parentElement.append(probe);
+				// The front matter of a diagram can still set its own config.
 				mermaid.initialize({
 					startOnLoad: false,
-					theme: dark() ? "dark" : "neutral",
+					theme: "base",
+					themeVariables: themeVariables(),
 					// Mermaid 12's 120px label width splits lines such as "events,
 					// templates". Version 11's 200px fit every label in guide/.
 					flowchart: { wrappingWidth: 200 },
 				});
 				diagrams.forEach((d, i) => {
 					d.removeAttribute("data-processed");
-					d.textContent = sources[i];
+					d.textContent = themed(sources[i]);
 				});
+				probe.remove();
 				return mermaid.run({ nodes: diagrams });
 			};
 			draw();

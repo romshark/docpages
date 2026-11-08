@@ -242,6 +242,38 @@ flowchart LR
     A[Markdown files] --> B[docpages] --> C[Static site]
 ```
 
+A diagram takes the colors of [style.css](5-styling.md#colors-and-fonts) in both themes, and the font of the text. `--bg-card` fills its boxes, `--accent` draws their borders, `--text-muted` draws its lines and `--text` writes its text.
+
+To change 1 diagram, give it front matter with `theme: base` and the [theme variables](https://mermaid.js.org/config/theming.html) to change. Mermaid ignores them without `theme: base`. The other colors stay those of the page.
+
+A color written as `light-dark()`, or as `var()` of a [color property](5-styling.md#colors-and-fonts), follows the theme. GitHub doesn't draw a diagram with such a color, as its Mermaid takes neither.
+
+````markdown
+```mermaid
+---
+config:
+  theme: base
+  themeVariables:
+    primaryColor: "light-dark(#fde68a, #6e5902)"
+    primaryTextColor: "var(--text)"
+---
+flowchart LR
+    A[Markdown files] --> B[docpages] --> C[Static site]
+```
+````
+
+```mermaid
+---
+config:
+  theme: base
+  themeVariables:
+    primaryColor: "light-dark(#fde68a, #6e5902)"
+    primaryTextColor: "var(--text)"
+---
+flowchart LR
+    A[Markdown files] --> B[docpages] --> C[Static site]
+```
+
 ## Contents and search
 
 "On this page" lists the headings down to level 4. When 2 headings below level 2 share their text, as a "Flags" heading under each command, the list stops above their level so it doesn't repeat itself.
