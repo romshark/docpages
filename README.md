@@ -1,5 +1,9 @@
 # docpages
 
+[![CI](https://github.com/romshark/docpages/actions/workflows/ci.yml/badge.svg)](https://github.com/romshark/docpages/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/romshark/docpages.svg)](https://pkg.go.dev/github.com/romshark/docpages)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 docpages renders the Markdown files of a docs folder of a Git repository as a
 static documentation site, with a version for `main` and for each release. The
 folders and file names make the navigation, links work as they do on GitHub,
