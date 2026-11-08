@@ -33,9 +33,11 @@ A build stops at the mistakes below and names the file of each, and in Markdown 
 ## Templates
 
 - A `.templ` file of the docs folder that isn't `package docs`, and `.templ` files without `templ DocpagesMain`.
-- A `.templ` file that templ can't read, and Go that doesn't compile, with the line and column in the `.templ` file.
+- A `.templ` file that templ can't read, and Go that doesn't compile, with the line and column in the `.templ` or `.go` file.
 - A link of a template to a file that doesn't exist or a heading that its page lacks.
 - `.templ` files without the go command.
+- `.templ` files in a docs folder without a `go.mod` that requires docpages, and a `go.mod` that Go can't read.
+- A `go.mod` that requires a version of docpages that the running one isn't [compatible](../2-guide/6-templates.md#build) with.
 
 ## Stylesheet
 

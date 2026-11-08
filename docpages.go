@@ -8,6 +8,7 @@
 //	favicon.svg            the icon of the browser tab, optional
 //	style.css              loaded after the stylesheet of docpages, optional
 //	template.templ         an optional page template, like any .templ file
+//	go.mod                 the Go module of the templates, which requires docpages
 //	1-get-started/         a group, "Get started"
 //	  icon.svg             the icon of the group, optional
 //	  README.md            the first page of the group, optional
@@ -23,7 +24,9 @@
 // matter also holds site settings; the module README lists its keys.
 //
 // Docs .templ files use package docs and replace [DefaultPage] with templ
-// DocpagesMain(p [Page]). The go command builds them.
+// DocpagesMain(p [Page]). The go command builds them in the Go module of the
+// docs directory, with the running docpages, which must be compatible with the
+// version that the module requires. See [VersionError].
 //
 // The docs directory describes main.
 // [Snapshot] makes an editable release copy under versions/.
@@ -68,6 +71,8 @@ type Site struct {
 	served map[string]bool
 	// templates are the docs .templ files.
 	templates []templateFile
+	// module is the Go module of the docs directory, nil without templates.
+	module *docsModule
 	// page renders each page. Nil uses the renderer built from templates.
 	page func(Page) templ.Component
 	// templateGlob names the active template files, such as "docs/*.templ";
@@ -99,13 +104,17 @@ func Read(o Options) (*Site, error) {
 }
 
 // readOptions is [Read], but served mode makes non-page repository links use
-// [Handler]-served files. Any docs .templ files render pages and require go.
+// [Handler]-served files. Any docs .templ files render pages and require go,
+// and a docs module that requires a compatible docpages.
 func readOptions(o Options, served bool) (*Site, error) {
 	s, err := readRepo(o, served)
 	if err != nil {
 		return nil, err
 	}
 	if len(s.templates) > 0 {
+		if err := checkVersion(s.module); err != nil {
+			return nil, err
+		}
 		if _, err := exec.LookPath("go"); err != nil {
 			return nil, fmt.Errorf("%s: the .templ files need the go command: %w",
 				s.main().dir, err)
@@ -167,6 +176,12 @@ func read(
 	if err != nil {
 		return nil, err
 	}
+	var mod *docsModule
+	if len(templates) > 0 {
+		if mod, err = readModule(fsys, dir); err != nil {
+			return nil, err
+		}
+	}
 	assets, err := siteAssets()
 	if err != nil {
 		return nil, err
@@ -195,7 +210,9 @@ func read(
 		return nil, err
 	}
 
-	s := &Site{chrome: c, assets: assets, templates: templates, page: DefaultPage}
+	s := &Site{
+		chrome: c, assets: assets, templates: templates, module: mod, page: DefaultPage,
+	}
 	if served {
 		s.served = make(map[string]bool)
 	}
@@ -222,7 +239,7 @@ func read(
 		}
 	}
 	// Pages, links, and settings have now named every file the site uses.
-	settings := settingFiles(dir, c, set.Host, templates)
+	settings := settingFiles(dir, c, set.Host, templates, mod)
 	if err := unusedFiles(fsys, s, settings); err != nil {
 		return nil, err
 	}

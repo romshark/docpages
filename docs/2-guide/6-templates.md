@@ -33,6 +33,16 @@ templ license() {
 
 Every `.templ` file of the docs folder is `package docs`, and 1 of them has `templ DocpagesMain(p docpages.Page)`. Without `.templ` files, the pages show the built-in page, with 1 link in the header, "Docs", to the first page.
 
+A docs folder with `.templ` files is a Go module that requires docpages:
+
+```sh
+cd docs
+go mod init docs
+go get -tool github.com/romshark/docpages/cmd/docpages@latest
+```
+
+The `tool` directive keeps the requirement through `go mod tidy`, which finds no import of docpages in `.templ` files. `go tool docpages` in the docs folder runs the version that `go.mod` requires.
+
 ## The built-in page
 
 `docpages.Layout` is the built-in page. It takes parts of your own:
@@ -121,10 +131,19 @@ The [Go reference](https://pkg.go.dev/github.com/romshark/docpages) lists every 
 
 ## Build
 
-A build with `.templ` files needs the [go command](https://go.dev/doc/install), and fails without it. docpages generates the Go of your files and of a renderer into a folder of the temporary directory, builds it and renders the pages with it. The first build takes a while, and later builds use the Go build cache. `-serve` builds again when you change a `.templ` file, and shows a mistake in the page.
+A build with `.templ` files needs the [go command](https://go.dev/doc/install), and fails without it. docpages builds a renderer in the docs module and renders the pages with it. The Go of your files and of the renderer stays in a folder of the temporary directory, so the build writes nothing to the docs folder. The first build takes a while, and later builds use the Go build cache. `-serve` builds again when you change a `.templ` or `.go` file, and shows a mistake in the page.
 
-Your files can import the Go standard library, docpages, templ and [Morpheus](https://github.com/romshark/morpheus), which docpages uses.
+Your files can import the packages of the docs module and of the modules it requires. A `.go` file next to the `.templ` files is `package docs` too, as with a function that the templates call.
 
-`templ generate` in your repository writes a `_templ.go` file next to each `.templ` file, which docpages ignores. Your Go module then needs docpages, or leave the docs folder out with `-ignore-pattern`.
+The renderer uses the running docpages, not the version that `go.mod` requires. The running docpages must be compatible with that version, which means the same major version and no older. Below v1, the minor version must be the same too. Otherwise the build fails and names the command that runs the required version:
+
+```text
+docs/go.mod requires github.com/romshark/docpages v0.4.0, incompatible with the running v0.3.2
+run: go run github.com/romshark/docpages/cmd/docpages@v0.4.0 -serve 127.0.0.1:7340 docs
+```
+
+A docpages built from source, not from a release, skips the check.
+
+`templ generate` writes a `_templ.go` file next to each `.templ` file, which docpages ignores.
 
 A docs folder at the root of the repository takes no templates. Its `.templ` files belong to the repository.

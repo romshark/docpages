@@ -12,6 +12,7 @@ require (
 	github.com/tdewolff/parse/v2 v2.8.20
 	github.com/yuin/goldmark/v2 v2.1.15
 	go.yaml.in/yaml/v3 v3.0.6
+	golang.org/x/mod v0.41.0
 	golang.org/x/net v0.62.0
 )
 

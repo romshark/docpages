@@ -239,11 +239,12 @@ func lineOf(src []byte, pos int) int {
 }
 
 // settingFiles returns files used by settings c in docs directory dir:
-// logo, favicon, style.css, h's configured host icon, and templates.
+// logo, favicon, style.css, h's configured host icon, templates,
+// and the go.mod, go.sum and .go files of their module mod.
 // Go and text files written beside a .templ file by templ generate also count,
 // though the site builds the templates itself.
 func settingFiles(
-	dir string, c chrome, h *hostSettings, templates []templateFile,
+	dir string, c chrome, h *hostSettings, templates []templateFile, mod *docsModule,
 ) []string {
 	var r []string
 	if c.logo != "" {
@@ -261,6 +262,9 @@ func settingFiles(
 	}
 	if h != nil && h.Icon != "" {
 		r = append(r, path.Join(dir, h.Icon))
+	}
+	if mod != nil {
+		r = append(r, mod.files()...)
 	}
 	return r
 }
