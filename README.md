@@ -13,6 +13,18 @@ go run github.com/romshark/docpages/cmd/docpages@latest -serve 127.0.0.1:7340 do
 `-serve` previews the site and reloads it on changes, and `-o site` writes it.
 docpages needs Go 1.27.3 or later.
 
+## Compared to other tools
+
+| | docpages | Hugo | Docusaurus | VitePress | Starlight | MkDocs | mdBook |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Ecosystem | Go | Go | npm | npm | npm | pip | Cargo |
+| Navigation from | Folder and file names | Folders and `weight` | `sidebars.js` or folders | Config | Config or folders | `mkdocs.yml` or folders | `SUMMARY.md` |
+| Relative `.md` links | Yes | With a render hook | Yes | Yes | With a plugin | Yes | Yes |
+| Link to a missing heading | Fails the build | Passes | Warns | Passes | With a plugin | Logs it | Passes |
+| Versions | Yes | No | Yes | With a plugin | With a plugin | With mike | No |
+| Search | Yes | With a theme | Algolia or a plugin | Yes | Yes | Yes | Yes |
+| Plugins and templates | No, CSS only | Yes | Yes | Yes | Yes | Yes | Yes |
+
 ## Documentation
 
 The documentation is a docpages site itself, in [docs/](docs/README.md):
