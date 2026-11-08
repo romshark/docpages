@@ -26,7 +26,7 @@ go run github.com/romshark/docpages/cmd/docpages@latest -serve 127.0.0.1:7340 do
 
 ## Documentation
 
-The documentation is a docpages site itself, in [docs/](docs/README.md):
+The documentation is a docpages site itself, at [romshark.github.io/docpages](https://romshark.github.io/docpages/), built from [docs/](docs/README.md):
 
 - [Quick start](docs/1-get-started/1-quick-start.md)
 - [Layout](docs/2-guide/1-layout.md)

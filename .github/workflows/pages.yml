@@ -1,0 +1,44 @@
+name: Deploy GitHub Pages
+
+# The site is docs/ built by the docpages of the same commit. 1 build writes
+# main and every release snapshot in docs/versions/, so each push to main
+# deploys the whole site. A change of docpages itself changes the site too.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install Go 1.27.3
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.3"
+          check-latest: true
+
+      - name: Build the docs
+        run: go run ./cmd/docpages -o site docs
+
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v5

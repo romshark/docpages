@@ -380,7 +380,8 @@ func TestCompatible(t *testing.T) {
 
 // TestCheckVersion checks that [Read] rejects a docs module that requires a
 // docpages that the running release isn't compatible with, and that
-// development builds and pseudo-versions skip the check.
+// development builds, pseudo-versions and a module that replaces docpages with
+// a directory skip the check.
 func TestCheckVersion(t *testing.T) {
 	root := writeTestRepo(t)
 	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "main.templ"),
@@ -424,6 +425,22 @@ func TestCheckVersion(t *testing.T) {
 		GoMod: "docs/go.mod", Required: "v0.4.0", Running: "v0.3.2",
 	}, "docs/go.mod requires github.com/romshark/docpages v0.4.0, "+
 		"incompatible with the running v0.3.2")
+
+	// A docs module that replaces docpages with a directory, as the docs of
+	// docpages do, names no release.
+	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "go.mod"),
+		[]byte(dedent(`
+			module example.com/docs
+
+			require github.com/romshark/docpages v0.0.0-00010101000000-000000000000
+
+			replace github.com/romshark/docpages => ../
+		`)), 0o644))
+	old := runningVersion
+	runningVersion = func() string { return "v0.3.2" }
+	t.Cleanup(func() { runningVersion = old })
+	_, err := Read(Options{Root: root, Dir: "docs"})
+	require.NoError(t, err)
 }
 
 // TestRendererModFile tests that the go.mod of a renderer drops the docs

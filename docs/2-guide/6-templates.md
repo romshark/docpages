@@ -142,7 +142,7 @@ docs/go.mod requires github.com/romshark/docpages v0.4.0, incompatible with the 
 run: go run github.com/romshark/docpages/cmd/docpages@v0.4.0 -serve 127.0.0.1:7340 docs
 ```
 
-A docpages built from source, not from a release, skips the check.
+A docpages built from source, not from a release, skips the check. So does a docs module that replaces docpages with a folder, which then names no release.
 
 `templ generate` writes a `_templ.go` file next to each `.templ` file, which docpages ignores.
 

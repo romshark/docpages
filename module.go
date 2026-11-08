@@ -25,6 +25,9 @@ type docsModule struct {
 	goSum []byte // Empty without go.sum.
 	// docpages is the version of docpages that go.mod requires.
 	docpages string
+	// local reports whether go.mod replaces docpages with a directory, as the
+	// docs of docpages do. Its requirement then names no release.
+	local bool
 	// goFiles are the module's .go files from the repository root.
 	goFiles []string
 }
@@ -57,6 +60,11 @@ func readModule(fsys fs.FS, dir string) (*docsModule, error) {
 	if m.docpages == "" {
 		return nil, fmt.Errorf("%s: no requirement of %s\nrun: cd %s && %s",
 			file, modulePath, dir, getTool())
+	}
+	for _, r := range f.Replace {
+		if r.Old.Path == modulePath && modfile.IsDirectoryPath(r.New.Path) {
+			m.local = true
+		}
 	}
 	m.goSum, err = fs.ReadFile(fsys, path.Join(dir, "go.sum"))
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
@@ -149,10 +157,11 @@ func (e *VersionError) Error() string {
 
 // checkVersion returns a [*VersionError] if the running docpages is a release
 // that isn't compatible with the version of docpages that m requires.
-// Development builds and pseudo-versions pass.
+// Development builds, pseudo-versions and a docpages that m replaces with a
+// directory pass.
 func checkVersion(m *docsModule) error {
 	running := releaseVersion()
-	if running == "" || compatible(running, m.docpages) {
+	if running == "" || m.local || compatible(running, m.docpages) {
 		return nil
 	}
 	return &VersionError{GoMod: m.file, Required: m.docpages, Running: running}
