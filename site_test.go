@@ -46,35 +46,142 @@ Demo is a web framework.
 func testRepoFS() fstest.MapFS {
 	file := func(s string) *fstest.MapFile { return &fstest.MapFile{Data: []byte(s)} }
 	return fstest.MapFS{
-		"LICENSE":          file("MIT License\n\nCopyright (c) 2026 Jane Doe\n\nPermission ...\n"),
-		"SPECIFICATION.md": file("# Demo Specification\n\n## Pages\n\n### Actions\n"),
-		"CHANGELOG.md":     file("# Changelog\n\n## v1.0.0\n\n### Added\n\n## v0.9.0\n\n### Added\n"),
-		"docs/README.md":   file(testRoot),
-		"docs/logo.svg": file(`<?xml version="1.0"?>` + "\n" +
-			`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10"/></svg>`),
+		"LICENSE": file(dedent(`
+			MIT License
+
+			Copyright (c) 2026 Jane Doe
+
+			Permission ...
+		`)),
+		"SPECIFICATION.md": file(dedent(`
+			# Demo Specification
+
+			## Pages
+
+			### Actions
+		`)),
+		"CHANGELOG.md": file(dedent(`
+			# Changelog
+
+			## v1.0.0
+
+			### Added
+
+			## v0.9.0
+
+			### Added
+		`)),
+		"docs/README.md": file(testRoot),
+		"docs/logo.svg": file(dedent(`
+			<?xml version="1.0"?>
+			<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10"/></svg>`)),
 		"docs/favicon.svg":    file(`<svg xmlns="http://www.w3.org/2000/svg"></svg>`),
 		"docs/style.css":      file("body{color:red}"),
 		"docs/icons/chat.svg": file(`<svg viewBox="0 0 16 16"><path d="M1 1"/></svg>`),
 		"docs/icons/book.svg": file(`<svg viewBox="0 0 16 16"><path d="M2 2"/></svg>`),
 		"docs/1-get-started/icon.svg": file(
 			`<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/></svg>`),
-		"docs/1-get-started/1-installation.md": file("---\nsuggested: true\n---\n\n" +
-			"# Installation\n\nRun go install.\n"),
-		"docs/1-get-started/2-upgrading.md": file("# Upgrading\n\nRead the [changelog](../../CHANGELOG.md).\n"),
-		"docs/2-guides/README.md": file("---\ntitle: Overview\n---\n\n# Guides\n\n" +
-			"Start with [events](01-events.md).\n"),
-		"docs/2-guides/01-events.md": file("# Events\n\nEvents update tabs.\n\n" +
-			"## Dispatch\n\nSee [actions](../../SPECIFICATION.md#actions), " +
-			"[the spec](../3-reference/1-specification.md) and [main.go](../../main.go).\n\n" +
-			"```go\nfunc f() {}\n```\n"),
-		"docs/2-guides/10-testing.md": file("# Testing\n\nTest it.\n"),
-		"docs/3-reference/1-specification.md": file("---\nsource: ../../SPECIFICATION.md\n" +
-			"title: Specification\n---\n\n# Specification\n\nSee [SPECIFICATION.md](../../SPECIFICATION.md).\n"),
-		"docs/3-reference/2-changelog.md": file("---\nsource: ../../CHANGELOG.md\n---\n\n# Changelog\n"),
-		"docs/3-reference/3-go-api.md": file("---\ntitle: Go API\n" +
-			"url: https://pkg.go.dev/github.com/o/demo\n---\n\n# Go API\n"),
-		"docs/4-more/1-examples.md": file("# Examples\n\nSee the examples.\n"),
+		"docs/1-get-started/1-installation.md": file(dedent(`
+			---
+			suggested: true
+			---
+
+			# Installation
+
+			Run go install.
+		`)),
+		"docs/1-get-started/2-upgrading.md": file(dedent(`
+			# Upgrading
+
+			Read the [changelog](../../CHANGELOG.md).
+		`)),
+		"docs/2-guides/README.md": file(dedent(`
+			---
+			title: Overview
+			---
+
+			# Guides
+
+			Start with [events](01-events.md).
+		`)),
+		"docs/2-guides/01-events.md": file(dedentMD(`
+			# Events
+
+			Events update tabs.
+
+			## Dispatch
+
+			See [actions](../../SPECIFICATION.md#actions), [the spec](../3-reference/1-specification.md) and [main.go](../../main.go).
+
+			~~~go
+			func f() {}
+			~~~
+		`)),
+		"docs/2-guides/10-testing.md": file(dedent(`
+			# Testing
+
+			Test it.
+		`)),
+		"docs/3-reference/1-specification.md": file(dedent(`
+			---
+			source: ../../SPECIFICATION.md
+			title: Specification
+			---
+
+			# Specification
+
+			See [SPECIFICATION.md](../../SPECIFICATION.md).
+		`)),
+		"docs/3-reference/2-changelog.md": file(dedent(`
+			---
+			source: ../../CHANGELOG.md
+			---
+
+			# Changelog
+		`)),
+		"docs/3-reference/3-go-api.md": file(dedent(`
+			---
+			title: Go API
+			url: https://pkg.go.dev/github.com/o/demo
+			---
+
+			# Go API
+		`)),
+		"docs/4-more/1-examples.md": file(dedent(`
+			# Examples
+
+			See the examples.
+		`)),
 	}
+}
+
+// dedent strips the leading line break and the common tab indent from an
+// indented raw string. A tab-only last line keeps the final line break.
+func dedent(s string) string {
+	lines := strings.Split(strings.TrimPrefix(s, "\n"), "\n")
+	indent := -1
+	for _, l := range lines {
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		if n := len(l) - len(strings.TrimLeft(l, "\t")); indent < 0 || n < indent {
+			indent = n
+		}
+	}
+	for i, l := range lines {
+		if strings.TrimSpace(l) == "" {
+			lines[i] = ""
+		} else {
+			lines[i] = l[indent:]
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// dedentMD is [dedent] for Markdown, with each ~ turned into the backquote that
+// a raw string can't hold.
+func dedentMD(s string) string {
+	return strings.ReplaceAll(dedent(s), "~", "`")
 }
 
 // noRemote is the Git remote of a repository without one.
@@ -163,9 +270,13 @@ func TestReadLayout(t *testing.T) {
 	require.Empty(t, l.groups[1].icon)
 	require.Equal(t, "Demo", l.settings.Name)
 	require.Nil(t, l.srcs[8], "a link that leaves the site has no Markdown")
-	require.Equal(t,
-		"# Demo Specification\n\n## Pages\n\n### Actions\n",
-		string(l.srcs[6]))
+	require.Equal(t, dedent(`
+		# Demo Specification
+
+		## Pages
+
+		### Actions
+	`), string(l.srcs[6]))
 	require.True(t, strings.HasPrefix(string(l.srcs[1]), "\n# Installation"),
 		"the Markdown starts after the front matter")
 }
@@ -233,37 +344,66 @@ func TestReadLayoutErr(t *testing.T) {
 		},
 		"settings of a page": {
 			files: map[string]string{
-				"docs/1-a/1-b.md": "---\nname: B\n---\n# B\n",
+				"docs/1-a/1-b.md": dedent(`
+					---
+					name: B
+					---
+					# B
+				`),
 			},
 			want: "docs/1-a/1-b.md: only the README.md of the docs directory takes site settings",
 		},
 		"url without a title": {
 			files: map[string]string{
-				"docs/1-a/1-b.md": "---\nurl: https://x.dev\n---\n",
+				"docs/1-a/1-b.md": dedent(`
+					---
+					url: https://x.dev
+					---
+				`),
 			},
 			want: "docs/1-a/1-b.md: a page with url needs a title",
 		},
 		"url and source": {
 			files: map[string]string{
-				"docs/1-a/1-b.md": "---\nurl: https://x.dev\nsource: ../../A.md\ntitle: B\n---\n",
+				"docs/1-a/1-b.md": dedent(`
+					---
+					url: https://x.dev
+					source: ../../A.md
+					title: B
+					---
+				`),
 			},
 			want: "docs/1-a/1-b.md: url and source exclude each other",
 		},
 		"source outside the repository": {
 			files: map[string]string{
-				"docs/1-a/1-b.md": "---\nsource: ../../../A.md\n---\n",
+				"docs/1-a/1-b.md": dedent(`
+					---
+					source: ../../../A.md
+					---
+				`),
 			},
 			want: `docs/1-a/1-b.md: source "../../../A.md" is outside the repository`,
 		},
 		"missing source": {
 			files: map[string]string{
-				"docs/1-a/1-b.md": "---\nsource: ../../A.md\n---\n",
+				"docs/1-a/1-b.md": dedent(`
+					---
+					source: ../../A.md
+					---
+				`),
 			},
 			want: "docs/1-a/1-b.md: source: open A.md",
 		},
 		"unknown key": {
-			files: map[string]string{"docs/1-a/1-b.md": "---\ntitel: B\n---\n"},
-			want:  "field titel not found",
+			files: map[string]string{
+				"docs/1-a/1-b.md": dedent(`
+					---
+					titel: B
+					---
+				`),
+			},
+			want: "field titel not found",
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -303,13 +443,45 @@ func TestParseFrontMatter(t *testing.T) {
 		want   frontMatter
 		wantMD string
 	}{
-		"none":                 {data: "# A\n", wantMD: "# A\n"},
-		"thematic break later": {data: "# A\n\n---\n\nB\n", wantMD: "# A\n\n---\n\nB\n"},
-		"empty":                {data: "---\n---\n# A\n", wantMD: "# A\n"},
+		"none": {data: "# A\n", wantMD: "# A\n"},
+		"thematic break later": {
+			data: dedent(`
+				# A
+
+				---
+
+				B
+			`),
+			wantMD: dedent(`
+				# A
+
+				---
+
+				B
+			`),
+		},
+		"empty": {
+			data: dedent(`
+				---
+				---
+				# A
+			`),
+			wantMD: "# A\n",
+		},
 		"fields": {
-			data:   "---\ntitle: A\nsuggested: true\n---\n\n# B\n",
-			want:   frontMatter{Title: "A", Suggested: true},
-			wantMD: "\n# B\n",
+			data: dedent(`
+				---
+				title: A
+				suggested: true
+				---
+
+				# B
+			`),
+			want: frontMatter{Title: "A", Suggested: true},
+			wantMD: dedent(`
+
+				# B
+			`),
 		},
 		"CRLF": {
 			data:   "---\r\ntitle: A\r\n---\r\n# B\r\n",
@@ -317,7 +489,10 @@ func TestParseFrontMatter(t *testing.T) {
 			wantMD: "# B\r\n",
 		},
 		"no Markdown": {
-			data: "---\ntitle: A\n---",
+			data: dedent(`
+				---
+				title: A
+				---`),
 			want: frontMatter{Title: "A"},
 		},
 	} {
@@ -329,7 +504,10 @@ func TestParseFrontMatter(t *testing.T) {
 		})
 	}
 
-	_, _, err := parseFrontMatter([]byte("---\ntitle: A\n"))
+	_, _, err := parseFrontMatter([]byte(dedent(`
+		---
+		title: A
+	`)))
 	require.ErrorContains(t, err, "front matter has no closing ---")
 }
 
@@ -356,7 +534,15 @@ func TestSiteLicense(t *testing.T) {
 
 	fsys := withReleases(t, testRepoFS(), "v1.2.0")
 	fsys["docs/versions/v1.2/README.md"] = &fstest.MapFile{
-		Data: []byte("---\nlicense: MIT\n---\n\n# Introduction\n\nDemo.\n"),
+		Data: []byte(dedent(`
+			---
+			license: MIT
+			---
+
+			# Introduction
+
+			Demo.
+		`)),
 	}
 	_, err := read(fsys, "docs", noRemote, false)
 	require.ErrorContains(t, err, "a release takes the settings of the site")
@@ -405,7 +591,11 @@ func TestInlineSVG(t *testing.T) {
 		want  string
 	}{
 		"prolog": {
-			data:  "<?xml version=\"1.0\"?>\n<!-- c -->\n<svg viewBox=\"0 0 1 1\"></svg>\n",
+			data: dedent(`
+				<?xml version="1.0"?>
+				<!-- c -->
+				<svg viewBox="0 0 1 1"></svg>
+			`),
 			attrs: []string{`aria-hidden="true"`},
 			want:  `<svg aria-hidden="true" viewBox="0 0 1 1"></svg>`,
 		},
@@ -415,9 +605,17 @@ func TestInlineSVG(t *testing.T) {
 			want:  `<svg role="img" aria-hidden="false" class="a"></svg>`,
 		},
 		"multiline tag": {
-			data:  "<svg\n\tclass=\"a\"\n>\n</svg>",
+			data: dedent(`
+				<svg
+					class="a"
+				>
+				</svg>`),
 			attrs: []string{`class="b"`},
-			want:  "<svg\n\tclass=\"a\"\n>\n</svg>",
+			want: dedent(`
+				<svg
+					class="a"
+				>
+				</svg>`),
 		},
 		"not SVG": {data: "<png/>", want: ""},
 	} {
@@ -490,7 +688,11 @@ func TestSiteChrome(t *testing.T) {
 // the first page, a "Docs" header link there, and no favicon, stylesheet, or license.
 func TestSiteDefaults(t *testing.T) {
 	fsys := fstest.MapFS{
-		"README.md":    {Data: []byte("# Intro\n\nA tool.\n")},
+		"README.md": {Data: []byte(dedent(`
+			# Intro
+
+			A tool.
+		`))},
 		"1-a/1-b.md":   {Data: []byte("# B\n")},
 		"1-a/2-c.md":   {Data: []byte("# C\n")},
 		"unrelated.go": {Data: []byte("package x\n")},
@@ -523,10 +725,14 @@ func TestSiteDefaults(t *testing.T) {
 // icon fails reading.
 func TestSiteHeader(t *testing.T) {
 	fsys := testRepoFS()
-	fsys["docs/README.md"] = &fstest.MapFile{Data: []byte(strings.Replace(testRoot,
-		"header:\n  - title: Guide\n    url: README.md\n    icon: icons/book.svg\n"+
-			"  - title: Examples\n    url: 4-more/1-examples.md\n",
-		"header: []\n", 1))}
+	fsys["docs/README.md"] = &fstest.MapFile{Data: []byte(strings.Replace(testRoot, dedent(`
+		header:
+		  - title: Guide
+		    url: README.md
+		    icon: icons/book.svg
+		  - title: Examples
+		    url: 4-more/1-examples.md
+	`), "header: []\n", 1))}
 	// Nothing uses the removed header link's icon now.
 	delete(fsys, "docs/icons/book.svg")
 	s, err := read(fsys, "docs", noRemote, false)
@@ -567,11 +773,22 @@ func TestSiteLinks(t *testing.T) {
 func TestPageNameWithSpace(t *testing.T) {
 	fsys := fstest.MapFS{
 		"docs/README.md": {
-			Data: []byte("---\nrepository: https://github.com/o/demo\n---\n\n" +
-				"# Intro\n\nSee [the first steps](1-guide/1-first%20steps.md).\n"),
+			Data: []byte(dedent(`
+				---
+				repository: https://github.com/o/demo
+				---
+
+				# Intro
+
+				See [the first steps](1-guide/1-first%20steps.md).
+			`)),
 		},
 		"docs/1-guide/1-first steps.md": {
-			Data: []byte("# First steps\n\nRun it.\n"),
+			Data: []byte(dedent(`
+				# First steps
+
+				Run it.
+			`)),
 		},
 	}
 	s, err := read(fsys, "docs", noRemote, false)
@@ -616,8 +833,13 @@ func TestSiteFiles(t *testing.T) {
 		// esbuild's minified docs style.css.
 		require.Equal(t, []byte("body{color:red}\n"), files[dir+"style.css"])
 		// A page copy starts after its front matter.
-		require.Equal(t, "# Demo Specification\n\n## Pages\n\n### Actions\n",
-			strings.TrimLeft(string(files[dir+"reference/specification.md"]), "\n"))
+		require.Equal(t, dedent(`
+			# Demo Specification
+
+			## Pages
+
+			### Actions
+		`), strings.TrimLeft(string(files[dir+"reference/specification.md"]), "\n"))
 	}
 }
 

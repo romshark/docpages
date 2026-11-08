@@ -1,6 +1,7 @@
 package docpages
 
 import (
+	"fmt"
 	"maps"
 	"net/url"
 	"os"
@@ -18,7 +19,11 @@ import (
 func TestSnapshot(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{
-		Data: []byte("# Testing\n\nRead the [notes](../notes.txt).\n"),
+		Data: []byte(dedent(`
+			# Testing
+
+			Read the [notes](../notes.txt).
+		`)),
 	}
 	fsys["docs/notes.txt"] = &fstest.MapFile{Data: []byte("Not a page.")}
 	target, files, err := snapshot(fsys, "docs", "v1.2.3", noRemote)
@@ -40,20 +45,60 @@ func TestSnapshot(t *testing.T) {
 		v + "notes.txt",
 	}, slices.Sorted(maps.Keys(files)))
 	for file, want := range map[string]string{
-		"README.md": "---\nsuggested: true\n---\n\n" +
-			"# Introduction\n\nDemo is a web framework.\n",
-		"1-get-started/2-upgrading.md": "# Upgrading\n\n" +
-			"Read the [changelog](../3-reference/2-changelog.md).\n",
-		"2-guides/01-events.md": "# Events\n\nEvents update tabs.\n\n" +
-			"## Dispatch\n\nSee [actions](../3-reference/1-specification.md#actions), " +
-			"[the spec](../3-reference/1-specification.md) and " +
-			"[main.go](https://github.com/o/demo/blob/v1.2.3/main.go).\n\n" +
-			"```go\nfunc f() {}\n```\n",
-		"2-guides/10-testing.md": "# Testing\n\nRead the [notes](../notes.txt).\n",
-		"3-reference/1-specification.md": "---\ntitle: Specification\n---\n\n" +
-			"# Demo Specification\n\n## Pages\n\n### Actions\n",
-		"3-reference/2-changelog.md": "# Changelog\n\n## v1.0.0\n\n### Added\n\n" +
-			"## v0.9.0\n\n### Added\n",
+		"README.md": dedent(`
+			---
+			suggested: true
+			---
+
+			# Introduction
+
+			Demo is a web framework.
+		`),
+		"1-get-started/2-upgrading.md": dedent(`
+			# Upgrading
+
+			Read the [changelog](../3-reference/2-changelog.md).
+		`),
+		"2-guides/01-events.md": dedentMD(`
+			# Events
+
+			Events update tabs.
+
+			## Dispatch
+
+			See [actions](../3-reference/1-specification.md#actions), [the spec](../3-reference/1-specification.md) and [main.go](https://github.com/o/demo/blob/v1.2.3/main.go).
+
+			~~~go
+			func f() {}
+			~~~
+		`),
+		"2-guides/10-testing.md": dedent(`
+			# Testing
+
+			Read the [notes](../notes.txt).
+		`),
+		"3-reference/1-specification.md": dedent(`
+			---
+			title: Specification
+			---
+
+			# Demo Specification
+
+			## Pages
+
+			### Actions
+		`),
+		"3-reference/2-changelog.md": dedent(`
+			# Changelog
+
+			## v1.0.0
+
+			### Added
+
+			## v0.9.0
+
+			### Added
+		`),
 		"3-reference/3-go-api.md": string(fsys["docs/3-reference/3-go-api.md"].Data),
 		"notes.txt":               "Not a page.",
 	} {
@@ -89,10 +134,23 @@ func TestSnapshotWrite(t *testing.T) {
 // outside images move under the copy's media/.
 func TestSnapshotRootDocs(t *testing.T) {
 	fsys := fstest.MapFS{
-		"README.md": {Data: []byte("---\nrepository: https://github.com/o/r\n---\n\n" +
-			"# Intro\n\nSee [A](1-guide/1-a.md), [main.go](cmd/app/main.go) and " +
-			"[the license](LICENSE).\n\n![Logo](img/logo.png)\n")},
-		"1-guide/1-a.md":  {Data: []byte("# A\n\nText.\n")},
+		"README.md": {Data: []byte(dedent(`
+			---
+			repository: https://github.com/o/r
+			---
+
+			# Intro
+
+			See [A](1-guide/1-a.md), [main.go](cmd/app/main.go)
+			and [the license](LICENSE).
+
+			![Logo](img/logo.png)
+		`))},
+		"1-guide/1-a.md": {Data: []byte(dedent(`
+			# A
+
+			Text.
+		`))},
 		"cmd/app/main.go": {Data: []byte("package main\n")},
 		"LICENSE":         {Data: []byte("MIT License\n")},
 		"img/logo.png":    {Data: []byte("logo")},
@@ -104,10 +162,14 @@ func TestSnapshotRootDocs(t *testing.T) {
 		"versions/v1.2/README.md",
 		"versions/v1.2/media/img/logo.png",
 	}, slices.Sorted(maps.Keys(files)))
-	require.Equal(t, "# Intro\n\nSee [A](1-guide/1-a.md), "+
-		"[main.go](https://github.com/o/r/blob/v1.2.3/cmd/app/main.go) and "+
-		"[the license](https://github.com/o/r/blob/v1.2.3/LICENSE).\n\n"+
-		"![Logo](media/img/logo.png)\n",
+	require.Equal(t, dedent(`
+		# Intro
+
+		See [A](1-guide/1-a.md), [main.go](https://github.com/o/r/blob/v1.2.3/cmd/app/main.go)
+		and [the license](https://github.com/o/r/blob/v1.2.3/LICENSE).
+
+		![Logo](media/img/logo.png)
+	`),
 		string(files["versions/v1.2/README.md"]))
 
 	for name, data := range files {
@@ -121,18 +183,29 @@ func TestSnapshotRootDocs(t *testing.T) {
 // media paths relative to release copies instead of main files.
 func TestSnapshotRootedLink(t *testing.T) {
 	fsys := testRepoFS()
-	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte("# Testing\n\n" +
-		"See [events](/docs/2-guides/01-events.md#dispatch)" +
-		" and [notes](/docs/notes.txt).\n\n" +
-		"![Logo](/docs/img/logo.png)\n\n<img src=\"/docs/img/logo.png\" width=\"10\">\n")}
+	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte(dedent(`
+		# Testing
+
+		See [events](/docs/2-guides/01-events.md#dispatch) and [notes](/docs/notes.txt).
+
+		![Logo](/docs/img/logo.png)
+
+		<img src="/docs/img/logo.png" width="10">
+	`))}
 	fsys["docs/notes.txt"] = &fstest.MapFile{Data: []byte("Notes.")}
 	fsys["docs/img/logo.png"] = &fstest.MapFile{Data: []byte("logo")}
 	_, files, err := snapshot(fsys, "docs", "v1.2.3", noRemote)
 	require.NoError(t, err)
 	const v = "docs/versions/v1.2/"
-	require.Equal(t, "# Testing\n\n"+
-		"See [events](01-events.md#dispatch) and [notes](../notes.txt).\n\n"+
-		"![Logo](../img/logo.png)\n\n<img src=\"../img/logo.png\" width=\"10\">\n",
+	require.Equal(t, dedent(`
+		# Testing
+
+		See [events](01-events.md#dispatch) and [notes](../notes.txt).
+
+		![Logo](../img/logo.png)
+
+		<img src="../img/logo.png" width="10">
+	`),
 		string(files[v+"2-guides/10-testing.md"]))
 	require.Equal(t, "Notes.", string(files[v+"notes.txt"]))
 	require.Equal(t, "logo", string(files[v+"img/logo.png"]))
@@ -148,19 +221,38 @@ func TestSnapshotDirectoryLink(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["examples/README.md"] = &fstest.MapFile{Data: []byte("# Examples of Demo\n")}
 	fsys["docs/4-more/2-samples.md"] = &fstest.MapFile{
-		Data: []byte("---\nsource: ../../examples/README.md\n---\n"),
+		Data: []byte(dedent(`
+			---
+			source: ../../examples/README.md
+			---
+		`)),
 	}
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{
-		Data: []byte("# Testing\n\nSee [the examples](../../examples/).\n"),
+		Data: []byte(dedent(`
+			# Testing
+
+			See [the examples](../../examples/).
+		`)),
 	}
 	fsys["SPECIFICATION.md"] = &fstest.MapFile{
-		Data: []byte("# Demo Specification\n\nSee [the guides](docs/2-guides/).\n\n" +
-			"## Pages\n\n### Actions\n"),
+		Data: []byte(dedent(`
+			# Demo Specification
+
+			See [the guides](docs/2-guides/).
+
+			## Pages
+
+			### Actions
+		`)),
 	}
 	_, files, err := snapshot(fsys, "docs", "v1.2.3", noRemote)
 	require.NoError(t, err)
 	const v = "docs/versions/v1.2/"
-	require.Equal(t, "# Testing\n\nSee [the examples](../4-more/2-samples.md).\n",
+	require.Equal(t, dedent(`
+		# Testing
+
+		See [the examples](../4-more/2-samples.md).
+	`),
 		string(files[v+"2-guides/10-testing.md"]))
 	require.Contains(t, string(files[v+"3-reference/1-specification.md"]),
 		"See [the guides](../2-guides/README.md).")
@@ -174,13 +266,21 @@ func TestSnapshotDirectoryLink(t *testing.T) {
 func TestSnapshotFileWithSpace(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{
-		Data: []byte("# Testing\n\nRead the [design](../../Design%20Doc.pdf).\n"),
+		Data: []byte(dedent(`
+			# Testing
+
+			Read the [design](../../Design%20Doc.pdf).
+		`)),
 	}
 	fsys["Design Doc.pdf"] = &fstest.MapFile{Data: []byte("PDF")}
 	const design = "https://github.com/o/demo/blob/v1.2.3/Design%20Doc.pdf"
 	_, files, err := snapshot(fsys, "docs", "v1.2.3", noRemote)
 	require.NoError(t, err)
-	require.Equal(t, "# Testing\n\nRead the [design]("+design+").\n",
+	require.Equal(t, fmt.Sprintf(dedent(`
+		# Testing
+
+		Read the [design](%s).
+	`), design),
 		string(files["docs/versions/v1.2/2-guides/10-testing.md"]))
 
 	s, err := read(withReleases(t, fsys, "v1.2.3"), "docs", noRemote, false)

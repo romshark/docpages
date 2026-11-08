@@ -20,26 +20,84 @@ func TestLint(t *testing.T) {
 		md   string
 		want []string // The errors, each without "docs/2-guides/10-testing.md:".
 	}{
-		"fine": {md: "# Testing\n\n" +
-			"```go\nfunc f() {}\n```\n\n```\nplain\n```\n\n```mermaid\nflowchart LR\n```\n\n" +
-			"<!-- A comment. -->\n\n" +
-			"| A | B |\n| --- | --- |\n| 1 | 2 |\n\n" +
-			"- One\n- Two\n\n1. One\n2. Two\n\n" +
-			"*Emphasis* at the start\n-- a dash, and 2 in\n2.5 seconds.\n\n" +
-			"2.x is the current version, and the project started in\n2019. It grew.\n\n" +
-			"<details open>\n<summary>More <code>here</code></summary>\n\nText.\n\n</details>\n\n" +
-			"<video controls muted><track kind=\"captions\" src=\"https://example.com/c.vtt\">" +
-			"</video>\n"},
+		"fine": {md: dedentMD(`
+			# Testing
+
+			~~~go
+			func f() {}
+			~~~
+
+			~~~
+			plain
+			~~~
+
+			~~~mermaid
+			flowchart LR
+			~~~
+
+			<!-- A comment. -->
+
+			| A | B |
+			| --- | --- |
+			| 1 | 2 |
+
+			- One
+			- Two
+
+			1. One
+			2. Two
+
+			*Emphasis* at the start
+			-- a dash, and 2 in
+			2.5 seconds.
+
+			2.x is the current version, and the project started in
+			2019. It grew.
+
+			<details open>
+			<summary>More <code>here</code></summary>
+
+			Text.
+
+			</details>
+
+			<video controls muted><track kind="captions" src="https://example.com/c.vtt"></video>
+		`)},
 		"code language": {
-			md:   "---\ntitle: Testing\n---\n\n# Testing\n\n```nolang\nx\n```\n",
+			md: dedentMD(`
+				---
+				title: Testing
+				---
+
+				# Testing
+
+				~~~nolang
+				x
+				~~~
+			`),
 			want: []string{`7: code block in "nolang", a language that Chroma doesn't highlight`},
 		},
 		"raw HTML": {
-			md: "# Testing\n\n<div align=\"center\">\n\nText.\n\n</div>\n\n" +
-				"Press <kbd>K</kbd>.\n\n" +
-				"<img src=\"https://example.com/a.png\" class=\"wide\">\n\n" +
-				"<img src=\"javascript:alert(1)\">\n\n" +
-				"<details>\n<summary class=\"s\">More</summary>\n<script>alert(1)</script>\n</details>\n",
+			md: dedent(`
+				# Testing
+
+				<div align="center">
+
+				Text.
+
+				</div>
+
+				Press <kbd>K</kbd>.
+
+				<img src="https://example.com/a.png" class="wide">
+
+				<img src="javascript:alert(1)">
+
+				<details>
+				<summary class="s">More</summary>
+				<script>alert(1)</script>
+				</details>
+			`),
 			want: []string{
 				"3: raw HTML <div>, which a page leaves out",
 				"9: raw HTML <kbd>, which a page leaves out",
@@ -50,11 +108,25 @@ func TestLint(t *testing.T) {
 			},
 		},
 		"table": {
-			md:   "# Testing\n\n| A | B |\n| 1 | 2 |\n",
+			md: dedent(`
+				# Testing
+
+				| A | B |
+				| 1 | 2 |
+			`),
 			want: []string{`3: lines that start with "|" but make no table`},
 		},
 		"list": {
-			md: "# Testing\n\n-item\n\nSteps:\n2. Run it\n\n1.First\n",
+			md: dedent(`
+				# Testing
+
+				-item
+
+				Steps:
+				2. Run it
+
+				1.First
+			`),
 			want: []string{
 				`3: "-item" starts as a list item without the space after "-"`,
 				`6: "2. Run it" starts a list at 2 right below a paragraph`,
@@ -91,12 +163,16 @@ func TestUnusedFiles(t *testing.T) {
 	fsys["docs/2-guides/img/old.png"] = file("old")
 	fsys["docs/guides/draft.md"] = file("# Draft\n")
 	_, err := read(fsys, "docs", noRemote, false)
-	require.EqualError(t, err, ""+
-		"docs/2-guides/img/old.png: no page shows this file, and no link or setting names it\n"+
-		"docs/guides/draft.md: no page shows this file, and no link or setting names it")
+	require.EqualError(t, err, dedent(`
+		docs/2-guides/img/old.png: no page shows this file, and no link or setting names it
+		docs/guides/draft.md: no page shows this file, and no link or setting names it`))
 
 	fsys = testRepoFS()
-	fsys[lintPage] = file("# Testing\n\nSee [the files](files/).\n")
+	fsys[lintPage] = file(dedent(`
+		# Testing
+
+		See [the files](files/).
+	`))
 	fsys["docs/2-guides/files/a.txt"] = file("a")
 	fsys["docs/2-guides/files/b/c.txt"] = file("c")
 	fsys["docs/2-guides/.hidden"] = file("hidden")

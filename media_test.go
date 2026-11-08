@@ -3,6 +3,7 @@ package docpages
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"path"
 	"strings"
 	"testing"
@@ -24,12 +25,18 @@ func mediaName(data, name string) string {
 // [TestLint] covers rejected raw HTML and attributes.
 func TestMedia(t *testing.T) {
 	fsys := testRepoFS()
-	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte("# Testing\n\n" +
-		"![Shot](img/shot.png) ![Logo](../../assets/logo.png) " +
-		"![Badge](https://example.com/badge.svg)\n\n" +
-		`<video src="img/demo.mp4" poster="img/shot.png" controls></video>` + "\n\n" +
-		"<picture>\n  <source srcset=\"img/shot.png 2x, img/shot.png\">\n" +
-		"  <img src=\"img/shot.png\" alt=\"Shot\">\n</picture>\n")}
+	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte(dedent(`
+		# Testing
+
+		![Shot](img/shot.png) ![Logo](../../assets/logo.png) ![Badge](https://example.com/badge.svg)
+
+		<video src="img/demo.mp4" poster="img/shot.png" controls></video>
+
+		<picture>
+		  <source srcset="img/shot.png 2x, img/shot.png">
+		  <img src="img/shot.png" alt="Shot">
+		</picture>
+	`))}
 	fsys["docs/2-guides/img/shot.png"] = &fstest.MapFile{Data: []byte("shot")}
 	fsys["docs/2-guides/img/demo.mp4"] = &fstest.MapFile{Data: []byte("demo")}
 	fsys["assets/logo.png"] = &fstest.MapFile{Data: []byte("logo")}
@@ -68,9 +75,13 @@ func TestMedia(t *testing.T) {
 // for each use, while its one copy destination opens the media file for both.
 func TestMediaSharedReference(t *testing.T) {
 	fsys := testRepoFS()
-	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte("# Testing\n\n" +
-		"See [the shot][shot] and ![The shot][shot].\n\n" +
-		"[shot]: img/shot.png\n")}
+	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte(dedent(`
+		# Testing
+
+		See [the shot][shot] and ![The shot][shot].
+
+		[shot]: img/shot.png
+	`))}
 	fsys["docs/2-guides/img/shot.png"] = &fstest.MapFile{Data: []byte("shot")}
 	s, err := read(fsys, "docs", noRemote, false)
 	require.NoError(t, err)
@@ -83,9 +94,13 @@ func TestMediaSharedReference(t *testing.T) {
 
 	files, err := s.Files()
 	require.NoError(t, err)
-	require.Equal(t, "# Testing\n\n"+
-		"See [the shot][shot] and ![The shot][shot].\n\n"+
-		"[shot]: ../"+shot+"\n",
+	require.Equal(t, fmt.Sprintf(dedent(`
+		# Testing
+
+		See [the shot][shot] and ![The shot][shot].
+
+		[shot]: ../%s
+	`), shot),
 		string(files["main/guides/testing.md"]))
 	require.Contains(t, string(files["main/llms-full.txt"]), "[shot]: "+shot+"\n")
 }
@@ -93,10 +108,21 @@ func TestMediaSharedReference(t *testing.T) {
 // mediaAcrossLines is a page with split raw-HTML tags: after an unclosed line
 // that starts no HTML block, in a list item, and in a blockquote. dest names the media.
 func mediaAcrossLines(dest string) string {
-	return "# Testing\n\n" +
-		"<img src=\"" + dest + "\"\n     alt=\"Shot\" width=\"10\">\n\n" +
-		"1. Open it:\n\n   <img src=\"" + dest + "\"\n        alt=\"Shot\">\n\n" +
-		"> [!TIP]\n> <img src=\"" + dest + "\"\n>   alt=\"Shot\">\n"
+	return fmt.Sprintf(dedent(`
+		# Testing
+
+		<img src="%[1]s"
+		     alt="Shot" width="10">
+
+		1. Open it:
+
+		   <img src="%[1]s"
+		        alt="Shot">
+
+		> [!TIP]
+		> <img src="%[1]s"
+		>   alt="Shot">
+	`), dest)
 }
 
 // TestMediaAcrossLines checks that a page copy preserves split raw-HTML tags
@@ -127,7 +153,11 @@ func TestMediaAcrossLines(t *testing.T) {
 func TestMediaErr(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{
-		Data: []byte("# Testing\n\n![None](img/none.png)\n"),
+		Data: []byte(dedent(`
+			# Testing
+
+			![None](img/none.png)
+		`)),
 	}
 	_, err := read(fsys, "docs", noRemote, false)
 	require.ErrorContains(t, err, `docs/2-guides/10-testing.md: `+
@@ -136,7 +166,11 @@ func TestMediaErr(t *testing.T) {
 	fsys = withReleases(t, testRepoFS(), "v1.2.0")
 	fsys["assets/logo.png"] = &fstest.MapFile{Data: []byte("logo")}
 	fsys["docs/versions/v1.2/2-guides/10-testing.md"] = &fstest.MapFile{
-		Data: []byte("# Testing\n\n<img src=\"../../../../assets/logo.png\">\n"),
+		Data: []byte(dedent(`
+			# Testing
+
+			<img src="../../../../assets/logo.png">
+		`)),
 	}
 	_, err = read(fsys, "docs", noRemote, false)
 	require.ErrorContains(t,
@@ -173,9 +207,19 @@ func TestRewriteMedia(t *testing.T) {
 // partial tags, while adding quotes to unquoted values.
 func TestMediaURLEdits(t *testing.T) {
 	for raw, want := range map[string]string{
-		`<p><img class="x" src="a.png"> <b>B</b></p>`:       `<p><img class="x" src="/r/a.png"> <b>B</b></p>`,
-		"<img\n  src=\"a.png\"\n  alt=\"A\"\n/>":            "<img\n  src=\"/r/a.png\"\n  alt=\"A\"\n/>",
-		"<source srcset=\"a.png 1x,\n  b.png 2x\">":         `<source srcset="/r/a.png 1x, /r/b.png 2x">`,
+		`<p><img class="x" src="a.png"> <b>B</b></p>`: `<p><img class="x" src="/r/a.png"> <b>B</b></p>`,
+		dedent(`
+			<img
+			  src="a.png"
+			  alt="A"
+			/>`): dedent(`
+			<img
+			  src="/r/a.png"
+			  alt="A"
+			/>`),
+		dedent(`
+			<source srcset="a.png 1x,
+			  b.png 2x">`): `<source srcset="/r/a.png 1x, /r/b.png 2x">`,
 		`<img src='a.png' alt=x/>`:                          `<img src='/r/a.png' alt=x/>`,
 		`<IMG SRC=a.png Width=10>`:                          `<IMG SRC="/r/a.png" Width=10>`,
 		`<img src="a.png?w=1&amp;h=2">`:                     `<img src="/r/a.png?w=1&amp;h=2">`,
@@ -228,9 +272,13 @@ func TestAttrValues(t *testing.T) {
 // move other displayed media under media/, and show the copies.
 func TestSnapshotMedia(t *testing.T) {
 	fsys := testRepoFS()
-	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte("# Testing\n\n" +
-		"![Shot](../images/shot.png) ![Logo](../../assets/logo.png)\n\n" +
-		"<img src=\"../../assets/logo.png\" width=\"10\">\n")}
+	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte(dedent(`
+		# Testing
+
+		![Shot](../images/shot.png) ![Logo](../../assets/logo.png)
+
+		<img src="../../assets/logo.png" width="10">
+	`))}
 	fsys["docs/images/shot.png"] = &fstest.MapFile{Data: []byte("shot")}
 	fsys["assets/logo.png"] = &fstest.MapFile{Data: []byte("logo")}
 	_, files, err := snapshot(fsys, "docs", "v1.2.3", noRemote)
@@ -238,9 +286,13 @@ func TestSnapshotMedia(t *testing.T) {
 	const v = "docs/versions/v1.2/"
 	require.Equal(t, "shot", string(files[v+"images/shot.png"]))
 	require.Equal(t, "logo", string(files[v+"media/assets/logo.png"]))
-	require.Equal(t, "# Testing\n\n"+
-		"![Shot](../images/shot.png) ![Logo](../media/assets/logo.png)\n\n"+
-		"<img src=\"../media/assets/logo.png\" width=\"10\">\n",
+	require.Equal(t, dedent(`
+		# Testing
+
+		![Shot](../images/shot.png) ![Logo](../media/assets/logo.png)
+
+		<img src="../media/assets/logo.png" width="10">
+	`),
 		string(files[v+"2-guides/10-testing.md"]))
 
 	s, err := read(withReleases(t, fsys, "v1.2.3"), "docs", noRemote, false)
@@ -254,17 +306,25 @@ func TestSnapshotMedia(t *testing.T) {
 // uses the image's media copy, not the tagged URL a lone link would use.
 func TestSnapshotMediaSharedReference(t *testing.T) {
 	fsys := testRepoFS()
-	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte("# Testing\n\n" +
-		"See [the logo][logo] and ![The logo][logo].\n\n" +
-		"[logo]: ../../assets/logo.png\n")}
+	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte(dedent(`
+		# Testing
+
+		See [the logo][logo] and ![The logo][logo].
+
+		[logo]: ../../assets/logo.png
+	`))}
 	fsys["assets/logo.png"] = &fstest.MapFile{Data: []byte("logo")}
 	_, files, err := snapshot(fsys, "docs", "v1.2.3", noRemote)
 	require.NoError(t, err)
 	const v = "docs/versions/v1.2/"
 	require.Equal(t, "logo", string(files[v+"media/assets/logo.png"]))
-	require.Equal(t, "# Testing\n\n"+
-		"See [the logo][logo] and ![The logo][logo].\n\n"+
-		"[logo]: ../media/assets/logo.png\n",
+	require.Equal(t, dedent(`
+		# Testing
+
+		See [the logo][logo] and ![The logo][logo].
+
+		[logo]: ../media/assets/logo.png
+	`),
 		string(files[v+"2-guides/10-testing.md"]))
 }
 

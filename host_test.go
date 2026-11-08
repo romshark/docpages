@@ -86,16 +86,26 @@ func TestHostErrors(t *testing.T) {
 		host, want string
 	}{
 		"no name": {
-			host: "host:\n  file: \"{repository}/{path}\"\n",
+			host: dedent(`
+				host:
+				  file: "{repository}/{path}"
+			`),
 			want: "docs/README.md: host: a host has a name and a file URL",
 		},
 		"no file": {
-			host: "host:\n  name: Forge\n",
+			host: dedent(`
+				host:
+				  name: Forge
+			`),
 			want: "docs/README.md: host: a host has a name and a file URL",
 		},
 		"missing icon": {
-			host: "host:\n  name: Forge\n  file: \"{repository}/{path}\"" +
-				"\n  icon: icons/none.svg\n",
+			host: dedent(`
+				host:
+				  name: Forge
+				  file: "{repository}/{path}"
+				  icon: icons/none.svg
+			`),
 			want: "docs/README.md: host: icon: open docs/icons/none.svg",
 		},
 	} {

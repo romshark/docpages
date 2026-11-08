@@ -32,17 +32,32 @@ func TestCheckCSS(t *testing.T) {
 		want []string // The errors, each without "style.css:".
 	}{
 		"fine": {
-			css: "@import url(\"a.css\");\n/* Colors. */\n:root " +
-				"{\n  --accent: #0b7a53;\n  color: var(--accent);\n" +
-				"  -webkit-line-clamp: 2;\n  .a & { translate: 0 1px; }\n}\n" +
-				"@media (width < 40rem) { .b { inline-size: 100%; } }\n" +
-				"@font-face { font-family: X; src: url(x.woff2); font-display: swap; }\n" +
-				"@keyframes spin { to { rotate: 1turn; } }\n" +
-				"@supports (display: grid) { .c { display: grid; } }\n" +
-				"@layer base;\n",
+			css: dedent(`
+				@import url("a.css");
+				/* Colors. */
+				:root {
+				  --accent: #0b7a53;
+				  color: var(--accent);
+				  -webkit-line-clamp: 2;
+				  .a & { translate: 0 1px; }
+				}
+				@media (width < 40rem) { .b { inline-size: 100%; } }
+				@font-face {
+				  font-family: X;
+				  src: url(x.woff2);
+				  font-display: swap;
+				}
+				@keyframes spin { to { rotate: 1turn; } }
+				@supports (display: grid) { .c { display: grid; } }
+				@layer base;
+			`),
 		},
 		"typo": {
-			css: "a {\n  colr: red;\n}\n",
+			css: dedent(`
+				a {
+				  colr: red;
+				}
+			`),
 			want: []string{
 				`2:3: "colr" is not a known CSS property (Did you mean "color" instead?)`,
 			},
@@ -52,15 +67,26 @@ func TestCheckCSS(t *testing.T) {
 			want: []string{"1:5: color without a value"},
 		},
 		"no colon": {
-			css:  "a {\n  color red;\n}\n",
+			css: dedent(`
+				a {
+				  color red;
+				}
+			`),
 			want: []string{`2:8: Expected ":"`},
 		},
 		"stray brace": {
-			css:  "a { color: red; }\n}\n",
+			css: dedent(`
+				a { color: red; }
+				}
+			`),
 			want: []string{`2:1: Unexpected "}"`},
 		},
 		"unclosed parenthesis": {
-			css: "a {\n  inline-size: calc((100% - 1rem);\n}\n",
+			css: dedent(`
+				a {
+				  inline-size: calc((100% - 1rem);
+				}
+			`),
 			want: []string{
 				`4:1: Expected ")" to go with "(" (The unbalanced "(" is here: 2:20)`,
 			},
@@ -70,7 +96,12 @@ func TestCheckCSS(t *testing.T) {
 			want: []string{`1:1: Unexpected "{"`},
 		},
 		"unclosed block": {
-			css: "a {\n  color: red;\n\n.b { color: blue; }\n",
+			css: dedent(`
+				a {
+				  color: red;
+
+				.b { color: blue; }
+			`),
 			want: []string{
 				`5:1: Expected "}" to go with "{" (The unbalanced "{" is here: 1:3)`,
 			},
@@ -80,11 +111,17 @@ func TestCheckCSS(t *testing.T) {
 			want: []string{"1:1: unknown at-rule @meida"},
 		},
 		"string": {
-			css:  "a::before {\n  content: \"x;\n}\n",
+			css: dedent(`
+				a::before {
+				  content: "x;
+				}
+			`),
 			want: []string{"2:15: Unterminated string token"},
 		},
 		"comment": {
-			css: "a { color: red; }\n/* The end",
+			css: dedent(`
+				a { color: red; }
+				/* The end`),
 			want: []string{
 				`2:11: Expected "*/" to terminate multi-line comment ` +
 					`(The multi-line comment starts here: 2:1)`,

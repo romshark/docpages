@@ -1,6 +1,7 @@
 package docpages
 
 import (
+	"fmt"
 	"io/fs"
 	"runtime/debug"
 	"strings"
@@ -128,18 +129,34 @@ func TestReleaseErrors(t *testing.T) {
 	}{
 		"settings": {
 			file: "docs/versions/v1.2/README.md",
-			data: "---\nname: Old\n---\n\n# Introduction\n",
+			data: dedent(`
+				---
+				name: Old
+				---
+
+				# Introduction
+			`),
 			want: "docs/versions/v1.2/README.md: a release takes the settings of the site " +
 				"from the README.md of the docs directory",
 		},
 		"link out of the release": {
 			file: "docs/versions/v1.2/2-guides/10-testing.md",
-			data: "# Testing\n\nSee [main.go](../../../../main.go).\n",
+			data: dedent(`
+				# Testing
+
+				See [main.go](../../../../main.go).
+			`),
 			want: `link "../../../../main.go" leads out of docs/versions/v1.2`,
 		},
 		"source out of the release": {
 			file: "docs/versions/v1.2/3-reference/2-changelog.md",
-			data: "---\nsource: ../../../../CHANGELOG.md\n---\n\n# Changelog\n",
+			data: dedent(`
+				---
+				source: ../../../../CHANGELOG.md
+				---
+
+				# Changelog
+			`),
 			want: "docs/versions/v1.2/3-reference/2-changelog.md: " +
 				"source CHANGELOG.md is outside docs/versions/v1.2",
 		},
@@ -184,12 +201,19 @@ func TestDefaultEdition(t *testing.T) {
 func TestVersionsLlmsTxt(t *testing.T) {
 	s, err := read(withReleases(t, testRepoFS(), "v1.1.0", "v1.2.0"), "docs", noRemote, false)
 	require.NoError(t, err)
-	require.Equal(t, "# Demo\n\n> Demo is a web framework.\n\n"+
-		"Each link leads to the llms.txt of a version of the documentation.\n\n"+
-		"## Versions\n\n"+
-		"- [v1.2](v1.2/llms.txt): The latest release\n"+
-		"- [v1.1](v1.1/llms.txt): An earlier release\n"+
-		"- [main](main/llms.txt): The main branch, unreleased\n",
+	require.Equal(t, dedent(`
+		# Demo
+
+		> Demo is a web framework.
+
+		Each link leads to the llms.txt of a version of the documentation.
+
+		## Versions
+
+		- [v1.2](v1.2/llms.txt): The latest release
+		- [v1.1](v1.1/llms.txt): An earlier release
+		- [main](main/llms.txt): The main branch, unreleased
+	`),
 		string(versionsLlmsTxt(s.editions, "Demo", s.Description())))
 	require.NotContains(t,
 		string(versionsLlmsTxt(newTestSite(t).editions, "Demo", "Intro.")), "latest release")
@@ -234,17 +258,33 @@ func TestMorpheusBundleVersion(t *testing.T) {
 // links including other editions, page-version naming in the body, and snapshots
 // omitting main's note.
 func TestVersionNote(t *testing.T) {
-	const intro = "\n\n# Introduction\n\nDemo is a web framework.\n"
 	fsys := withReleases(t, testRepoFS(), "v1.1.0", "v1.2.0")
 	fsys["docs/README.md"] = &fstest.MapFile{Data: []byte(strings.Replace(testRoot,
-		"suggested: true\n", "suggested: true\nnote: Main moves fast. "+
-			"See [Testing](2-guides/10-testing.md) and the [intro](README.md#introduction), "+
-			"or [v1.2](versions/v1.2/2-guides/01-events.md#dispatch).\n", 1))}
-	fsys["docs/versions/v1.1/README.md"] = &fstest.MapFile{Data: []byte("---\n" +
-		"note: v1.1 gets no fixes. See [Upgrading](1-get-started/2-upgrading.md), " +
-		"[v1.2](../v1.2/) and [main](../../README.md#introduction).\n---" + intro)}
-	fsys["docs/versions/v1.2/README.md"] = &fstest.MapFile{Data: []byte("---\n" +
-		"note: \"**Beta.**\"\n---" + intro)}
+		"suggested: true\n", dedent(`
+			suggested: true
+			note: Main moves fast. See [Testing](2-guides/10-testing.md) and the
+			  [intro](README.md#introduction), or
+			  [v1.2](versions/v1.2/2-guides/01-events.md#dispatch).
+		`), 1))}
+	fsys["docs/versions/v1.1/README.md"] = &fstest.MapFile{Data: []byte(dedent(`
+		---
+		note: v1.1 gets no fixes. See [Upgrading](1-get-started/2-upgrading.md),
+		  [v1.2](../v1.2/) and [main](../../README.md#introduction).
+		---
+
+		# Introduction
+
+		Demo is a web framework.
+	`))}
+	fsys["docs/versions/v1.2/README.md"] = &fstest.MapFile{Data: []byte(dedent(`
+		---
+		note: "**Beta.**"
+		---
+
+		# Introduction
+
+		Demo is a web framework.
+	`))}
 	s, err := read(fsys, "docs", noRemote, false)
 	require.NoError(t, err)
 	for name, tt := range map[string]struct {
@@ -307,7 +347,10 @@ func TestVersionNoteImage(t *testing.T) {
 	fsys["docs/README.md"] = &fstest.MapFile{
 		Data: []byte(strings.Replace(testRoot,
 			"suggested: true\n",
-			"suggested: true\nnote: \"![New](img/new.svg) Try v2.\"\n", 1,
+			dedent(`
+				suggested: true
+				note: "![New](img/new.svg) Try v2."
+			`), 1,
 		)),
 	}
 	fsys["docs/img/new.svg"] = &fstest.MapFile{Data: []byte("<svg></svg>")}
@@ -324,8 +367,15 @@ func TestVersionNoteImage(t *testing.T) {
 
 	fsys = withReleases(t, testRepoFS(), "v1.2.0")
 	fsys["docs/img/new.svg"] = &fstest.MapFile{Data: []byte("<svg></svg>")}
-	fsys["docs/versions/v1.2/README.md"] = &fstest.MapFile{Data: []byte(
-		"---\nnote: \"![New](../../img/new.svg)\"\n---\n\n# Introduction\n\nDemo.\n")}
+	fsys["docs/versions/v1.2/README.md"] = &fstest.MapFile{Data: []byte(dedent(`
+		---
+		note: "![New](../../img/new.svg)"
+		---
+
+		# Introduction
+
+		Demo.
+	`))}
 	_, err = read(fsys, "docs", noRemote, false)
 	require.ErrorContains(t,
 		err, `media "../../img/new.svg" is outside docs/versions/v1.2`)
@@ -337,12 +387,10 @@ func TestVersionNoteImage(t *testing.T) {
 func TestVersionNoteErrors(t *testing.T) {
 	// main sets its note in the test docs front matter.
 	main := func(note string) string {
-		return strings.Replace(
-			testRoot,
-			"suggested: true\n",
-			"suggested: true\nnote: "+note+"\n",
-			1,
-		)
+		return strings.Replace(testRoot, "suggested: true\n", fmt.Sprintf(dedent(`
+			suggested: true
+			note: %s
+		`), note), 1)
 	}
 	for name, tt := range map[string]struct {
 		file, data, want string
@@ -364,18 +412,36 @@ func TestVersionNoteErrors(t *testing.T) {
 		},
 		"link out of a release": {
 			file: "docs/versions/v1.2/README.md",
-			data: "---\nnote: \"[x](../../../CHANGELOG.md)\"\n---\n\n# Introduction\n",
+			data: dedent(`
+				---
+				note: "[x](../../../CHANGELOG.md)"
+				---
+
+				# Introduction
+			`),
 			want: `link "../../../CHANGELOG.md" leads out of docs/versions/v1.2`,
 		},
 		"dead fragment of another edition": {
 			file: "docs/versions/v1.2/README.md",
-			data: "---\nnote: \"[x](../../2-guides/01-events.md#missing)\"\n---\n\n# Introduction\n",
+			data: dedent(`
+				---
+				note: "[x](../../2-guides/01-events.md#missing)"
+				---
+
+				# Introduction
+			`),
 			want: `docs/versions/v1.2/README.md: note: ` +
 				`link "../../2-guides/01-events.md#missing" names no heading`,
 		},
 		"note of another page": {
 			file: "docs/2-guides/10-testing.md",
-			data: "---\nnote: A.\n---\n\n# Testing\n",
+			data: dedent(`
+				---
+				note: A.
+				---
+
+				# Testing
+			`),
 			want: "docs/2-guides/10-testing.md: only the README.md of a docs directory " +
 				"takes a note",
 		},

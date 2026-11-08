@@ -3,6 +3,7 @@ package docpages
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -216,15 +217,40 @@ func TestResolveMarkdownLink(t *testing.T) {
 // headings, and body; HTML links open pages and copy links open Markdown copies.
 func TestConvertDocs(t *testing.T) {
 	docs := convertTest(t, MainVersion,
-		"# Introduction\n\n"+
-			"Demo is a *web* framework\nfor `Go`.\n\n"+
-			"Read [the events](events.md#dispatch) and [the FAQ](../FAQ.md).\n\n"+
-			"| a | b |\n| - | - |\n| 1 | 2 |\n",
-		"# Events\n\nEvents update tabs.\n\n## Dispatch\n\n"+
-			"See [pages][spec] and [again][spec].\n\n"+
-			"[spec]: ../SPECIFICATION.md#pages\n",
-		"# Spec\n\n## Pages\n\n### Actions\n\n#### Parameters\n\n"+
-			"See [the guide](guide/) and [pages](#pages).\n",
+		dedentMD(`
+			# Introduction
+
+			Demo is a *web* framework
+			for ~Go~.
+
+			Read [the events](events.md#dispatch) and [the FAQ](../FAQ.md).
+
+			| a | b |
+			| - | - |
+			| 1 | 2 |
+		`),
+		dedent(`
+			# Events
+
+			Events update tabs.
+
+			## Dispatch
+
+			See [pages][spec] and [again][spec].
+
+			[spec]: ../SPECIFICATION.md#pages
+		`),
+		dedent(`
+			# Spec
+
+			## Pages
+
+			### Actions
+
+			#### Parameters
+
+			See [the guide](guide/) and [pages](#pages).
+		`),
 		"",
 	)
 	require.Len(t, docs, 4)
@@ -268,7 +294,13 @@ func TestConvertDocs(t *testing.T) {
 // GitHub derives use_it from the heading; goldmark derives use-it.
 func TestConvertDocsDeadFragment(t *testing.T) {
 	_, err := convertDocs(slices.Clone(testPages[:1]), [][]byte{
-		[]byte("# Title\n\nSee [usage](#use_it).\n\n## Use_it\n"),
+		[]byte(dedent(`
+			# Title
+
+			See [usage](#use_it).
+
+			## Use_it
+		`)),
 	}, &site{ref: MainVersion, host: githubHost(testRepo)})
 	require.ErrorContains(t, err,
 		`guide/README.md: link "#use_it" names no heading`)
@@ -442,15 +474,29 @@ func TestCodeBlocks(t *testing.T) {
 		want []string
 	}{
 		"go": {
-			md:   "```go\nfunc f() {}\n```\n",
+			md: dedentMD(`
+				~~~go
+				func f() {}
+				~~~
+			`),
 			want: []string{goFunc},
 		},
 		"no language": {
-			md:   "```\nfunc f() {}\n```\n",
-			want: []string{"<pre><code>func f() {}\n</code></pre>"},
+			md: dedentMD(`
+				~~~
+				func f() {}
+				~~~
+			`),
+			want: []string{dedent(`
+				<pre><code>func f() {}
+				</code></pre>`)},
 		},
 		"title": {
-			md: "```go title=\"app/app.go\"\nfunc f() {}\n```\n",
+			md: dedentMD(`
+				~~~go title="app/app.go"
+				func f() {}
+				~~~
+			`),
 			want: []string{
 				`<div class="code-title">app/app.go<neo-clipcopy for="code_1">`,
 				`</neo-clipcopy></div><div class="code-body" id="code_1">` + goFunc,
@@ -458,7 +504,15 @@ func TestCodeBlocks(t *testing.T) {
 			},
 		},
 		"copy buttons": {
-			md: "```\na\n```\n\n```\nb\n```\n",
+			md: dedentMD(`
+				~~~
+				a
+				~~~
+
+				~~~
+				b
+				~~~
+			`),
 			want: []string{
 				`<div class="code-body" id="code_1">`,
 				`<neo-clipcopy for="code_1">`,
@@ -483,26 +537,37 @@ func TestCallouts(t *testing.T) {
 		md, want, unwanted string
 	}{
 		"note": {
-			md: "> [!NOTE]\n> Read *this*.\n",
-			want: `<div class="callout callout-note" role="note">` +
-				`<p class="callout-title">Note</p>` +
-				"\n<p>Read <em>this</em>.</p>\n</div>",
+			md: dedent(`
+				> [!NOTE]
+				> Read *this*.
+			`),
+			want: dedent(`
+				<div class="callout callout-note" role="note"><p class="callout-title">Note</p>
+				<p>Read <em>this</em>.</p>
+				</div>`),
 			unwanted: "[!NOTE]",
 		},
 		"marker only": {
 			md: "> [!WARNING]\n",
-			want: `<div class="callout callout-warning" role="note">` +
-				`<p class="callout-title">Warning</p>` + "\n</div>",
+			want: dedent(`
+				<div class="callout callout-warning" role="note"><p class="callout-title">Warning</p>
+				</div>`),
 			unwanted: "<p></p>",
 		},
 		"unknown kind": {
-			md:       "> [!FOO]\n> text\n",
+			md: dedent(`
+				> [!FOO]
+				> text
+			`),
 			want:     "<blockquote>",
 			unwanted: "callout",
 		},
 		"blockquote": {
-			md:       "> text\n",
-			want:     "<blockquote>\n<p>text</p>\n</blockquote>",
+			md: "> text\n",
+			want: dedent(`
+				<blockquote>
+				<p>text</p>
+				</blockquote>`),
 			unwanted: "callout",
 		},
 	} {
@@ -533,25 +598,51 @@ func TestDetails(t *testing.T) {
 		want, unwanted []string
 	}{
 		"markdown": {
-			md: "<details>\n<summary>Why a <code>power</code> of 2?</summary>\n\n" +
-				"A mask *wraps* the index.\n\n</details>\n",
-			want: []string{summary("", "Why a <code>power</code> of 2?") +
-				"\n<p>A mask <em>wraps</em> the index.</p>\n</neo-elastic></details>"},
+			md: dedent(`
+				<details>
+				<summary>Why a <code>power</code> of 2?</summary>
+
+				A mask *wraps* the index.
+
+				</details>
+			`),
+			want: []string{fmt.Sprintf(dedent(`
+				%s
+				<p>A mask <em>wraps</em> the index.</p>
+				</neo-elastic></details>`), summary("", "Why a <code>power</code> of 2?"))},
 			unwanted: []string{"raw HTML omitted"},
 		},
 		"raw text, open": {
-			md: "<details open><summary><b>Title</b> <i>here</i></summary>\n" +
-				"Raw text.\n</details>\n",
-			want: []string{summary(" open", "<b>Title</b> <i>here</i>") +
-				"\nRaw text.\n</neo-elastic></details>"},
+			md: dedent(`
+				<details open><summary><b>Title</b> <i>here</i></summary>
+				Raw text.
+				</details>
+			`),
+			want: []string{fmt.Sprintf(dedent(`
+				%s
+				Raw text.
+				</neo-elastic></details>`), summary(" open", "<b>Title</b> <i>here</i>"))},
 		},
 		"nested": {
-			md: "<details>\n<summary>Outer</summary>\n\n<details>\n<summary>Inner</summary>\n\n" +
-				"Text.\n\n</details>\n\n</details>\n",
-			want: []string{
-				summary("", "Outer") + "\n" + summary("", "Inner") + "\n<p>Text.</p>\n" +
-					"</neo-elastic></details>\n</neo-elastic></details>",
-			},
+			md: dedent(`
+				<details>
+				<summary>Outer</summary>
+
+				<details>
+				<summary>Inner</summary>
+
+				Text.
+
+				</details>
+
+				</details>
+			`),
+			want: []string{fmt.Sprintf(dedent(`
+				%s
+				%s
+				<p>Text.</p>
+				</neo-elastic></details>
+				</neo-elastic></details>`), summary("", "Outer"), summary("", "Inner"))},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -571,12 +662,34 @@ func TestDetails(t *testing.T) {
 // <summary> or </details> tags, fail conversion.
 func TestDetailsErr(t *testing.T) {
 	for md, want := range map[string]string{
-		"<details>\n\nText.\n\n</details>\n":                  "<details> has no <summary>",
-		"<details>\n<summary>A</summary>\n\nText.\n":          "<details> without </details>",
-		"<details>\n<summary>A\n\n</details>\n":               "<summary> without </summary>",
-		"Text.\n\n</details>\n":                               "</details> closes no <details>",
-		"<summary>A</summary>\n":                              "<summary> is not the first in a <details>",
-		"<details>\n<summary>A</summary><summary>B</summary>": "<summary> is not the first in a <details>",
+		dedent(`
+			<details>
+
+			Text.
+
+			</details>
+		`): "<details> has no <summary>",
+		dedent(`
+			<details>
+			<summary>A</summary>
+
+			Text.
+		`): "<details> without </details>",
+		dedent(`
+			<details>
+			<summary>A
+
+			</details>
+		`): "<summary> without </summary>",
+		dedent(`
+			Text.
+
+			</details>
+		`): "</details> closes no <details>",
+		"<summary>A</summary>\n": "<summary> is not the first in a <details>",
+		dedent(`
+			<details>
+			<summary>A</summary><summary>B</summary>`): "<summary> is not the first in a <details>",
 	} {
 		_, err := convertDocs(
 			slices.Clone(testPages[:1]),
@@ -590,7 +703,11 @@ func TestDetailsErr(t *testing.T) {
 
 // TestHeadingLinks checks that every heading below level 1 links to itself.
 func TestHeadingLinks(t *testing.T) {
-	body := convert(t, "# Title\n\n## The `App` type\n").body
+	body := convert(t, dedentMD(`
+		# Title
+
+		## The ~App~ type
+	`)).body
 	require.Contains(t, body, `<h1 id="title">Title</h1>`)
 	require.Contains(t, body, `<h2 id="the-app-type">The <code>App</code> type`+
 		`<a class="heading-link" href="#the-app-type"`+
@@ -600,8 +717,11 @@ func TestHeadingLinks(t *testing.T) {
 // TestPlainTextAutoLinks checks that page titles, descriptions, and search text
 // preserve bare GFM-linked URLs and angle-bracketed URLs and emails.
 func TestPlainTextAutoLinks(t *testing.T) {
-	d := convert(t, "# Install from <https://go.dev>\n\n"+
-		"See https://example.com and <https://go.dev>, or write <dev@example.com>.\n")
+	d := convert(t, dedent(`
+		# Install from <https://go.dev>
+
+		See https://example.com and <https://go.dev>, or write <dev@example.com>.
+	`))
 	const text = "See https://example.com and https://go.dev, or write dev@example.com."
 	require.Equal(t, "Install from https://go.dev", d.title)
 	require.Equal(t, text, d.description)
@@ -611,9 +731,17 @@ func TestPlainTextAutoLinks(t *testing.T) {
 // TestPlainTextBlocks checks that search text separates two blocks in one node,
 // such as two list items or table cells.
 func TestPlainTextBlocks(t *testing.T) {
-	d := convert(t,
-		"# Writing\n\n- A list\n  - with a nested item\n- [x] A done task\n\n"+
-			"| Flag | Default |\n| --- | --- |\n| -o | site |\n")
+	d := convert(t, dedent(`
+		# Writing
+
+		- A list
+		  - with a nested item
+		- [x] A done task
+
+		| Flag | Default |
+		| --- | --- |
+		| -o | site |
+	`))
 	require.Equal(t,
 		"Writing A list with a nested item A done task Flag Default -o site",
 		d.search[0].Text)
@@ -624,10 +752,28 @@ func TestPlainTextBlocks(t *testing.T) {
 func TestSearchEntries(t *testing.T) {
 	docs, err := convertDocs(
 		slices.Clone(testPages[1:2]),
-		[][]byte{[]byte("# Events\n\n" +
-			"Events update\nother tabs.\n\n```go\nfunc hidden() {}\n```\n\n" +
-			"## Dispatch\n\nUse a `Dispatcher`.\n\n### Details\n\n- a list\n\n" +
-			"### Details\n\n- again\n")},
+		[][]byte{[]byte(dedentMD(`
+			# Events
+
+			Events update
+			other tabs.
+
+			~~~go
+			func hidden() {}
+			~~~
+
+			## Dispatch
+
+			Use a ~Dispatcher~.
+
+			### Details
+
+			- a list
+
+			### Details
+
+			- again
+		`))},
 		&site{ref: MainVersion, host: githubHost(testRepo)})
 	require.NoError(t, err)
 	require.Equal(t, []searchEntry{
@@ -674,17 +820,26 @@ func TestLLMSTxt(t *testing.T) {
 		{description: "The rules."},
 		{},
 	}
-	require.Equal(t, "# Demo\n\n"+
-		"> Demo is a web framework for Go.\n\n"+
-		"Each link leads to the Markdown copy of a page of the documentation. "+
-		"llms-full.txt holds all of them in 1 file.\n"+
-		"\n## Get started\n\n"+
-		"- [Introduction](docs/index.md): Demo is a web framework for Go.\n"+
-		"\n## Guides\n\n"+
-		"- [Events](docs/events.md): Events update tabs.\n"+
-		"\n## Reference\n\n"+
-		"- [Specification](specification.md): The rules.\n"+
-		"- [Go API](https://pkg.go.dev/github.com/o/demo)\n",
+	require.Equal(t, dedent(`
+		# Demo
+
+		> Demo is a web framework for Go.
+
+		Each link leads to the Markdown copy of a page of the documentation. llms-full.txt holds all of them in 1 file.
+
+		## Get started
+
+		- [Introduction](docs/index.md): Demo is a web framework for Go.
+
+		## Guides
+
+		- [Events](docs/events.md): Events update tabs.
+
+		## Reference
+
+		- [Specification](specification.md): The rules.
+		- [Go API](https://pkg.go.dev/github.com/o/demo)
+	`),
 		string(llmsTxt("Demo", testPages, testGroups, docs)))
 }
 
@@ -738,7 +893,11 @@ func render(t *testing.T, c templ.Component) string {
 
 // TestHeadingKeepsTemplateIDs checks that a heading cannot take a template ID.
 func TestHeadingKeepsTemplateIDs(t *testing.T) {
-	body := convert(t, "# T\n\n## Main content\n").body
+	body := convert(t, dedent(`
+		# T
+
+		## Main content
+	`)).body
 	require.Contains(t, body, `<h2 id="main-content-1">`)
 }
 
@@ -829,8 +988,17 @@ func TestPageLinks(t *testing.T) {
 // TestMermaid checks that a Mermaid block becomes the escaped,
 // button-free element that docs.js draws.
 func TestMermaid(t *testing.T) {
-	body := convert(t, "# T\n\n```mermaid\nflowchart LR\n    a --> b\n```\n").body
-	require.Contains(t, body,
-		"<pre class=\"mermaid\">flowchart LR\n    a --&gt; b\n</pre>")
+	body := convert(t, dedentMD(`
+		# T
+
+		~~~mermaid
+		flowchart LR
+		    a --> b
+		~~~
+	`)).body
+	require.Contains(t, body, dedent(`
+		<pre class="mermaid">flowchart LR
+		    a --&gt; b
+		</pre>`))
 	require.NotContains(t, body, "code-block")
 }

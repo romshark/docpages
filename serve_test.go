@@ -73,7 +73,11 @@ func TestHandler(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, code)
 
 	events := filepath.Join(root, "docs", "2-guides", "01-events.md")
-	require.NoError(t, os.WriteFile(events, []byte("# Events\n\n[x](#missing)\n"), 0o644))
+	require.NoError(t, os.WriteFile(events, []byte(dedent(`
+		# Events
+
+		[x](#missing)
+	`)), 0o644))
 	code, body = get(t, h, "/main/guides/events")
 	require.Equal(t, http.StatusInternalServerError, code)
 	require.Contains(t, body, `link &#34;#missing&#34; names no heading`)
@@ -90,9 +94,11 @@ func TestHandlerRepository(t *testing.T) {
 		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
 		require.NoError(t, os.WriteFile(p, []byte(data), 0o644))
 	}
-	write("docs/2-guides/10-testing.md",
-		"# Testing\n\nSee [the examples](../../example/), [the license](../../LICENSE) "+
-			"and [the design](../../Design%20Doc.txt).\n")
+	write("docs/2-guides/10-testing.md", dedent(`
+		# Testing
+
+		See [the examples](../../example/), [the license](../../LICENSE) and [the design](../../Design%20Doc.txt).
+	`))
 	write("Design Doc.txt", "The design.\n")
 	write("example/cli/main.go", "package main\n")
 	write("example/logo.png", "\x89PNG\r\n\x1a\n")
@@ -199,7 +205,11 @@ func TestHandlerEvents(t *testing.T) {
 	// State uses mtime, which a coarse filesystem clock may not change immediately.
 	future := time.Now().Add(time.Hour)
 	p := filepath.Join(root, "docs", "2-guides", "10-testing.md")
-	require.NoError(t, os.WriteFile(p, []byte("# Testing\n\nChanged.\n"), 0o644))
+	require.NoError(t, os.WriteFile(p, []byte(dedent(`
+		# Testing
+
+		Changed.
+	`)), 0o644))
 	require.NoError(t, os.Chtimes(p, future, future))
 	require.NotEqual(t, first, next())
 }
