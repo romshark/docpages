@@ -13,6 +13,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/a-h/templ"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,19 +23,6 @@ name: Demo
 home: ../
 repository: https://github.com/o/demo
 suggested: true
-header:
-  - title: Guide
-    url: README.md
-    icon: icons/book.svg
-  - title: Examples
-    url: 4-more/1-examples.md
-footer:
-  - title: Chat
-    url: https://chat.example.com
-    icon: icons/chat.svg
-  - title: Changelog
-    url: 3-reference/2-changelog.md
-license: MIT License © 2026 Jane Doe
 ---
 
 # Introduction
@@ -71,14 +59,13 @@ func testRepoFS() fstest.MapFS {
 
 			### Added
 		`)),
+		"main.go":        file("package demo\n"),
 		"docs/README.md": file(testRoot),
 		"docs/logo.svg": file(dedent(`
 			<?xml version="1.0"?>
 			<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10"/></svg>`)),
-		"docs/favicon.svg":    file(`<svg xmlns="http://www.w3.org/2000/svg"></svg>`),
-		"docs/style.css":      file("body{color:red}"),
-		"docs/icons/chat.svg": file(`<svg viewBox="0 0 16 16"><path d="M1 1"/></svg>`),
-		"docs/icons/book.svg": file(`<svg viewBox="0 0 16 16"><path d="M2 2"/></svg>`),
+		"docs/favicon.svg": file(`<svg xmlns="http://www.w3.org/2000/svg"></svg>`),
+		"docs/style.css":   file("body{color:red}"),
 		"docs/1-get-started/icon.svg": file(
 			`<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/></svg>`),
 		"docs/1-get-started/1-installation.md": file(dedent(`
@@ -187,12 +174,36 @@ func dedentMD(s string) string {
 // noRemote is the Git remote of a repository without one.
 func noRemote() (string, error) { return "", errors.New("no remote") }
 
-// newTestSite returns [testRepoFS]'s release-free docs site.
+// newTestSite returns [testRepoFS]'s release-free docs site using [testPage].
 func newTestSite(t *testing.T) *Site {
 	t.Helper()
 	s, err := read(testRepoFS(), "docs", noRemote, false)
 	require.NoError(t, err)
+	s.page = testPage
 	return s
+}
+
+// testPage is [testRepoFS]'s template using every [Layout] part.
+func testPage(p Page) templ.Component {
+	return Layout(p, Parts{
+		Head: templ.Raw(`<meta name="test" content="head">`),
+		HeaderLinks: HeaderLinks(p,
+			Link{Title: "Guide", URL: "README.md", Icon: testIcon("M2 2")},
+			Link{Title: "Examples", URL: "4-more/1-examples.md"},
+		),
+		FooterLinks: FooterLinks(p,
+			Link{Title: "Chat", URL: "https://chat.example.com", Icon: testIcon("M1 1")},
+			Link{Title: "Changelog", URL: "3-reference/2-changelog.md"},
+		),
+		FooterEnd: templ.Raw("<span>MIT License © 2026 Jane Doe</span>"),
+	})
+}
+
+// testIcon returns an icon drawing path d.
+func testIcon(d string) templ.Component {
+	return templ.Raw(
+		`<svg aria-hidden="true" viewBox="0 0 16 16"><path d="` + d + `"/></svg>`,
+	)
 }
 
 // withReleases adds a docs/ snapshot to fsys for every tag.
@@ -224,7 +235,7 @@ func editionPageHTML(t *testing.T, s *Site, version, p string) string {
 	e := s.editions[i]
 	j := slices.IndexFunc(e.pages, func(pg page) bool { return pg.path == p })
 	require.GreaterOrEqual(t, j, 0, p)
-	return render(t, docsPage(s.view(e, j)))
+	return render(t, s.page(s.pageView(e, j)))
 }
 
 // TestReadLayout checks prefix order, the docs README opening the first group,
@@ -511,43 +522,6 @@ func TestParseFrontMatter(t *testing.T) {
 	require.ErrorContains(t, err, "front matter has no closing ---")
 }
 
-// TestSiteLicense checks that the footer ends with the configured license,
-// ignores a repository LICENSE when unset, and rejects a release README license.
-func TestSiteLicense(t *testing.T) {
-	for name, tt := range map[string]struct {
-		setting string // The line of the front matter, empty for none.
-		want    string // The end of the footer.
-	}{
-		"set":   {`license: " © 2026 Demo Inc. All rights reserved. "`, "<span>© 2026 Demo Inc. All rights reserved.</span></footer>"},
-		"unset": {"", "llms.txt</a></nav></footer>"},
-		"empty": {`license: ""`, "llms.txt</a></nav></footer>"},
-	} {
-		t.Run(name, func(t *testing.T) {
-			fsys := testRepoFS()
-			fsys["docs/README.md"] = &fstest.MapFile{Data: []byte(strings.Replace(
-				testRoot, "license: MIT License © 2026 Jane Doe\n", tt.setting+"\n", 1))}
-			s, err := read(fsys, "docs", noRemote, false)
-			require.NoError(t, err)
-			require.Contains(t, pageHTML(t, s, ""), tt.want)
-		})
-	}
-
-	fsys := withReleases(t, testRepoFS(), "v1.2.0")
-	fsys["docs/versions/v1.2/README.md"] = &fstest.MapFile{
-		Data: []byte(dedent(`
-			---
-			license: MIT
-			---
-
-			# Introduction
-
-			Demo.
-		`)),
-	}
-	_, err := read(fsys, "docs", noRemote, false)
-	require.ErrorContains(t, err, "a release takes the settings of the site")
-}
-
 // TestHTTPSRepoURL checks conversion of SSH and HTTPS remotes to repository HTTPS.
 func TestHTTPSRepoURL(t *testing.T) {
 	for name, tt := range map[string]struct{ remote, want string }{
@@ -582,8 +556,7 @@ func TestHTTPSRepoURL(t *testing.T) {
 	require.ErrorContains(t, err, "has no host")
 }
 
-// TestInlineSVG checks removal before the SVG root and addition of missing root
-// attributes.
+// TestInlineSVG checks removal before the SVG root and addition of missing root attrs.
 func TestInlineSVG(t *testing.T) {
 	for name, tt := range map[string]struct {
 		data  string
@@ -625,9 +598,9 @@ func TestInlineSVG(t *testing.T) {
 	}
 }
 
-// TestSiteChrome checks page rendering of all site settings: title name, home
-// logo, header and footer links and icons, current header link or first-page
-// fallback, license, favicon, and docs stylesheet.
+// TestSiteChrome checks rendered site settings and [Layout] parts: title name,
+// home logo, head, header and footer links and icons, current header link or
+// first-page fallback, footer end, favicon, and docs stylesheet.
 func TestSiteChrome(t *testing.T) {
 	s := newTestSite(t)
 	for name, tt := range map[string]struct {
@@ -641,7 +614,8 @@ func TestSiteChrome(t *testing.T) {
 				`<link rel="icon" href="../favicon.svg" type="image/svg+xml">`,
 				`<link rel="stylesheet" href="../docpages.css">`,
 				`<link rel="stylesheet" href="../style.css">`,
-				`<script type="module" src="../docpages.js"></script>`,
+				`<script type="module" src="../docpages.js"></script>` +
+					`<meta name="test" content="head"></head>`,
 				`<a class="logo" href="../../../" aria-label="Demo home">` +
 					`<svg class="logo-svg" role="img" aria-label="Demo" ` +
 					`xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">`,
@@ -650,9 +624,9 @@ func TestSiteChrome(t *testing.T) {
 				`<a class="header-link" href="../more/examples">Examples</a>`,
 				`<a class="icon-link" href="https://chat.example.com">` +
 					`<svg aria-hidden="true" viewBox="0 0 16 16"><path d="M1 1"/></svg> Chat</a>`,
-				`<a class="icon-link" href="../reference/changelog"> Changelog</a>`,
+				`<a class="icon-link" href="../reference/changelog">Changelog</a>`,
 				`<a class="icon-link" href="../llms.txt">`,
-				"<span>MIT License © 2026 Jane Doe</span>",
+				"<span>MIT License © 2026 Jane Doe</span></footer>",
 			},
 			wantNot: []string{"_reload"},
 		},
@@ -721,32 +695,20 @@ func TestSiteDefaults(t *testing.T) {
 	require.ErrorContains(t, err, "set repository in the front matter of README.md")
 }
 
-// TestSiteHeader checks that an empty header has no links and a missing header
-// icon fails reading.
-func TestSiteHeader(t *testing.T) {
-	fsys := testRepoFS()
-	fsys["docs/README.md"] = &fstest.MapFile{Data: []byte(strings.Replace(testRoot, dedent(`
-		header:
-		  - title: Guide
-		    url: README.md
-		    icon: icons/book.svg
-		  - title: Examples
-		    url: 4-more/1-examples.md
-	`), "header: []\n", 1))}
-	// Nothing uses the removed header link's icon now.
-	delete(fsys, "docs/icons/book.svg")
-	s, err := read(fsys, "docs", noRemote, false)
-	require.NoError(t, err)
-	require.NotContains(t, pageHTML(t, s, "guides/events"), "header-link")
-
-	fsys = testRepoFS()
-	delete(fsys, "docs/icons/book.svg")
-	_, err = read(fsys, "docs", noRemote, false)
-	require.ErrorContains(t, err, `icon of the header link "Guide"`)
+// TestLayoutParts checks that [Layout] without parts omits header links, footer
+// links between the repository and llms.txt, and the footer end.
+func TestLayoutParts(t *testing.T) {
+	s := newTestSite(t)
+	s.page = func(p Page) templ.Component { return Layout(p, Parts{}) }
+	html := pageHTML(t, s, "guides/events")
+	require.NotContains(t, html, "header-link")
+	require.Regexp(t, `(?s)<nav class="footer-links" aria-label="Project">`+
+		`<a class="icon-link" href="https://github.com/o/demo">.*?</a>`+
+		`<a class="icon-link" href="../llms.txt">.*?</a></nav></footer>`, html)
 }
 
-// TestSiteLinks checks links to named-file pages, sources through stubs or
-// directly, and other files on GitHub, plus failure for dead front-matter links.
+// TestSiteLinks checks links to named-file pages, direct or stubbed sources, and
+// other GitHub files, plus failure for template links to a missing heading or file.
 func TestSiteLinks(t *testing.T) {
 	s := newTestSite(t)
 	html := pageHTML(t, s, "guides/events")
@@ -760,12 +722,40 @@ func TestSiteLinks(t *testing.T) {
 	require.Contains(t, pageHTML(t, s, "get-started/upgrading"),
 		`<a href="../reference/changelog">changelog</a>`)
 
-	fsys := testRepoFS()
-	fsys["docs/README.md"] = &fstest.MapFile{Data: []byte(strings.Replace(testRoot,
-		"4-more/1-examples.md", "4-more/1-examples.md#missing", 1))}
-	_, err := read(fsys, "docs", noRemote, false)
-	require.ErrorContains(t, err, `docs/README.md: link "Examples" of the front matter: `+
+	s.page = func(p Page) templ.Component {
+		return Layout(p, Parts{HeaderLinks: HeaderLinks(p,
+			Link{Title: "Examples", URL: "4-more/1-examples.md#missing"})})
+	}
+	_, err := s.Files()
+	require.ErrorContains(t, err, `header link "Examples": `+
 		`link "4-more/1-examples.md#missing" names no heading`)
+	_, err = Page{site: s, edition: s.main()}.URL("4-more/1-examples.md#missing")
+	require.EqualError(t, err, `link "4-more/1-examples.md#missing" names no heading`)
+
+	s.page = func(p Page) templ.Component {
+		return Layout(p, Parts{FooterLinks: FooterLinks(p,
+			Link{Title: "Examples", URL: "4-more/9-renamed.md"})})
+	}
+	_, err = s.Files()
+	require.ErrorContains(t, err, `footer link "Examples": `+
+		`link "4-more/9-renamed.md": no file docs/4-more/9-renamed.md`)
+	_, err = Page{site: s, edition: s.main()}.URL("../LICENSE")
+	require.NoError(t, err)
+}
+
+// TestLinkOutOfRepository checks that a link above the repository root fails on disk,
+// where os.DirFS reports the path as invalid rather than missing.
+func TestLinkOutOfRepository(t *testing.T) {
+	root := writeTestRepo(t)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "4-more", "1-examples.md"),
+		[]byte(dedent(`
+			# Examples
+
+			See [outside](../../../outside.md).
+		`)), 0o644))
+	_, err := Read(Options{Root: root, Dir: "docs"})
+	require.EqualError(t, err, `docs/4-more/1-examples.md: `+
+		`link "../../../outside.md": no file ../outside.md`)
 }
 
 // TestPageNameWithSpace checks that Markdown copies, llms-full.txt, and llms.txt
@@ -843,11 +833,16 @@ func TestSiteFiles(t *testing.T) {
 	}
 }
 
-// TestWrite checks that a run removes stale generated files, including removed
-// releases, but keeps other output files.
+// TestWrite checks that a run removes stale generated files,
+// including removed releases, but keeps other output files.
 func TestWrite(t *testing.T) {
 	out := t.TempDir()
-	for _, name := range []string{"v0.9/index.html", "main/old.html", "index.html", "landing.html"} {
+	for _, name := range []string{
+		"v0.9/index.html",
+		"main/old.html",
+		"index.html",
+		"landing.html",
+	} {
 		p := filepath.Join(out, filepath.FromSlash(name))
 		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
 		require.NoError(t, os.WriteFile(p, []byte("old"), 0o644))
@@ -915,7 +910,8 @@ func TestIcons(t *testing.T) {
 	for _, name := range templates {
 		src, err := os.ReadFile(name)
 		require.NoError(t, err)
-		for _, m := range regexp.MustCompile(`@icon\("([^"]+)"\)`).FindAllSubmatch(src, -1) {
+		for _, m := range regexp.MustCompile(`@icon\("([^"]+)"\)`).
+			FindAllSubmatch(src, -1) {
 			names = append(names, string(m[1]))
 		}
 	}
@@ -935,14 +931,17 @@ func TestIcons(t *testing.T) {
 	}
 }
 
-// TestDocsDirectories checks that docpages and example docs build.
+// TestDocsDirectories checks that docpages and example docs
+// build with their .templ files.
 func TestDocsDirectories(t *testing.T) {
 	for _, dir := range []string{"docs", "example/cli/docs", "example/library/docs"} {
 		t.Run(dir, func(t *testing.T) {
-			s, err := read(os.DirFS("."), dir, noRemote, false)
+			s, err := readOptions(Options{Root: ".", Dir: dir}, false)
 			require.NoError(t, err)
-			_, err = s.Files()
+			require.Nil(t, s.page, "the .templ files render the pages")
+			files, err := s.Files()
 			require.NoError(t, err)
+			require.Contains(t, string(files["main/index.html"]), `class="header-link"`)
 		})
 	}
 }

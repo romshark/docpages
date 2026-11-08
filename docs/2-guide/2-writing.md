@@ -1,7 +1,6 @@
 # Writing pages
 
-Pages are GitHub Flavored Markdown. If a page reads well on GitHub, it reads
-well on the site.
+Pages are GitHub Flavored Markdown. If a page reads well on GitHub, it reads well on the site.
 
 ## Front matter
 
@@ -21,9 +20,7 @@ suggested: true
 | `source` | Shows another Markdown file in place of the page, as `../../CHANGELOG.md`. The file stays where it is. |
 | `url` | Makes the entry a link to another site, as an API reference. Needs `title`. |
 
-The `README.md` of the docs folder also holds the
-[site settings](4-site-settings.md). The [reference](../3-reference/2-front-matter.md)
-lists every key.
+The `README.md` of the docs folder also holds the [site settings](4-site-settings.md). The [reference](../3-reference/2-front-matter.md) lists every key.
 
 ## Links
 
@@ -31,25 +28,21 @@ Write links relative to the file, as you would for GitHub:
 
 - A link to the Markdown file of a page opens the page.
 - A link to a folder opens the page of its `README.md`.
-- A link to any other file of the repository opens the file in the repository.
-  With `-serve`, it opens the file in your working tree instead, which
-  includes changes you haven't pushed.
-- A link to a heading, as `1-install.md#windows`, must name a heading of that
-  page, or the build fails.
+- A link to any other file of the repository opens the file in the repository. With `-serve`, it opens the file in your working tree instead, which includes changes you haven't pushed.
+- A link to a file or a folder that doesn't exist fails the build.
+- A link to a heading, as `1-install.md#windows`, must name a heading of that page, or the build fails.
 
 Images and videos take paths the same way. See [Images and video](3-media.md).
 
 > [!WARNING]
-> GitHub and docpages make different IDs for headings with `_` or letters
-> outside ASCII. A link to such a heading can work on GitHub and fail the build.
+> GitHub and docpages make different IDs for headings with `_` or letters outside ASCII. A link to such a heading can work on GitHub and fail the build.
 
 ## Formatting
 
 Text formats as on GitHub:
 
 ```markdown
-**Bold**, *italic*, ~~struck through~~ and `code`. A URL becomes a link:
-https://github.com/romshark/docpages.
+**Bold**, *italic*, ~~struck through~~ and `code`. A URL becomes a link: https://github.com/romshark/docpages.
 
 - A list
   - with a nested item
@@ -68,8 +61,7 @@ https://github.com/romshark/docpages.
 ---
 ```
 
-**Bold**, *italic*, ~~struck through~~ and `code`. A URL becomes a link:
-https://github.com/romshark/docpages.
+**Bold**, *italic*, ~~struck through~~ and `code`. A URL becomes a link: https://github.com/romshark/docpages.
 
 - A list
   - with a nested item
@@ -89,8 +81,7 @@ https://github.com/romshark/docpages.
 
 ## Code
 
-Code blocks are highlighted and have a copy button. Add `title="..."` after the
-language for a title bar:
+Code blocks are highlighted and have a copy button. Add `title="..."` after the language for a title bar:
 
 ````markdown
 ```go title="main.go"
@@ -98,11 +89,7 @@ package main
 ```
 ````
 
-The word after the opening fence picks the language, as on GitHub, from the
-[languages that Chroma supports](https://github.com/alecthomas/chroma#supported-languages).
-A block without one stays plain. A language that Chroma doesn't know fails the
-build.
-Some examples:
+The word after the opening fence picks the language, as on GitHub, from the [languages that Chroma supports](https://github.com/alecthomas/chroma#supported-languages). A block without one stays plain. A language that Chroma doesn't know fails the build. Some examples:
 
 ```go title="main.go"
 package main
@@ -181,9 +168,7 @@ The kinds are `NOTE`, `TIP`, `IMPORTANT`, `WARNING` and `CAUTION`.
 
 ## Details
 
-A `<details>` hides its text until you click its `<summary>`. Write the text in
-Markdown between blank lines, as on GitHub. It holds what a page holds:
-formatting, lists, code blocks, callouts and other `<details>`.
+A `<details>` hides its text until you click its `<summary>`. Write the text in Markdown between blank lines, as on GitHub. It holds what a page holds: formatting, lists, code blocks, callouts and other `<details>`.
 
 ````markdown
 <details>
@@ -239,15 +224,11 @@ go install ./cmd/docpages
 
 </details>
 
-Its height grows and shrinks as it opens and closes. The `<summary>` keeps its
-text and `<code>`, `<b>`, `<strong>`, `<i>` and `<em>`. Markdown in it stays as
-written, as on GitHub, so write `<code>` there and not backticks. A
-`<details>` without a `<summary>` first, or without its end, fails the build.
+Its height grows and shrinks as it opens and closes. The `<summary>` keeps its text and `<code>`, `<b>`, `<strong>`, `<i>` and `<em>`. Markdown in it stays as written, as on GitHub, so write `<code>` there and not backticks. A `<details>` without a `<summary>` first, or without its end, fails the build.
 
 ## Diagrams
 
-A `mermaid` code block becomes a diagram. The browser loads Mermaid from a CDN,
-only on pages with a diagram.
+A `mermaid` code block becomes a diagram. The browser loads Mermaid from a CDN, only on pages with a diagram.
 
 ````markdown
 ```mermaid
@@ -263,9 +244,6 @@ flowchart LR
 
 ## Contents and search
 
-"On this page" lists the headings down to level 4. When 2 headings below level
-2 share their text, as a "Flags" heading under each command, the list stops
-above their level so it doesn't repeat itself.
+"On this page" lists the headings down to level 4. When 2 headings below level 2 share their text, as a "Flags" heading under each command, the list stops above their level so it doesn't repeat itself.
 
-The search splits each page at those headings. Press `/` or `Ctrl+K` to search.
-A result holds every word you type, and matches in headings come first.
+The search splits each page at those headings. Press `/` or `Ctrl+K` to search. A result holds every word you type, and matches in headings come first.

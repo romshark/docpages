@@ -1,0 +1,40 @@
+package docs
+
+import "github.com/romshark/docpages"
+
+// DocpagesMain is the built-in page with docpages documentation links and the license.
+templ DocpagesMain(p docpages.Page) {
+	@docpages.Layout(p, docpages.Parts{
+		HeaderLinks: docpages.HeaderLinks(p,
+			docpages.Link{Title: "Docs", URL: "README.md"},
+			docpages.Link{Title: "Examples", URL: "1-get-started/2-examples.md"},
+		),
+		FooterLinks: docpages.FooterLinks(p,
+			docpages.Link{
+				Title: "Go reference",
+				URL:   "https://pkg.go.dev/github.com/romshark/docpages",
+				Icon:  packageIcon(),
+			},
+		),
+		FooterEnd: license(),
+	})
+}
+
+templ packageIcon() {
+	<svg
+		aria-hidden="true"
+		xmlns="http://www.w3.org/2000/svg"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		stroke-width="2"
+		stroke-linecap="round"
+		stroke-linejoin="round"
+	>
+		<path d="M12 2l9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10"></path>
+	</svg>
+}
+
+templ license() {
+	<span>MIT License © 2026 Roman Scharkov</span>
+}

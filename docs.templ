@@ -8,139 +8,266 @@ import (
 	"github.com/romshark/morpheus/neo"
 )
 
-// docsPage is the page that v shows.
-templ docsPage(v docView) {
+// DefaultPage is [Layout] with a "Docs" header link to the first page,
+// used when docs have no template.templ.
+templ DefaultPage(p Page) {
+	@Layout(p, Parts{HeaderLinks: HeaderLinks(p, Link{Title: "Docs", URL: readmeName})})
+}
+
+// Layout is the built-in page with template parts.
+templ Layout(p Page, parts Parts) {
 	<!DOCTYPE html>
 	<html lang="en">
-		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>{ v.doc.page.title } - { v.chrome.name }</title>
-			<meta name="description" content={ v.doc.description }/>
-			if !v.indexed {
-				<meta name="robots" content="noindex"/>
+		@Head(p) {
+			if parts.Head != nil {
+				@parts.Head
 			}
-			@favicon(v.base(), v.chrome.favicon)
-			<link
-				rel="alternate"
-				type="text/markdown"
-				href={ v.base() + v.doc.page.markdownFile() }
-			/>
-			@themeScript()
-			<link rel="stylesheet" href={ v.base() + "morpheus/morpheus.min.css" }/>
-			@morpheusIconBase(v.base())
-			<link rel="stylesheet" href={ v.base() + "docpages.css" }/>
-			if v.chrome.style {
-				<link rel="stylesheet" href={ v.base() + "style.css" }/>
-			}
-			<script type="module" src={ v.base() + "morpheus/morpheus.min.js" }></script>
-			<script type="module" src={ v.base() + "docpages.js" }></script>
-			if v.chrome.reload != "" {
-				@reloadScript(v.base()+"../"+reloadPath, v.chrome.reload)
-			}
-		</head>
-		<body
-			class="docs-page"
-			data-site-root={ v.base() }
-			data-version={ v.edition.version }
-		>
-			@skipLink()
-			@siteHeader(&v) {
-				@neo.ButtonAttrs(neo.ButtonOpts{
-					Variant: neo.Set(neo.ButtonVariantGhost),
-				}, templ.Attributes{
-					"id":            "docs-nav-toggle",
-					"class":         "menu-button",
-					"aria-controls": "docs-nav",
-				}) {
-					@icon("menu")
-					Menu
+		}
+		@Body(p) {
+			@Header(p) {
+				if parts.HeaderLinks != nil {
+					@parts.HeaderLinks
 				}
 			}
 			<div class="docs">
-				// A wide-screen column or narrow-screen overlay opened by Menu.
-				@neo.SidebarAttrs(neo.SidebarOpts{
-					AriaLabel:         neo.Set("Documentation"),
-					OverlayBreakpoint: neo.Set("56.25rem"),
-				}, templ.Attributes{"id": "docs-nav", "class": "docs-nav"}) {
-					<nav { neo.SidebarContent()... } aria-label="Documentation">
-						@docsNav(v.nav)
-					</nav>
-				}
+				@Navigation(p)
 				// Keep the footer here so navigation reaches the page end.
 				<div class="docs-column">
-					<main class="docs-main" id="main-content" tabindex="-1">
-						if v.note != "" {
-							@versionNote(v.note)
+					@Main(p)
+					@Footer(p, parts.FooterEnd) {
+						if parts.FooterLinks != nil {
+							@parts.FooterLinks
 						}
-						// On screens too narrow for a contents column, a bar sticks below
-						// the header and opens over text. It shows the page title until
-						// docs.js replaces it with the current section title.
-						if len(v.toc) > 0 {
-							<details class="toc-inline">
-								<summary>
-									<span class="toc-inline-current">
-										{ v.doc.title }
-									</span>
-									@icon("chevron-down")
-								</summary>
-								@docsContents(v.toc)
-							</details>
-						}
-						@pageLinks(&v)
-						<article class="docs-content">
-							@templ.Raw(v.doc.body)
-						</article>
-						<footer class="docs-page-footer">
-							@pageLinks(&v)
-							if v.prev.Href != "" || v.next.Href != "" {
-								<nav class="pager" aria-label="Previous and next page">
-									if v.prev.Href != "" {
-										<a
-											class="pager-prev"
-											href={ v.prev.Href }
-											rel="prev"
-										>
-											<span class="pager-label">Previous</span>
-											{ v.prev.Title }
-										</a>
-									}
-									if v.next.Href != "" {
-										<a
-											class="pager-next"
-											href={ v.next.Href }
-											rel="next"
-										>
-											<span class="pager-label">Next</span>
-											{ v.next.Title }
-										</a>
-									}
-								</nav>
-							}
-						</footer>
-					</main>
-					@siteFooter(&v)
+					}
 				</div>
-				if len(v.toc) > 0 {
-					<aside class="docs-toc" aria-labelledby="docs-toc-title">
-						<p class="toc-title" id="docs-toc-title">On this page</p>
-						@docsContents(v.toc)
-					</aside>
-				}
+				@Contents(p)
 			</div>
-		</body>
+		}
 	</html>
 }
 
-templ pageLinks(v *docView) {
+// Head renders a page's <head>: title, description, favicon, site styles and
+// scripts, then children so their styles win the cascade.
+templ Head(p Page) {
+	<head>
+		<meta charset="utf-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1"/>
+		<title>{ p.Title } - { p.Site }</title>
+		<meta name="description" content={ p.Description }/>
+		if !p.Indexed {
+			<meta name="robots" content="noindex"/>
+		}
+		@favicon(p.Root, p.site.chrome.favicon)
+		<link rel="alternate" type="text/markdown" href={ p.Markdown }/>
+		@themeScript()
+		<link rel="stylesheet" href={ p.Root + "morpheus/morpheus.min.css" }/>
+		@morpheusIconBase(p.Root)
+		<link rel="stylesheet" href={ p.Root + "docpages.css" }/>
+		if p.site.chrome.style {
+			<link rel="stylesheet" href={ p.Root + "style.css" }/>
+		}
+		<script type="module" src={ p.Root + "morpheus/morpheus.min.js" }></script>
+		<script type="module" src={ p.Root + "docpages.js" }></script>
+		if p.site.chrome.reload != "" {
+			@reloadScript(p.Root+"../"+reloadPath, p.site.chrome.reload)
+		}
+		{ children... }
+	</head>
+}
+
+// Body renders children in <body>. Styles use its class, search its root,
+// and style.css its version. A skip link to <main> comes first.
+templ Body(p Page) {
+	<body
+		class="docs-page"
+		data-site-root={ p.Root }
+		data-version={ p.Version }
+	>
+		@skipLink()
+		{ children... }
+	</body>
+}
+
+// Header renders the site logo, version menu, [Navigation] button, child links,
+// repository, search, and theme controls.
+templ Header(p Page) {
+	<header class="site-header">
+		<div class="brand">
+			<a class="logo" href={ p.Home } aria-label={ p.Site + " home" }>
+				if p.Logo != "" {
+					@templ.Raw(p.Logo)
+				} else {
+					<span class="logo-text">{ p.Site }</span>
+				}
+			</a>
+			@VersionSelect(p)
+		</div>
+		<nav aria-label="Site">
+			@menuButton()
+			{ children... }
+			<a
+				class="header-repository icon-link"
+				href={ templ.SafeURL(p.Repository) }
+			>
+				@hostIcon(p.site.chrome.host)
+				{ p.Host }
+			</a>
+			@Search(p)
+			@ThemeSwitch()
+		</nav>
+	</header>
+}
+
+// menuButton opens [Navigation] over the page.
+templ menuButton() {
+	@neo.ButtonAttrs(neo.ButtonOpts{
+		Variant: neo.Set(neo.ButtonVariantGhost),
+	}, templ.Attributes{
+		"id":            "docs-nav-toggle",
+		"class":         "menu-button",
+		"aria-controls": "docs-nav",
+	}) {
+		@icon("menu")
+		Menu
+	}
+}
+
+// Navigation is a wide-screen column and a narrow-screen overlay opened from [Header].
+templ Navigation(p Page) {
+	@neo.SidebarAttrs(neo.SidebarOpts{
+		AriaLabel:         neo.Set("Documentation"),
+		OverlayBreakpoint: neo.Set("56.25rem"),
+	}, templ.Attributes{"id": "docs-nav", "class": "docs-nav"}) {
+		<nav { neo.SidebarContent()... } aria-label="Documentation">
+			@docsNav(p.Navigation)
+		</nav>
+	}
+}
+
+// Main renders <main>: the version note, narrow-screen contents, page text, and
+// previous/next links.
+templ Main(p Page) {
+	<main class="docs-main" id="main-content" tabindex="-1">
+		if p.Note != "" {
+			@versionNote(p.Note)
+		}
+		// On narrow screens, a bar sticks below the header and opens over text.
+		// It shows the page title until docs.js replaces it with the current section title.
+		if len(p.Contents) > 0 {
+			<details class="toc-inline">
+				<summary>
+					<span class="toc-inline-current">
+						{ p.Heading }
+					</span>
+					@icon("chevron-down")
+				</summary>
+				@docsContents(p.Contents)
+			</details>
+		}
+		@pageLinks(p)
+		<article class="docs-content">
+			@templ.Raw(p.Body)
+		</article>
+		<footer class="docs-page-footer">
+			@pageLinks(p)
+			if p.Prev.Href != "" || p.Next.Href != "" {
+				<nav class="pager" aria-label="Previous and next page">
+					if p.Prev.Href != "" {
+						<a
+							class="pager-prev"
+							href={ p.Prev.Href }
+							rel="prev"
+						>
+							<span class="pager-label">Previous</span>
+							{ p.Prev.Title }
+						</a>
+					}
+					if p.Next.Href != "" {
+						<a
+							class="pager-next"
+							href={ p.Next.Href }
+							rel="next"
+						>
+							<span class="pager-label">Next</span>
+							{ p.Next.Title }
+						</a>
+					}
+				</nav>
+			}
+		</footer>
+	</main>
+}
+
+// Contents lists sections beside the text on wide screens;
+// it renders nothing when there are none.
+templ Contents(p Page) {
+	if len(p.Contents) > 0 {
+		<aside class="docs-toc" aria-labelledby="docs-toc-title">
+			<p class="toc-title" id="docs-toc-title">On this page</p>
+			@docsContents(p.Contents)
+		</aside>
+	}
+}
+
+// Footer renders the site footer: repository, child links, llms.txt, then end if non-nil.
+templ Footer(p Page, end templ.Component) {
+	<footer class="site-footer">
+		<nav class="footer-links" aria-label="Project">
+			<a class="icon-link" href={ templ.SafeURL(p.Repository) }>
+				@hostIcon(p.site.chrome.host)
+				{ p.Host }
+			</a>
+			{ children... }
+			<a class="icon-link" href={ p.Root + "llms.txt" }>
+				@icon("file")
+				llms.txt
+			</a>
+		</nav>
+		if end != nil {
+			@end
+		}
+	</footer>
+}
+
+// headerLinks renders links returned by [HeaderLinks].
+templ headerLinks(links []linkView) {
+	for _, l := range links {
+		<a
+			class={ "header-link", templ.KV("icon-link", l.Icon != nil) }
+			href={ l.Href }
+			if l.Current {
+				aria-current="page"
+			}
+		>
+			if l.Icon != nil {
+				@l.Icon
+			}
+			{ l.Title }
+		</a>
+	}
+}
+
+// footerLinks renders links returned by [FooterLinks].
+templ footerLinks(links []linkView) {
+	for _, l := range links {
+		<a class="icon-link" href={ l.Href }>
+			if l.Icon != nil {
+				@l.Icon
+			}
+			{ l.Title }
+		</a>
+	}
+}
+
+templ pageLinks(p Page) {
 	<p class="page-meta">
-		<a class="icon-link" href={ v.base() + v.doc.page.markdownFile() }>
+		<a class="icon-link" href={ p.Markdown }>
 			@icon("markdown")
 			Raw Markdown
 		</a>
-		<a class="icon-link" href={ templ.SafeURL(v.sourceURL()) }>
-			@hostIcon(v.chrome.host)
-			View this page on { v.chrome.host.name }
+		<a class="icon-link" href={ templ.SafeURL(p.Source) }>
+			@hostIcon(p.site.chrome.host)
+			View this page on { p.Host }
 		</a>
 	</p>
 }
@@ -164,54 +291,21 @@ templ morpheusIconBase(base string) {
 	@templ.Raw(`<style>:root{--neo-icon-base:"` + base + `morpheus/icons"}</style>`)
 }
 
-// skipLink is every page's first element. The first Tab reveals it; it skips
-// header and navigation to <main>, as WCAG 2.4.1 requires.
+// skipLink is every page's first element. The first Tab reveals it;
+// it skips header and navigation to <main>, as WCAG 2.4.1 requires.
 templ skipLink() {
 	<a class="skip-link" href="#main-content">Skip to content</a>
 }
 
-// siteHeader renders v's logo, version menu, site links, search, and theme controls.
-// children, such as Menu, come first in navigation.
-templ siteHeader(v *docView) {
-	<header class="site-header">
-		<div class="brand">
-			<a class="logo" href={ v.home() } aria-label={ v.chrome.name + " home" }>
-				if v.chrome.logo != "" {
-					@templ.Raw(v.chrome.logo)
-				} else {
-					<span class="logo-text">{ v.chrome.name }</span>
-				}
-			</a>
-			@versionSelect(v.versions)
-		</div>
-		<nav aria-label="Site">
-			{ children... }
-			for _, l := range v.header {
-				@headerLink(l)
-			}
-			<a
-				class="header-repository icon-link"
-				href={ templ.SafeURL(v.chrome.host.repoURL) }
-			>
-				@hostIcon(v.chrome.host)
-				{ v.chrome.host.name }
-			</a>
-			@searchDialog(v.suggested)
-			@themeSelect()
-			@themeSwitch()
-		</nav>
-	</header>
-}
-
-// versionSelect lists served versions; docs.js opens this page in the selection.
-templ versionSelect(versions []versionLink) {
+// VersionSelect is the version menu; docs.js opens the page in the chosen version.
+templ VersionSelect(p Page) {
 	@neo.SelectAttrs(neo.SelectOpts{
-		Value:             neo.Set(currentVersion(versions)),
+		Value:             neo.Set(currentVersion(p.Versions)),
 		Size:              neo.Set("sm"),
 		AriaLabel:         neo.Set("Documentation version"),
 		PopoverFitContent: neo.Set(true),
 	}, templ.Attributes{"class": "version-select"}) {
-		for _, l := range versions {
+		for _, l := range p.Versions {
 			@neo.OptionAttrs(neo.OptionOpts{Value: neo.Set(l.Version)}, templ.Attributes{
 				"data-href":     l.Href,
 				"data-fallback": l.Fallback,
@@ -229,8 +323,8 @@ templ versionNote(note string) {
 	</p>
 }
 
-// hostIcon is h's repository-link icon: GitHub's mark by default, the configured
-// host icon, or none.
+// hostIcon is h's repository-link icon: GitHub's mark by default,
+// the configured host icon, or none.
 templ hostIcon(h *host) {
 	if h.icon != "" {
 		@templ.Raw(h.icon)
@@ -239,50 +333,9 @@ templ hostIcon(h *host) {
 	}
 }
 
-// headerLink renders l with its icon before the title.
-templ headerLink(l headerEntry) {
-	<a
-		class={ "header-link", templ.KV("icon-link", l.Icon != "") }
-		href={ l.Href }
-		if l.Current {
-			aria-current="page"
-		}
-	>
-		if l.Icon != "" {
-			@templ.Raw(l.Icon)
-		}
-		{ l.Title }
-	</a>
-}
-
-// siteFooter renders v's repository, front-matter links, llms.txt, and license.
-templ siteFooter(v *docView) {
-	<footer class="site-footer">
-		<nav class="footer-links" aria-label="Project">
-			<a class="icon-link" href={ templ.SafeURL(v.chrome.host.repoURL) }>
-				@hostIcon(v.chrome.host)
-				{ v.chrome.host.name }
-			</a>
-			for _, l := range v.footer {
-				<a class="icon-link" href={ l.Href }>
-					@templ.Raw(l.Icon)
-					{ l.Title }
-				</a>
-			}
-			<a class="icon-link" href={ v.base() + "llms.txt" }>
-				@icon("file")
-				llms.txt
-			</a>
-		</nav>
-		if v.chrome.license != "" {
-			<span>{ v.chrome.license }</span>
-		}
-	</footer>
-}
-
-// searchDialog renders the header search button and dialog. docs.js lists
-// search.json results, or suggested pages while the field is empty.
-templ searchDialog(suggested []suggestion) {
+// Search renders its button and dialog. docs.js lists search.json results,
+// or suggestions for an empty field.
+templ Search(p Page) {
 	@neo.DialogAttrs(neo.DialogOpts{}, templ.Attributes{"class": "search"}) {
 		<button
 			type="button"
@@ -303,7 +356,7 @@ templ searchDialog(suggested []suggestion) {
 					placeholder="Search the documentation"
 					aria-label="Search the documentation"
 					role="combobox"
-					aria-expanded={ strconv.FormatBool(len(suggested) > 0) }
+					aria-expanded={ strconv.FormatBool(len(p.Suggested) > 0) }
 					aria-controls="search-results"
 					aria-autocomplete="list"
 					autocomplete="off"
@@ -313,7 +366,7 @@ templ searchDialog(suggested []suggestion) {
 			// Smoothly resize the dialog with its list.
 			@neo.ElasticAttrs(neo.ElasticOpts{},
 				templ.Attributes{"class": "search-body"}) {
-				<p class="search-heading" hidden?={ len(suggested) == 0 }>Suggested</p>
+				<p class="search-heading" hidden?={ len(p.Suggested) == 0 }>Suggested</p>
 				<ul
 					class="search-results"
 					id="search-results"
@@ -321,7 +374,7 @@ templ searchDialog(suggested []suggestion) {
 					aria-label="Suggested pages"
 				>
 					// goldmark omits "_" from heading IDs, keeping these distinct.
-					for i, s := range suggested {
+					for i, s := range p.Suggested {
 						<li
 							id={ "search_suggestion_" + strconv.Itoa(i) }
 							role="option"
@@ -346,7 +399,7 @@ templ searchDialog(suggested []suggestion) {
 }
 
 // docsNav lists the groups of the navigation.
-templ docsNav(groups []navGroup) {
+templ docsNav(groups []NavGroup) {
 	for _, g := range groups {
 		<div class="nav-group">
 			<p class="nav-group-title">
@@ -354,17 +407,17 @@ templ docsNav(groups []navGroup) {
 				{ g.Title }
 			</p>
 			<ul>
-				for _, e := range g.Entries {
+				for _, l := range g.Links {
 					<li>
-						if e.External {
-							<a href={ templ.SafeURL(e.Href) } class="nav-external">
-								{ e.Title }
+						if l.External {
+							<a href={ templ.SafeURL(l.Href) } class="nav-external">
+								{ l.Title }
 								@icon("arrow-up-right")
 							</a>
-						} else if e.Current {
-							<a href={ e.Href } aria-current="page">{ e.Title }</a>
+						} else if l.Current {
+							<a href={ l.Href } aria-current="page">{ l.Title }</a>
 						} else {
-							<a href={ e.Href }>{ e.Title }</a>
+							<a href={ l.Href }>{ l.Title }</a>
 						}
 					</li>
 				}
@@ -374,7 +427,7 @@ templ docsNav(groups []navGroup) {
 }
 
 // docsContents lists the contents of a page.
-templ docsContents(toc []tocEntry) {
+templ docsContents(toc []ContentsLink) {
 	<ul class="toc">
 		for _, e := range toc {
 			<li class={ "level-" + strconv.Itoa(e.Level) }>
@@ -420,8 +473,8 @@ templ docsIndex(dir string, c *chrome) {
 //
 // The page holds the stream only while visible. Browsers allow at most six
 // HTTP/1.1 connections per server; back-cache and hidden-tab pages could use
-// them all and stall the next page. The stream reports state on open, reloading
-// pages whose files changed while hidden.
+// them all and stall the next page. The stream reports state on open,
+// reloading pages whose files changed while hidden.
 templ reloadScript(url, state string) {
 	<script data-url={ url } data-state={ state }>
 		(() => {

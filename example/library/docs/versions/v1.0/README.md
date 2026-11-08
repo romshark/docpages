@@ -1,7 +1,6 @@
 # Overview
 
-ringbuf is a fixed-size ring buffer for Go, for 1 goroutine that pushes and 1
-that pops, without locks.
+ringbuf is a fixed-size ring buffer for Go, for 1 goroutine that pushes and 1 that pops, without locks.
 
 ```go title="main.go"
 b := ringbuf.New[int](1024)

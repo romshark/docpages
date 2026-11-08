@@ -19,9 +19,7 @@ Without an option, wc counts lines, words and bytes, as `-lwc`.
 
 ## Output
 
-wc writes 1 line per file: the counts in the order lines, words, bytes or
-characters, whatever the order of the options, then the name of the file. The
-width of the columns differs between implementations.
+wc writes 1 line per file: the counts in the order lines, words, bytes or characters, whatever the order of the options, then the name of the file. The width of the columns differs between implementations.
 
 ## Exit status
 

@@ -96,6 +96,13 @@ templ themeScript() {
 	</script>
 }
 
+// ThemeSwitch offers system, light, and dark themes as wide-screen buttons and
+// a narrow-screen menu.
+templ ThemeSwitch() {
+	@themeSelect()
+	@themeSwitch()
+}
+
 // themeSwitch lets the visitor choose the system, the light or the dark theme.
 templ themeSwitch() {
 	<div class="theme-switch" role="group" aria-label="Theme">

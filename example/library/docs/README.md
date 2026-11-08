@@ -2,21 +2,11 @@
 name: ringbuf
 repository: https://github.com/romshark/docpages
 note: This version isn't released yet, the latest release is [v1.0](versions/v1.0/README.md).
-header:
-  - title: Docs
-    url: README.md
-  - title: API
-    url: 2-reference/README.md
-footer:
-  - title: Benchmarks
-    url: 2-reference/1-benchmarks.md
-    icon: icons/gauge.svg
 ---
 
 # Overview
 
-ringbuf is a fixed-size ring buffer for Go, for 1 goroutine that pushes and 1
-that pops, without locks.
+ringbuf is a fixed-size ring buffer for Go, for 1 goroutine that pushes and 1 that pops, without locks.
 
 ```go title="main.go"
 b := ringbuf.New[int](1024)

@@ -1,7 +1,6 @@
 # Count lines
 
-[`-l`](../2-reference/1-options.md#counts) counts lines alone. With more than
-1 file, wc adds a total:
+[`-l`](../2-reference/1-options.md#counts) counts lines alone. With more than 1 file, wc adds a total:
 
 ```sh
 $ wc -l main.go util.go
@@ -19,5 +18,4 @@ git ls-files | xargs wc -l
 ```
 
 > [!WARNING]
-> wc counts newline characters, so it misses a last line without one:
-> `printf 'a\nb' | wc -l` prints 1.
+> wc counts newline characters, so it misses a last line without one: `printf 'a\nb' | wc -l` prints 1.

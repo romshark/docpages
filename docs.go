@@ -2,6 +2,7 @@ package docpages
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -106,7 +107,7 @@ func tocDepth(sections []section) int {
 	return depth
 }
 
-// doc is the Markdown file of a [page] converted for [docsPage].
+// doc is the Markdown file of a [page] converted for a [Page].
 type doc struct {
 	page        page
 	title       string    // Text of the level 1 heading.
@@ -128,42 +129,31 @@ type section struct {
 	Level int
 }
 
-// tocEntry is a link of the contents of a page.
-type tocEntry struct {
-	Href  string
-	Title string
-	Level int
-}
-
 // contents returns d's level 1 heading, representing text above the first
-// section, plus headings from level 2 through d.depth. It returns none if the
-// page has no such sections.
-func contents(d doc) []tocEntry {
-	var toc []tocEntry
+// section, plus headings from level 2 through d.depth.
+// It returns none if the page has no such sections.
+func contents(d doc) []ContentsLink {
+	var toc []ContentsLink
 	for _, s := range d.sections {
 		if s.Level >= 2 && s.Level <= d.depth {
-			toc = append(toc, tocEntry{Href: "#" + s.ID, Title: s.Title, Level: s.Level})
+			toc = append(toc,
+				ContentsLink{Href: "#" + s.ID, Title: s.Title, Level: s.Level})
 		}
 	}
 	if len(toc) == 0 {
 		return nil
 	}
 	if s := d.sections[0]; s.Level == 1 {
-		toc = append([]tocEntry{{Href: "#" + s.ID, Title: s.Title, Level: 1}}, toc...)
+		toc = append([]ContentsLink{
+			{Href: "#" + s.ID, Title: s.Title, Level: 1},
+		}, toc...)
 	}
 	return toc
 }
 
-// suggestion is a page that the search offers while its field is empty.
-type suggestion struct {
-	Group, Title string
-	// Href is relative to the searching page, or an external URL.
-	Href string
-}
-
 // suggestions returns the suggested pages of pages, linked from pages[current].
-func suggestions(pages []page, groups []group, current int) []suggestion {
-	var s []suggestion
+func suggestions(pages []page, groups []group, current int) []Suggestion {
+	var s []Suggestion
 	for _, p := range pages {
 		if !p.suggested {
 			continue
@@ -173,53 +163,38 @@ func suggestions(pages []page, groups []group, current int) []suggestion {
 			href = p.url
 		}
 		s = append(s,
-			suggestion{Group: groups[p.group].title, Title: p.title, Href: href})
+			Suggestion{Group: groups[p.group].title, Title: p.title, Href: href})
 	}
 	return s
 }
 
-// navGroup is a group of the navigation.
-type navGroup struct {
-	Title   string
-	Icon    string // SVG markup, empty without an icon.
-	Entries []navEntry
-}
-
-// navEntry is a navigation, previous, or next link. Its zero value is no link.
-type navEntry struct {
-	Title    string
-	Href     string
-	Current  bool
-	External bool
-}
-
 // navigation returns the navigation of pages as seen from pages[current].
-func navigation(pages []page, groups []group, current int) []navGroup {
-	var nav []navGroup
+func navigation(pages []page, groups []group, current int) []NavGroup {
+	var nav []NavGroup
 	last := -1
 	for i, p := range pages {
 		if p.group != last {
 			last = p.group
 			g := groups[p.group]
-			nav = append(nav, navGroup{Title: g.title, Icon: g.icon})
+			nav = append(nav, NavGroup{Title: g.title, Icon: g.icon})
 		}
-		e := navEntry{Title: p.title, Current: i == current}
+		e := NavLink{Title: p.title, Current: i == current}
 		if p.external() {
 			e.Href, e.External = p.url, true
 		} else {
 			e.Href = pages[current].base() + p.path
 		}
 		g := &nav[len(nav)-1]
-		g.Entries = append(g.Entries, e)
+		g.Links = append(g.Links, e)
 	}
 	return nav
 }
 
 // neighbors returns the pages before and after pages[current] in the navigation.
 // Links that leave the site are skipped.
-func neighbors(pages []page, current int) (prev, next navEntry) {
-	link := func(p page) navEntry {
-		return navEntry{Title: p.title, Href: pages[current].base() + p.path}
+func neighbors(pages []page, current int) (prev, next NavLink) {
+	link := func(p page) NavLink {
+		return NavLink{Title: p.title, Href: pages[current].base() + p.path}
 	}
 	for i := current - 1; i >= 0; i-- {
 		if !pages[i].external() {
@@ -234,61 +209,6 @@ func neighbors(pages []page, current int) (prev, next navEntry) {
 		}
 	}
 	return prev, next
-}
-
-// headerEntry is a link of the header of a docs page.
-type headerEntry struct {
-	Title string
-	Href  string
-	Icon  string // SVG markup, empty without an icon.
-	// Current means the link reaches this page, or reaches the first page when
-	// no other header link reaches this page.
-	Current bool
-}
-
-// footerEntry is a link of the footer of a docs page.
-type footerEntry struct {
-	Title string
-	Href  string
-	Icon  string // SVG markup, empty without an icon.
-}
-
-// docView is what [docsPage] shows of 1 page.
-type docView struct {
-	doc        doc
-	chrome     *chrome
-	nav        []navGroup
-	toc        []tocEntry
-	prev, next navEntry
-	edition    *edition
-	indexed    bool          // Whether search engines may index the page.
-	versions   []versionLink // The versions that the header offers.
-	// note is the edition-note HTML with page-relative links. Empty means no note.
-	note      string
-	suggested []suggestion
-	header    []headerEntry // The links of the header before the repository.
-	footer    []footerEntry // The links between the repository and llms.txt.
-}
-
-// base returns the URL of the root of the version relative to the page of v.
-func (v docView) base() string { return v.doc.page.base() }
-
-// home returns the URL that the logo leads to, relative to the page of v.
-func (v docView) home() string {
-	switch h := v.chrome.home; {
-	case h == "":
-		return v.base()
-	case isAbsURL(h):
-		return h
-	default:
-		return v.base() + "../" + h
-	}
-}
-
-// sourceURL returns the page file's repository URL on main,
-// which holds every edition's files.
-func (v docView) sourceURL() string {
-	return v.chrome.host.url(MainVersion, v.doc.page.file, false)
 }
 
 // isAbsURL reports whether u has a scheme or a host.
@@ -433,7 +353,7 @@ func convertDocs(pages []page, srcs [][]byte, s *site) ([]doc, error) {
 	return docs, nil
 }
 
-// templateIDs are IDs that [docsPage] writes around converted Markdown.
+// templateIDs are IDs that [Layout] writes around converted Markdown.
 // goldmark suffixes a colliding heading ID, such as main-content-1 for "Main content",
 // so skip links and scripts still target the template elements.
 var templateIDs = []string{
@@ -504,6 +424,14 @@ func (s *site) resolveOn(
 				"which a release links as a URL", dest, s.root)
 		}
 		if to = s.pageOf(file); to < 0 {
+			// fstest.MapFS reports a path out of the repository as missing,
+			// os.DirFS as invalid.
+			_, err := fs.Stat(s.fsys, file)
+			if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrInvalid) {
+				return "", fmt.Errorf("link %q: no file %s", dest, file)
+			} else if err != nil {
+				return "", fmt.Errorf("link %q: %w", dest, err)
+			}
 			return s.fileURL(file, strings.HasSuffix(u.Path, "/"), base, u), nil
 		}
 	}

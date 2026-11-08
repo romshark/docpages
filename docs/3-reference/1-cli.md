@@ -4,8 +4,7 @@
 docpages [flags] [dir]
 ```
 
-`dir` is the docs folder, the current folder by default. It must be inside a
-Git repository.
+`dir` is the docs folder, the current folder by default. It must be inside a Git repository.
 
 | Flag | What it does |
 | --- | --- |

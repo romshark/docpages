@@ -219,20 +219,10 @@ func inDir(file, dir string) bool {
 	return dir == "." || file == dir || strings.HasPrefix(file, dir+"/")
 }
 
-// versionLink is an entry of the version menu of a docs page.
-type versionLink struct {
-	Version string
-	Current bool // Whether the page belongs to this version.
-	// Href is the same page in this version, relative to the page.
-	Href string
-	// Fallback is this version's first page, used by docs.js when it lacks the page.
-	Fallback string
-}
-
 // versionLink links from version-root URL base to path in e and records current.
-func (e *edition) versionLink(base, path string, current bool) versionLink {
+func (e *edition) versionLink(base, path string, current bool) VersionLink {
 	root := strings.TrimPrefix(base, "./") + "../" + e.outDir()
-	return versionLink{
+	return VersionLink{
 		Version:  e.version,
 		Current:  current,
 		Href:     root + path,
@@ -241,7 +231,7 @@ func (e *edition) versionLink(base, path string, current bool) versionLink {
 }
 
 // currentVersion returns the version among versions that the page belongs to.
-func currentVersion(versions []versionLink) string {
+func currentVersion(versions []VersionLink) string {
 	for _, l := range versions {
 		if l.Current {
 			return l.Version

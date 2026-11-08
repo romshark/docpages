@@ -1,15 +1,22 @@
-/* Terminal man-page style: monospace, uppercase headings, indented text,
-   bold options, and square corners. Light mode is black on white with blue links;
-   dark is gray on black with green links. light-dark() pairs keep theme switching. */
+/* A man page in a terminal window. The text sits in a framed window with a
+   hard shadow on a desk color, the navigation stands to its right as a menu
+   with a reverse-video cursor, and a reverse-video bar holds the contents at
+   every width. Ink on paper in light mode, amber on black in dark mode.
+   light-dark() pairs keep theme switching. */
 :root {
-  --bg: light-dark(#ffffff, #000000);
-  --bg-card: light-dark(#f2f2f2, #111111);
-  --bg-code: light-dark(#f2f2f2, #111111);
-  --border: light-dark(#bdbdbd, #333333);
-  --text: light-dark(#000000, #d0d0d0);
-  --text-muted: light-dark(#555555, #8a8a8a);
-  --accent: light-dark(#0000ee, #33ff66);
-  --accent-hover: light-dark(#000099, #99ffb3);
+  /* The desk around the window, and the color of controls and popovers. */
+  --bg: light-dark(#e8e1d0, #1d1b17);
+  --window: light-dark(#fffcf3, #0c0b09);
+  --bar: light-dark(#d9d0bb, #2a2620);
+  --frame: light-dark(#1f1b15, #6b6252);
+  --shadow: light-dark(#1f1b15, #000000);
+  --bg-card: light-dark(#f2ecdd, #1a1814);
+  --bg-code: light-dark(#f2ecdd, #1a1814);
+  --border: light-dark(#c9bea6, #3d372c);
+  --text: light-dark(#1f1b15, #f2e3c4);
+  --text-muted: light-dark(#675e4f, #a69878);
+  --accent: light-dark(#a33f00, #ffb000);
+  --accent-hover: light-dark(#6b2900, #ffd27a);
   --font-sans: var(--font-mono);
 
   /* Morpheus shadow-DOM tokens for menus, search, buttons, and navigation:
@@ -23,6 +30,11 @@
   --neo-popover-shadow: none;
   --neo-dialog-shadow: none;
   --neo-duration-scale: 0;
+}
+
+/* 15rem navigation, 3rem gap, 52rem window and 1.5rem side padding. */
+.docs-page {
+  --max-w: 73rem;
 }
 
 /* Override docpages corner rules together because their specificity varies. */
@@ -40,9 +52,32 @@
   --neo-select-option-selected-color: var(--bg);
 }
 
-/* The contents that open below the bar of a narrow screen. */
-.toc-inline .toc {
-  box-shadow: none;
+.example-banner {
+  padding: 0.375rem 1.5rem;
+  background: var(--accent);
+  color: var(--window);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-align: center;
+
+  a,
+  a:hover {
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  a:hover {
+    text-decoration-thickness: 2px;
+  }
+}
+
+/* A bar across the whole width. The border image paints past the centered
+   header without widening it, and without clipping its menus as a clip-path
+   would. Its last pixel row is the line below the bar. */
+.docs-page .site-header {
+  background: var(--bar);
+  border-image: linear-gradient(to top, var(--frame) 1px, var(--bar) 1px) fill
+    0 / 0 / 0 100vmax;
 }
 
 /* The block cursor of the inlined logo. */
@@ -50,8 +85,110 @@
   fill: var(--accent);
 }
 
+.docs {
+  justify-content: center;
+}
+
+/* --window-pad is in rem, not ch, as the contents bar spans the padding at
+   another font size. */
+.terminal {
+  --window-pad: 1.75rem;
+  flex: 0 1 52rem;
+  margin-block: 2rem 3rem;
+  padding-inline: var(--window-pad);
+  background: var(--window);
+  border: 2px solid var(--frame);
+  box-shadow: 0.5rem 0.5rem 0 var(--shadow);
+
+  @media (width <= 900px) {
+    --window-pad: 1.25rem;
+    margin-block-start: 1.25rem;
+    box-shadow: 0.25rem 0.25rem 0 var(--shadow);
+  }
+}
+
+/* The navigation as a menu: no rails, the current page in reverse video. */
+.docs-nav {
+  .nav-group a {
+    padding-inline: 1ch;
+    border: 0;
+    color: var(--text);
+
+    &:hover {
+      background: var(--bar);
+      color: var(--text);
+    }
+
+    &[aria-current="page"] {
+      background: var(--text);
+      color: var(--bg);
+      font-weight: 700;
+    }
+  }
+
+  &:not(:state(overlay)) > [data-neo-sidebar-content] {
+    padding-block-start: 2rem;
+  }
+}
+
 .nav-group-title {
   text-transform: uppercase;
+}
+
+/* The contents bar shows at every width, as the page has no contents column.
+   It spans the window, in reverse video. */
+.toc-inline {
+  display: block;
+  margin-inline: calc(-1 * var(--window-pad));
+  padding-inline: 0;
+  background: var(--window);
+
+  summary {
+    padding-inline: var(--window-pad);
+    border: 0;
+    background: var(--text);
+    color: var(--window);
+    font-weight: 700;
+    text-transform: uppercase;
+
+    neo-icon {
+      color: inherit;
+    }
+  }
+
+  .toc-inline-current {
+    color: inherit;
+  }
+
+  .toc {
+    border: 2px solid var(--frame);
+    background: var(--window);
+    box-shadow: none;
+
+    a {
+      border: 0;
+      color: var(--text);
+
+      &:hover {
+        background: var(--bar);
+        color: var(--text);
+      }
+
+      &[aria-current] {
+        background: var(--text);
+        color: var(--window);
+        font-weight: 700;
+      }
+    }
+  }
+}
+
+/* Keep linked headings below the bar, which docpages does only on screens
+   too narrow for its contents column. */
+@media (width > 59.25rem) {
+  html:has(.toc-inline) {
+    scroll-padding-block-start: calc(var(--toc-summary) + 1rem);
+  }
 }
 
 .docs-content {
@@ -74,9 +211,11 @@
     border: 0;
   }
 
-  /* Indent text below headings as in a man page. */
+  /* Indent text below headings as in a man page. The maximum keeps a table
+     or an image, which docpages caps at 100%, inside the window. */
   > :not(h1, h2) {
     margin-inline-start: 4ch;
+    max-inline-size: calc(100% - 4ch);
   }
 
   /* Bold commands and options, as man does. */
@@ -104,4 +243,55 @@
   .callout-title {
     text-transform: uppercase;
   }
+}
+
+/* Previous and next as plain menu entries with arrows. */
+.pager {
+  a {
+    padding: 0.25rem 1ch;
+    border: 0;
+
+    &:hover {
+      background: var(--text);
+      color: var(--window);
+
+      .pager-label {
+        color: inherit;
+      }
+    }
+  }
+
+  .pager-prev .pager-label::before {
+    content: "<- ";
+  }
+
+  .pager-next .pager-label::after {
+    content: " ->";
+  }
+}
+
+/* Man-page title and footer lines added around the text by template.templ. */
+.man-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 2ch;
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--text-muted);
+
+  /* On narrow screens, the middle yields to the name at both ends. */
+  > span:nth-child(2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.man-title {
+  padding-block-start: 1rem;
+  margin-block-end: 0.5rem;
+}
+
+.man-footer {
+  padding-block-end: 1rem;
 }

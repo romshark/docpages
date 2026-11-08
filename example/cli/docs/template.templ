@@ -1,0 +1,63 @@
+package docs
+
+import (
+	"strings"
+
+	"github.com/romshark/docpages"
+)
+
+// DocpagesMain builds its own page from built-in parts: a banner across the top,
+// the text in a terminal window between man-page title and footer lines,
+// and the navigation to its right. Without [docpages.Contents], the contents
+// bar of [docpages.Main] lists the sections, which style.css shows at every width.
+templ DocpagesMain(p docpages.Page) {
+	<!DOCTYPE html>
+	<html lang="en">
+		@docpages.Head(p)
+		@docpages.Body(p) {
+			@banner(p)
+			@docpages.Header(p) {
+				@docpages.HeaderLinks(p,
+					docpages.Link{Title: "Docs", URL: "README.md"},
+					docpages.Link{Title: "Options", URL: "2-reference/1-options.md"},
+				)
+			}
+			<div class="docs">
+				<div class="docs-column terminal">
+					@manLine(p, "man-title", manName(p), "User Commands")
+					@docpages.Main(p)
+					@manLine(p, "man-footer", p.Site+" "+p.Version, p.Title)
+				</div>
+				// Last in the row, the column stands right of the text.
+				// The overlay of a narrow screen still slides in from the left.
+				@docpages.Navigation(p)
+			</div>
+			@docpages.Footer(p, nil)
+		}
+	</html>
+}
+
+// banner spans the top edge of every page and links the files that customize it.
+templ banner(p docpages.Page) {
+	<p class="example-banner" role="note">
+		This example customizes the layout with
+		<a href={ p.URL("template.templ") }>template.templ</a>
+		and the style with
+		<a href={ p.URL("style.css") }>style.css</a>.
+	</p>
+}
+
+// manLine renders p's man-page title or footer line, with start and middle
+// before its name. Screen readers skip it because the page repeats the information.
+templ manLine(p docpages.Page, class, start, middle string) {
+	<p class={ "man-line", class } aria-hidden="true">
+		<span>{ start }</span>
+		<span>{ middle }</span>
+		<span>{ manName(p) }</span>
+	</p>
+}
+
+// manName returns the site's man-page name, such as "WC(1)".
+func manName(p docpages.Page) string {
+	return strings.ToUpper(p.Site) + "(1)"
+}

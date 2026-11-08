@@ -1,7 +1,6 @@
 # Go library
 
-The package `github.com/romshark/docpages` builds the docs from Go, as for a site
-with pages of your own around them:
+The package `github.com/romshark/docpages` builds the docs from Go, as for a site with pages of your own around them:
 
 ```go
 site, err := docpages.Read(docpages.Options{Root: ".", Dir: "docs"})
@@ -11,8 +10,7 @@ if err != nil {
 return site.Write("public/docs")
 ```
 
-`Options.Root` is the root of the repository, and `Options.Dir` the docs folder
-in it.
+`Options.Root` is the root of the repository, and `Options.Dir` the docs folder in it. `Read` of docs with [templates](../2-guide/6-templates.md) needs the go command, which builds them.
 
 | Function | What it does |
 | --- | --- |

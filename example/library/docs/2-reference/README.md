@@ -19,8 +19,7 @@ New returns an empty buffer for `size` values. `size` must be a power of 2.
 <details>
 <summary>Why a power of 2?</summary>
 
-The buffer wraps its indexes with a mask, `i & (size - 1)`, which costs less
-than `i % size`. The mask wraps an index only for a power of 2.
+The buffer wraps its indexes with a mask, `i & (size - 1)`, which costs less than `i % size`. The mask wraps an index only for a power of 2.
 
 </details>
 

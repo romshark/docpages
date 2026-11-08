@@ -123,7 +123,11 @@ func run(args []string, stdout, stderr io.Writer) error {
 	case c.addr != "":
 		// The handler shows later errors in a page that reloads after fixes.
 		// An initial build failure more likely means these are the wrong docs.
-		if _, err := docpages.Read(o); err != nil {
+		s, err := docpages.Read(o)
+		if err == nil {
+			_, err = s.Files()
+		}
+		if err != nil {
 			return docsError(c.dir, err)
 		}
 		_, _ = fmt.Fprintf(stdout, "serving %s on http://%s/\n", c.dir, c.addr)

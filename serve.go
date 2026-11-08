@@ -29,11 +29,11 @@ const repositoryPath = "_repository"
 const pollInterval = 250 * time.Millisecond
 
 // Handler serves o's site at output-relative paths, as [Site.Write] lays it out.
-// It rereads docs per file request so changes appear without restart, and pages
-// reload when any read file changes. Styles and scripts are unminified.
+// It rereads docs after a read file changes, showing changes without a restart,
+// and reloads pages. Styles and scripts stay unminified.
 // Paths follow GitHub Pages: trailing "/" serves index.html; a missing path serves
-// its ".html" file, even with a dot as in guide/v1.2-notes. Errors such as a
-// missing link heading are reloadable pages too.
+// its ".html" file, even with a dot as in guide/v1.2-notes.
+// Errors such as a missing link heading are reloadable pages too.
 //
 // Links to repository files no page shows open working-tree files, not the host's
 // pushed versions. Handler serves named files, directories, and their contents,
@@ -107,10 +107,28 @@ type watcher struct {
 	lock      sync.Mutex
 	// sources are files outside docs shown at the last read: page sources and media.
 	sources []string
+
+	// read serializes reads. readState is the last state read, producing readFiles
+	// or readErr. Reading template.templ runs a program, too slow per request.
+	read      sync.Mutex
+	readState string
+	readFiles map[string][]byte
+	readErr   error
 }
 
-// files reads o's site and reloads pages when its file state differs from state.
+// files returns o's site at file state state, rereading unless it was read last.
 func (w *watcher) files(o Options, state string) (map[string][]byte, error) {
+	w.read.Lock()
+	defer w.read.Unlock()
+	if w.readState != state {
+		w.readFiles, w.readErr = w.readSite(o, state)
+		w.readState = state
+	}
+	return w.readFiles, w.readErr
+}
+
+// readSite reads o's site; its pages reload when file state differs from state.
+func (w *watcher) readSite(o Options, state string) (map[string][]byte, error) {
 	s, err := readOptions(o, true)
 	if err != nil {
 		return nil, err
@@ -292,8 +310,8 @@ func serveRepository(o Options, rw http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprint(rw, "</ul>")
 }
 
-// serves reports whether [Handler] serves repository-relative file: an entry in
-// served, or non-dot content below a served directory.
+// serves reports whether [Handler] serves repository-relative file:
+// an entry in served, or non-dot content below a served directory.
 func (s *Site) serves(file string) bool {
 	for f := range s.served {
 		var rest string

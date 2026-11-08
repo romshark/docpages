@@ -48,21 +48,6 @@ type frontMatter struct {
 	Repository string `yaml:"repository"`
 	// Host describes where the repository is hosted, GitHub without it.
 	Host *hostSettings `yaml:"host"`
-	// Header lists links before the repository link.
-	// If unset, it links the first page as "Docs"; an empty list gives no links.
-	Header []frontMatterLink `yaml:"header"`
-	// Footer are the links of the footer between the repository and llms.txt.
-	Footer []frontMatterLink `yaml:"footer"`
-	// License is the line that ends the footer, which has none without it.
-	License string `yaml:"license"`
-}
-
-// frontMatterLink is a header or footer link. URL resolves from the declaring
-// README.md. Icon is an SVG path relative to that README, shown before Title.
-type frontMatterLink struct {
-	Title string `yaml:"title"`
-	URL   string `yaml:"url"`
-	Icon  string `yaml:"icon"`
 }
 
 // readmeName is the file GitHub shows for a directory.
@@ -252,8 +237,7 @@ func (l *layout) add(r readPageResult) {
 
 // hasSettings reports whether fm sets a setting of the site.
 func (fm frontMatter) hasSettings() bool {
-	return fm.Name != "" || fm.Home != "" || fm.Repository != "" || fm.Host != nil ||
-		fm.Header != nil || fm.Footer != nil || fm.License != ""
+	return fm.Name != "" || fm.Home != "" || fm.Repository != "" || fm.Host != nil
 }
 
 // orderedEntry is a group directory or a page file with its position.

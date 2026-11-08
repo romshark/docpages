@@ -1,0 +1,35 @@
+package docs
+
+import "github.com/romshark/docpages"
+
+// DocpagesMain is the built-in page with ringbuf docs, API, and benchmark links.
+templ DocpagesMain(p docpages.Page) {
+	@docpages.Layout(p, docpages.Parts{
+		HeaderLinks: docpages.HeaderLinks(p,
+			docpages.Link{Title: "Docs", URL: "README.md"},
+			docpages.Link{Title: "API", URL: "2-reference/README.md"},
+		),
+		FooterLinks: docpages.FooterLinks(p,
+			docpages.Link{
+				Title: "Benchmarks",
+				URL:   "2-reference/1-benchmarks.md",
+				Icon:  gaugeIcon(),
+			},
+		),
+	})
+}
+
+templ gaugeIcon() {
+	<svg
+		aria-hidden="true"
+		xmlns="http://www.w3.org/2000/svg"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		stroke-width="2"
+		stroke-linecap="round"
+		stroke-linejoin="round"
+	>
+		<path d="M3.3 17a9 9 0 1 1 17.4 0M12 13l4-4"></path>
+	</svg>
+}

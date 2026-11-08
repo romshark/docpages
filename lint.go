@@ -238,11 +238,12 @@ func lineOf(src []byte, pos int) int {
 	return bytes.Count(src[:pos], []byte("\n")) + 1
 }
 
-// settingFiles returns files used by site settings c in docs directory dir:
-// logo, favicon, style.css, original header/footer link icons, and host h's
-// icon when configured.
+// settingFiles returns files used by settings c in docs directory dir:
+// logo, favicon, style.css, h's configured host icon, and templates.
+// Go and text files written beside a .templ file by templ generate also count,
+// though the site builds the templates itself.
 func settingFiles(
-	dir string, c chrome, links []frontMatterLink, h *hostSettings,
+	dir string, c chrome, h *hostSettings, templates []templateFile,
 ) []string {
 	var r []string
 	if c.logo != "" {
@@ -254,10 +255,9 @@ func settingFiles(
 	if c.style {
 		r = append(r, path.Join(dir, "style.css"))
 	}
-	for _, l := range links {
-		if l.Icon != "" {
-			r = append(r, path.Join(dir, l.Icon))
-		}
+	for _, t := range templates {
+		base := strings.TrimSuffix(t.name, ".templ")
+		r = append(r, t.name, base+"_templ.go", base+"_templ.txt")
 	}
 	if h != nil && h.Icon != "" {
 		r = append(r, path.Join(dir, h.Icon))

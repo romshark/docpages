@@ -1,7 +1,6 @@
 # Images and video
 
-Embed images and videos as you would for GitHub. docpages copies each file
-that a page shows into the site, so the site works without the repository.
+Embed images and videos as you would for GitHub. docpages copies each file that a page shows into the site, so the site works without the repository.
 
 ## Images
 
@@ -17,8 +16,7 @@ Write a Markdown image with a path relative to the Markdown file:
 - A file that doesn't exist fails the build, as a dead link does.
 - A URL, as `https://img.shields.io/badge/docs-latest-green`, stays as it is.
 
-A folder without a number, as `2-guide/img/`, keeps the images next to their
-pages and stays out of the navigation.
+A folder without a number, as `2-guide/img/`, keeps the images next to their pages and stays out of the navigation.
 
 ## Size and themes
 
@@ -44,15 +42,11 @@ For an image for each theme, write a `<picture>`:
   <img src="img/search-light.webp" alt="The search dialog">
 </picture>
 
-On the site, `prefers-color-scheme` follows the theme switch, and the theme of
-the system while the switch is on "System". On GitHub it follows the theme of
-GitHub.
+On the site, `prefers-color-scheme` follows the theme switch, and the theme of the system while the switch is on "System". On GitHub it follows the theme of GitHub.
 
 ## Responsive images
 
-`srcset` offers the same image at several widths, and `sizes` tells the browser
-how wide the image shows. It loads the smallest file that is sharp on the
-screen. Here the 480 pixel file is 10 KB and the 1920 pixel one 81 KB:
+`srcset` offers the same image at several widths, and `sizes` tells the browser how wide the image shows. It loads the smallest file that is sharp on the screen. Here the 480 pixel file is 10 KB and the 1920 pixel one 81 KB:
 
 ```html
 <img src="img/search.webp" alt="The search dialog"
@@ -66,12 +60,9 @@ screen. Here the 480 pixel file is 10 KB and the 1920 pixel one 81 KB:
     img/search.webp 1920w"
   sizes="(max-width: 900px) 100vw, 54rem">
 
-The text of a page is as wide as the screen up to 900px, and never wider than
-54rem.
+The text of a page is as wide as the screen up to 900px, and never wider than 54rem.
 
-A `<picture>` can show another image on a small screen, as a screenshot of the
-layout of a phone. The browser takes the first `<source>` whose `media` holds,
-and the `<img>` if none does:
+A `<picture>` can show another image on a small screen, as a screenshot of the layout of a phone. The browser takes the first `<source>` whose `media` holds, and the `<img>` if none does:
 
 ```html
 <picture>
@@ -91,9 +82,7 @@ and the `<img>` if none does:
   <img src="img/search-light.webp" alt="The search dialog">
 </picture>
 
-The theme switch changes only the `prefers-color-scheme` of a `media`, which
-leaves the width to pick the image. Narrow the window below 30rem to see the
-phone.
+The theme switch changes only the `prefers-color-scheme` of a `media`, which leaves the width to pick the image. Narrow the window below 30rem to see the phone.
 
 ## Video and audio
 
@@ -105,10 +94,7 @@ Write a `<video>` tag, with a `poster` that shows before the video plays:
 
 <video src="img/demo.mp4" poster="img/demo.webp" controls muted></video>
 
-`<audio>` works the same way. `<source>` offers a file in more than 1 format,
-or with `media` a smaller one for a small screen, and `<track>` adds captions.
-The browser plays the first `<source>` whose `media` holds and whose `type` it
-plays. It picks it once, as the video loads:
+`<audio>` works the same way. `<source>` offers a file in more than 1 format, or with `media` a smaller one for a small screen, and `<track>` adds captions. The browser plays the first `<source>` whose `media` holds and whose `type` it plays. It picks it once, as the video loads:
 
 ```html
 <video poster="img/demo.webp" controls>
@@ -129,13 +115,11 @@ plays. It picks it once, as the video loads:
 </video>
 
 > [!TIP]
-> Videos make a repository large. A video hosted elsewhere works with its URL
-> in `src`, as an image does.
+> Videos make a repository large. A video hosted elsewhere works with its URL in `src`, as an image does.
 
 ## The HTML that pages keep
 
-Of the HTML in your Markdown, the pages keep `<img>`, `<picture>`, `<source>`,
-`<video>`, `<audio>` and `<track>`, with these attributes:
+Of the HTML in your Markdown, the pages keep `<img>`, `<picture>`, `<source>`, `<video>`, `<audio>` and `<track>`, with these attributes:
 
 | For | Attributes |
 | --- | --- |
@@ -145,22 +129,12 @@ Of the HTML in your Markdown, the pages keep `<img>`, `<picture>`, `<source>`,
 | Playback | `controls`, `autoplay`, `loop`, `muted`, `playsinline` |
 | Captions | `kind`, `srclang`, `label`, `default` |
 
-A `<details>` with its `<summary>` stays too, with `open`: see
-[Details](2-writing.md#details).
+A `<details>` with its `<summary>` stays too, with `open`: see [Details](2-writing.md#details).
 
-Other HTML, other attributes, such as `style` and `onerror`, and a
-`javascript:` URL fail the build, which names the file and the line. So does a
-`<p align="center">` around an image: write the image alone. An HTML comment
-passes. See [Checks](../3-reference/5-checks.md).
+Other HTML, other attributes, such as `style` and `onerror`, and a `javascript:` URL fail the build, which names the file and the line. So does a `<p align="center">` around an image: write the image alone. An HTML comment passes. See [Checks](../3-reference/5-checks.md).
 
 ## In the site
 
-Each version holds a copy of each file in `media/`, in a folder named after
-the content of the file, as `main/media/3f2a9c1be07d4e58/search.webp`. 2 files
-with the same name don't collide, and a changed file gets a new URL, which no
-browser cache holds. The page and its [Markdown copy](../3-reference/3-output.md)
-lead to the copy.
+Each version holds a copy of each file in `media/`, in a folder named after the content of the file, as `main/media/3f2a9c1be07d4e58/search.webp`. 2 files with the same name don't collide, and a changed file gets a new URL, which no browser cache holds. The page and its [Markdown copy](../3-reference/3-output.md) lead to the copy.
 
-A [release](6-versions.md) keeps its own copies. `-snapshot` copies the files
-that its pages show: those in the docs folder keep their place, and the others
-go into `media/` of the release.
+A [release](7-versions.md) keeps its own copies. `-snapshot` copies the files that its pages show: those in the docs folder keep their place, and the others go into `media/` of the release.

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/a-h/templ"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,8 +35,8 @@ func TestReleases(t *testing.T) {
 		"is named after its feature version, as v1.2")
 }
 
-// TestEditionPages checks edition UI: same-page version links latest-first, no
-// note when unset, and noindex on main when a release exists.
+// TestEditionPages checks edition UI: same-page version links latest-first,
+// no note when unset, and noindex on main when a release exists.
 func TestEditionPages(t *testing.T) {
 	const noindex = `<meta name="robots" content="noindex">`
 	option := func(version string) string {
@@ -100,10 +101,15 @@ func TestEditionPages(t *testing.T) {
 func TestReleaseLinks(t *testing.T) {
 	fsys := withReleases(t, testRepoFS(), "v1.2.3")
 	fsys["docs/4-more/2-faq.md"] = &fstest.MapFile{Data: []byte("# FAQ\n")}
-	fsys["docs/README.md"] = &fstest.MapFile{Data: []byte(strings.Replace(testRoot,
-		"url: 4-more/1-examples.md", "url: 4-more/2-faq.md", 1))}
 	s, err := read(fsys, "docs", noRemote, false)
 	require.NoError(t, err)
+	s.page = func(p Page) templ.Component {
+		return Layout(p, Parts{
+			HeaderLinks: HeaderLinks(p, Link{Title: "Examples", URL: "4-more/2-faq.md"}),
+			FooterLinks: FooterLinks(p,
+				Link{Title: "Changelog", URL: "3-reference/2-changelog.md"}),
+		})
+	}
 	html := editionPageHTML(t, s, "v1.2", "guides/events")
 	for _, want := range []string{
 		`<a href="../reference/specification#actions">actions</a>`,
@@ -111,7 +117,7 @@ func TestReleaseLinks(t *testing.T) {
 		`<a class="icon-link" href="https://github.com/o/demo/blob/main/` +
 			`docs/versions/v1.2/2-guides/01-events.md">`,
 		`<a class="header-link" href="../../main/more/faq">Examples</a>`,
-		`<a class="icon-link" href="../reference/changelog"> Changelog</a>`,
+		`<a class="icon-link" href="../reference/changelog">Changelog</a>`,
 	} {
 		require.Contains(t, html, want)
 	}
@@ -136,8 +142,8 @@ func TestReleaseErrors(t *testing.T) {
 
 				# Introduction
 			`),
-			want: "docs/versions/v1.2/README.md: a release takes the settings of the site " +
-				"from the README.md of the docs directory",
+			want: "docs/versions/v1.2/README.md: a release takes the settings of " +
+				"the site from the README.md of the docs directory",
 		},
 		"link out of the release": {
 			file: "docs/versions/v1.2/2-guides/10-testing.md",
@@ -179,15 +185,21 @@ func TestReleaseErrors(t *testing.T) {
 // TestDocsIndex checks that root index.html opens its edition's first page.
 func TestDocsIndex(t *testing.T) {
 	html := render(t, docsIndex("v1.2/", &chrome{name: "Demo", favicon: "favicon.svg"}))
-	require.Contains(t, html, `<meta http-equiv="refresh" content="0; url=v1.2/">`)
-	require.Contains(t, html, `<title>Demo documentation</title>`)
-	require.Contains(t, html, `<a href="v1.2/">`)
-	require.Contains(t, html, `<link rel="icon" href="v1.2/favicon.svg" type="image/svg+xml">`)
+	require.Contains(t, html,
+		`<meta http-equiv="refresh" content="0; url=v1.2/">`)
+	require.Contains(t, html,
+		`<title>Demo documentation</title>`)
+	require.Contains(t, html,
+		`<a href="v1.2/">`)
+	require.Contains(t, html,
+		`<link rel="icon" href="v1.2/favicon.svg" type="image/svg+xml">`)
 }
 
 // TestDefaultEdition checks that index.html opens the latest release, or main if none.
 func TestDefaultEdition(t *testing.T) {
-	s, err := read(withReleases(t, testRepoFS(), "v1.1.0", "v1.2.0"), "docs", noRemote, false)
+	s, err := read(
+		withReleases(t, testRepoFS(), "v1.1.0", "v1.2.0"), "docs", noRemote, false,
+	)
 	require.NoError(t, err)
 	files, err := s.Files()
 	require.NoError(t, err)
@@ -199,7 +211,9 @@ func TestDefaultEdition(t *testing.T) {
 
 // TestVersionsLlmsTxt checks root llms.txt links to every edition, latest first.
 func TestVersionsLlmsTxt(t *testing.T) {
-	s, err := read(withReleases(t, testRepoFS(), "v1.1.0", "v1.2.0"), "docs", noRemote, false)
+	s, err := read(
+		withReleases(t, testRepoFS(), "v1.1.0", "v1.2.0"), "docs", noRemote, false,
+	)
 	require.NoError(t, err)
 	require.Equal(t, dedent(`
 		# Demo
@@ -216,7 +230,8 @@ func TestVersionsLlmsTxt(t *testing.T) {
 	`),
 		string(versionsLlmsTxt(s.editions, "Demo", s.Description())))
 	require.NotContains(t,
-		string(versionsLlmsTxt(newTestSite(t).editions, "Demo", "Intro.")), "latest release")
+		string(versionsLlmsTxt(
+			newTestSite(t).editions, "Demo", "Intro.")), "latest release")
 }
 
 // TestMorpheusAssets checks that pages load their version's Morpheus bundle and,

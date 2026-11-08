@@ -22,7 +22,6 @@ site/
   v1.2/               the same, for each release
 ```
 
-Every page links its Markdown copy as "Raw Markdown". The links in a copy lead
-to the other copies.
+Every page links its Markdown copy as "Raw Markdown". The links in a copy lead to the other copies.
 
 `llms.txt` follows the format of [llmstxt.org](https://llmstxt.org).

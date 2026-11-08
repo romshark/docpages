@@ -3,6 +3,7 @@ module github.com/romshark/docpages
 go 1.27.3
 
 require (
+	github.com/a-h/parse v0.0.0-20250122154542-74294addb73e
 	github.com/a-h/templ v0.3.1100
 	github.com/alecthomas/chroma/v3 v3.0.0-alpha.5
 	github.com/evanw/esbuild v0.28.2

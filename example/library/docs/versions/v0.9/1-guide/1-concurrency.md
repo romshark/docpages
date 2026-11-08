@@ -1,8 +1,6 @@
 # Concurrency
 
-A buffer is safe for 1 goroutine that pushes and 1 that pops at the same time.
-Neither waits for the other: [Push](../2-reference/README.md#push) fails on a
-full buffer and [Pop](../2-reference/README.md#pop) on an empty one.
+A buffer is safe for 1 goroutine that pushes and 1 that pops at the same time. Neither waits for the other: [Push](../2-reference/README.md#push) fails on a full buffer and [Pop](../2-reference/README.md#pop) on an empty one.
 
 ```mermaid
 sequenceDiagram
@@ -17,5 +15,4 @@ sequenceDiagram
 ```
 
 > [!CAUTION]
-> 2 goroutines that both push race. Give each its own buffer or guard the
-> calls with a mutex.
+> 2 goroutines that both push race. Give each its own buffer or guard the calls with a mutex.

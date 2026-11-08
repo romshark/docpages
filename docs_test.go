@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/a-h/templ"
 	"github.com/stretchr/testify/require"
@@ -52,6 +53,15 @@ var testGroups = []group{
 // testRepo is the repository of the test pages.
 const testRepo = "https://github.com/o/demo"
 
+// testRepoFiles are the repository files other than pages that test pages link.
+var testRepoFiles = fstest.MapFS{
+	"FAQ.md":                        {},
+	"Design Doc.pdf":                {},
+	"datapages.go":                  {},
+	"example/counter/main.go":       {},
+	"internal/acceptance/README.md": {},
+}
+
 var testSite = &site{
 	pages: testPages,
 	ids: []map[string]bool{
@@ -62,6 +72,7 @@ var testSite = &site{
 	},
 	ref:  MainVersion,
 	host: githubHost(testRepo),
+	fsys: testRepoFiles,
 }
 
 // blob is the URL of the files of the main branch on GitHub.
@@ -77,7 +88,8 @@ func convertTest(t *testing.T, ref string, srcs ...string) []doc {
 			b[i] = []byte(src)
 		}
 	}
-	docs, err := convertDocs(pages, b, &site{ref: ref, host: githubHost(testRepo)})
+	docs, err := convertDocs(pages, b,
+		&site{ref: ref, host: githubHost(testRepo), fsys: testRepoFiles})
 	require.NoError(t, err)
 	return docs
 }
@@ -170,6 +182,19 @@ func TestResolveLinkErr(t *testing.T) {
 			_, err := testSite.resolveLink(1, dest)
 			require.Error(t, err)
 		})
+	}
+}
+
+// TestResolveLinkNoFile checks that links to files and directories missing from
+// the repository fail with the repository path.
+func TestResolveLinkNoFile(t *testing.T) {
+	for dest, want := range map[string]string{
+		"renamed.md":       `link "renamed.md": no file guide/renamed.md`,
+		"../example/none/": `link "../example/none/": no file example/none`,
+		"../../outside.md": `link "../../outside.md": no file ../outside.md`,
+	} {
+		_, err := testSite.resolveLink(1, dest)
+		require.EqualError(t, err, want)
 	}
 }
 
@@ -330,12 +355,12 @@ func TestContents(t *testing.T) {
 	for name, tt := range map[string]struct {
 		depth    int
 		sections []section
-		want     []tocEntry
+		want     []ContentsLink
 	}{
 		"depth 3": {
 			depth:    3,
 			sections: sections,
-			want: []tocEntry{
+			want: []ContentsLink{
 				{Href: "#spec", Title: "Spec", Level: 1},
 				{Href: "#pages", Title: "Pages", Level: 2},
 				{Href: "#actions", Title: "Actions", Level: 3},
@@ -344,7 +369,7 @@ func TestContents(t *testing.T) {
 		"depth 4": {
 			depth:    4,
 			sections: sections,
-			want: []tocEntry{
+			want: []ContentsLink{
 				{Href: "#spec", Title: "Spec", Level: 1},
 				{Href: "#pages", Title: "Pages", Level: 2},
 				{Href: "#actions", Title: "Actions", Level: 3},
@@ -354,7 +379,7 @@ func TestContents(t *testing.T) {
 		"no title": {
 			depth:    3,
 			sections: sections[1:],
-			want: []tocEntry{
+			want: []ContentsLink{
 				{Href: "#pages", Title: "Pages", Level: 2},
 				{Href: "#actions", Title: "Actions", Level: 3},
 			},
@@ -412,14 +437,14 @@ func TestTOCDepth(t *testing.T) {
 // TestNavigation checks page order and groups, current-relative links,
 // and the current mark.
 func TestNavigation(t *testing.T) {
-	require.Equal(t, []navGroup{
-		{Title: "Get started", Entries: []navEntry{
+	require.Equal(t, []NavGroup{
+		{Title: "Get started", Links: []NavLink{
 			{Title: "Introduction", Href: "../docs/"},
 		}},
-		{Title: "Guides", Entries: []navEntry{
+		{Title: "Guides", Links: []NavLink{
 			{Title: "Events", Href: "../docs/events", Current: true},
 		}},
-		{Title: "Reference", Entries: []navEntry{
+		{Title: "Reference", Links: []NavLink{
 			{Title: "Specification", Href: "../specification"},
 			{
 				Title:    "Go API",
@@ -434,20 +459,20 @@ func TestNavigation(t *testing.T) {
 func TestNeighbors(t *testing.T) {
 	for name, tt := range map[string]struct {
 		page       int
-		prev, next navEntry
+		prev, next NavLink
 	}{
 		"first": {
 			page: 0,
-			next: navEntry{Title: "Events", Href: "../docs/events"},
+			next: NavLink{Title: "Events", Href: "../docs/events"},
 		},
 		"middle": {
 			page: 1,
-			prev: navEntry{Title: "Introduction", Href: "../docs/"},
-			next: navEntry{Title: "Specification", Href: "../specification"},
+			prev: NavLink{Title: "Introduction", Href: "../docs/"},
+			next: NavLink{Title: "Specification", Href: "../specification"},
 		},
 		"last before a link": {
 			page: 2,
-			prev: navEntry{Title: "Events", Href: "./docs/events"},
+			prev: NavLink{Title: "Events", Href: "./docs/events"},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -860,13 +885,13 @@ func TestSuggestions(t *testing.T) {
 	}
 	groups := []group{{title: "Get started"}, {title: "Guides"}, {title: "More"}}
 	suggested := suggestions(pages, groups, 1)
-	require.Equal(t, []suggestion{
+	require.Equal(t, []Suggestion{
 		{Group: "Get started", Title: "Introduction", Href: "../"},
 		{Group: "More", Title: "FAQ", Href: "../faq"},
 		{Group: "More", Title: "API", Href: "https://pkg.go.dev/x"},
 	}, suggested)
 
-	html := render(t, searchDialog(suggested))
+	html := render(t, Search(Page{Suggested: suggested}))
 	for _, want := range []string{
 		`aria-expanded="true"`,
 		`<p class="search-heading">Suggested</p>`,
@@ -878,7 +903,7 @@ func TestSuggestions(t *testing.T) {
 		require.Contains(t, html, want)
 	}
 
-	html = render(t, searchDialog(nil))
+	html = render(t, Search(Page{}))
 	require.Contains(t, html, `aria-expanded="false"`)
 	require.Contains(t, html, `<p class="search-heading" hidden>Suggested</p>`)
 }

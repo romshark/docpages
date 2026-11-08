@@ -7,6 +7,7 @@
 //	logo.svg               the logo of the header, optional
 //	favicon.svg            the icon of the browser tab, optional
 //	style.css              loaded after the stylesheet of docpages, optional
+//	template.templ         an optional page template, like any .templ file
 //	1-get-started/         a group, "Get started"
 //	  icon.svg             the icon of the group, optional
 //	  README.md            the first page of the group, optional
@@ -16,13 +17,16 @@
 //	versions/              the docs of the releases, optional
 //	  v1.2/                a docs directory of the same layout, for v1.2.x
 //
-// Numbers order groups and pages but are omitted from URLs and titles. Page
-// front matter can set a title, suggest the page in search, show an external
+// Numbers order groups and pages but are omitted from URLs and titles.
+// Page front matter can set a title, suggest the page in search, show an external
 // file with source, or create an external link with url. The docs README front
 // matter also holds site settings; the module README lists its keys.
 //
-// The docs directory describes main. [Snapshot] makes an editable release copy
-// under versions/.
+// Docs .templ files use package docs and replace [DefaultPage] with templ
+// DocpagesMain(p [Page]). The go command builds them.
+//
+// The docs directory describes main.
+// [Snapshot] makes an editable release copy under versions/.
 package docpages
 
 import (
@@ -32,6 +36,7 @@ import (
 	"fmt"
 	"html"
 	"io/fs"
+	"maps"
 	"net/url"
 	"os"
 	"os/exec"
@@ -61,19 +66,23 @@ type Site struct {
 	// served holds repository files that [Handler] serves instead of the host;
 	// nil outside it. See [site].
 	served map[string]bool
+	// templates are the docs .templ files.
+	templates []templateFile
+	// page renders each page. Nil uses the renderer built from templates.
+	page func(Page) templ.Component
+	// templateGlob names the active template files, such as "docs/*.templ";
+	// empty when their renderer is inactive.
+	templateGlob string
+	// options are shared by [readRepo] and the template renderer.
+	options Options
 }
 
 // chrome is what every page of the site shows around its text.
 type chrome struct {
-	name   string
-	logo   string // SVG markup of logo.svg, empty without one.
-	home   string // URL that the logo leads to, relative to the output directory.
-	host   *host
-	header []frontMatterLink
-	// footer links sit between the repository and llms.txt;
-	// each Icon contains its file's SVG markup.
-	footer  []frontMatterLink
-	license string // Last line of the footer, empty for none.
+	name    string
+	logo    string // SVG markup of logo.svg, empty without one.
+	home    string // URL that the logo leads to, relative to the output directory.
+	host    *host
 	favicon string // Name of the icon of the browser tab, empty without one.
 	style   bool   // Whether the docs directory holds a style.css.
 	// reload is [Handler]'s state for displayed files. Pages reload when it changes.
@@ -89,16 +98,37 @@ func Read(o Options) (*Site, error) {
 	return readOptions(o, false)
 }
 
-// readOptions is [Read], but when served, non-page repository links use files
-// served by [Handler].
+// readOptions is [Read], but served mode makes non-page repository links use
+// [Handler]-served files. Any docs .templ files render pages and require go.
 func readOptions(o Options, served bool) (*Site, error) {
-	return read(os.DirFS(o.Root), path.Clean(filepath.ToSlash(o.Dir)),
+	s, err := readRepo(o, served)
+	if err != nil {
+		return nil, err
+	}
+	if len(s.templates) > 0 {
+		if _, err := exec.LookPath("go"); err != nil {
+			return nil, fmt.Errorf("%s: the .templ files need the go command: %w",
+				s.main().dir, err)
+		}
+		s.page = nil
+	}
+	return s, nil
+}
+
+// readRepo reads o's docs from disk like [readOptions] but uses [DefaultPage].
+func readRepo(o Options, served bool) (*Site, error) {
+	s, err := read(os.DirFS(o.Root), path.Clean(filepath.ToSlash(o.Dir)),
 		func() (string, error) { return gitRemote(o.Root) }, served)
+	if err != nil {
+		return nil, err
+	}
+	s.options = o
+	return s, nil
 }
 
 // read reads docs directory dir from repository fsys. remote returns origin's URL,
-// overridden by [frontMatter].Repository. When served,
-// [Handler] serves non-page repository links.
+// overridden by [frontMatter].Repository.
+// When served, [Handler] serves non-page repository links.
 func read(
 	fsys fs.FS, dir string, remote func() (string, error), served bool,
 ) (*Site, error) {
@@ -120,11 +150,7 @@ func read(
 		}
 	}
 	repoURL = strings.TrimSuffix(repoURL, "/")
-	c := chrome{
-		name:    set.Name,
-		home:    set.Home,
-		license: strings.TrimSpace(set.License),
-	}
+	c := chrome{name: set.Name, home: set.Home}
 	if c.name == "" {
 		c.name = path.Base(repoURL)
 	}
@@ -137,14 +163,8 @@ func read(
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return nil, err
 	}
-	header := set.Header
-	if header == nil {
-		header = defaultHeader
-	}
-	if c.header, err = withIcons(fsys, dir, "header", header); err != nil {
-		return nil, err
-	}
-	if c.footer, err = withIcons(fsys, dir, "footer", set.Footer); err != nil {
+	templates, err := readTemplates(fsys, dir)
+	if err != nil {
 		return nil, err
 	}
 	assets, err := siteAssets()
@@ -175,7 +195,7 @@ func read(
 		return nil, err
 	}
 
-	s := &Site{chrome: c, assets: assets}
+	s := &Site{chrome: c, assets: assets, templates: templates, page: DefaultPage}
 	if served {
 		s.served = make(map[string]bool)
 	}
@@ -201,40 +221,12 @@ func read(
 			return nil, fmt.Errorf("%s: note: %w", path.Join(e.dir, readmeName), err)
 		}
 	}
-	for _, l := range slices.Concat(c.header, c.footer) {
-		if _, err := main.links.resolve(0, l.URL, "", page.urlPath); err != nil {
-			return nil, fmt.Errorf("%s: link %q of the front matter: %w",
-				path.Join(dir, readmeName), l.Title, err)
-		}
-	}
 	// Pages, links, and settings have now named every file the site uses.
-	settings := settingFiles(dir, c, slices.Concat(header, set.Footer), set.Host)
+	settings := settingFiles(dir, c, set.Host, templates)
 	if err := unusedFiles(fsys, s, settings); err != nil {
 		return nil, err
 	}
 	return s, nil
-}
-
-// defaultHeader links the first page when the docs README sets no header.
-var defaultHeader = []frontMatterLink{{Title: "Docs", URL: readmeName}}
-
-// withIcons returns header or footer links, as part names them, with each Icon
-// file from docs directory dir in fsys replaced by its SVG markup.
-func withIcons(
-	fsys fs.FS, dir, part string, links []frontMatterLink,
-) ([]frontMatterLink, error) {
-	var r []frontMatterLink
-	for _, l := range links {
-		if l.Icon != "" {
-			svg, err := fs.ReadFile(fsys, path.Join(dir, l.Icon))
-			if err != nil {
-				return nil, fmt.Errorf("icon of the %s link %q: %w", part, l.Title, err)
-			}
-			l.Icon = inlineSVG(svg, `aria-hidden="true"`)
-		}
-		r = append(r, l)
-	}
-	return r, nil
 }
 
 // main returns the edition of main.
@@ -260,11 +252,15 @@ func (s *Site) Description() string { return s.main().docs[0].description }
 // search.json, llms.txt, llms-full.txt, and page assets. Root index.html and
 // llms.txt lead to the latest release, or main when there are none.
 func (s *Site) Files() (map[string][]byte, error) {
-	pages := map[string]templ.Component{
-		"index.html": docsIndex(s.defaultEdition().outDir(), &s.chrome),
+	var index bytes.Buffer
+	err := docsIndex(s.defaultEdition().outDir(), &s.chrome).
+		Render(context.Background(), &index)
+	if err != nil {
+		return nil, err
 	}
 	files := map[string][]byte{
-		"llms.txt": versionsLlmsTxt(s.editions, s.chrome.name, s.Description()),
+		"index.html": index.Bytes(),
+		"llms.txt":   versionsLlmsTxt(s.editions, s.chrome.name, s.Description()),
 	}
 	for _, e := range s.editions {
 		dir := e.outDir()
@@ -277,11 +273,9 @@ func (s *Site) Files() (map[string][]byte, error) {
 			files[dir+m.name] = m.data
 		}
 		for i, p := range e.pages {
-			if p.external() {
-				continue
+			if !p.external() {
+				files[dir+p.markdownFile()] = e.docs[i].markdown
 			}
-			pages[dir+p.outFile()] = docsPage(s.view(e, i))
-			files[dir+p.markdownFile()] = e.docs[i].markdown
 		}
 		search, err := searchJSON(e.docs)
 		if err != nil {
@@ -289,14 +283,50 @@ func (s *Site) Files() (map[string][]byte, error) {
 		}
 		files[dir+"search.json"] = search
 	}
-	for name, page := range pages {
-		var b bytes.Buffer
-		if err := page.Render(context.Background(), &b); err != nil {
-			return nil, fmt.Errorf("%s: %w", name, err)
-		}
-		files[name] = b.Bytes()
+	pages, err := s.renderPages()
+	if err != nil {
+		return nil, err
 	}
+	maps.Copy(files, pages)
 	return files, nil
+}
+
+// renderPages returns every edition's HTML by output path.
+// If [Site.page] is nil, the .templ renderer handles them.
+func (s *Site) renderPages() (map[string][]byte, error) {
+	if s.page == nil {
+		return s.renderTemplates()
+	}
+	pages := make(map[string][]byte)
+	for _, e := range s.editions {
+		for i, p := range e.pages {
+			if p.external() {
+				continue
+			}
+			name := e.outDir() + p.outFile()
+			var b bytes.Buffer
+			err := s.page(s.pageView(e, i)).Render(context.Background(), &b)
+			if err != nil {
+				return nil, s.renderError(name, err)
+			}
+			pages[name] = b.Bytes()
+		}
+	}
+	return pages, nil
+}
+
+// renderError wraps err for output path name. For docs templates, it names the
+// files and gives an expression's ending file, line, and column.
+func (s *Site) renderError(name string, err error) error {
+	if s.templateGlob == "" {
+		return fmt.Errorf("%s: %w", name, err)
+	}
+	// templ uses 1-based lines and 0-based columns.
+	var te templ.Error
+	if errors.As(err, &te) && strings.HasSuffix(te.FileName, ".templ") {
+		return fmt.Errorf("%s:%d:%d: %w", te.FileName, te.Line, te.Col+1, te.Err)
+	}
+	return fmt.Errorf("%s: %w", s.templateGlob, err)
 }
 
 // Write writes the site to out. It first removes prior generated files,
@@ -322,8 +352,8 @@ func (s *Site) Write(out string) error {
 	return writeFiles(out, files)
 }
 
-// writeFiles writes files by slash-separated, dir-relative path, creating
-// needed directories.
+// writeFiles writes files by slash-separated,
+// dir-relative path, creating needed directories.
 func writeFiles(dir string, files map[string][]byte) error {
 	for name, content := range files {
 		p := filepath.Join(dir, filepath.FromSlash(name))
@@ -337,52 +367,52 @@ func writeFiles(dir string, files map[string][]byte) error {
 	return nil
 }
 
-// view returns the view of the page with index i of e.
-func (s *Site) view(e *edition, i int) docView {
-	p := e.pages[i]
+// pageView returns page i of e as a [Page].
+func (s *Site) pageView(e *edition, i int) Page {
+	p, d := e.pages[i], e.docs[i]
+	base := p.base()
 	prev, next := neighbors(e.pages, i)
-	v := docView{
-		doc:       e.docs[i],
-		chrome:    &s.chrome,
-		nav:       navigation(e.pages, e.groups, i),
-		toc:       contents(e.docs[i]),
-		prev:      prev,
-		next:      next,
-		edition:   e,
-		indexed:   !e.isMain() || s.latest() == nil,
-		suggested: suggestions(e.pages, e.groups, i),
+	v := Page{
+		Title:       p.title,
+		Heading:     d.title,
+		Description: d.description,
+		Body:        d.body,
+		Site:        s.chrome.name,
+		Version:     e.version,
+		Root:        base,
+		Home:        base,
+		Logo:        s.chrome.logo,
+		Markdown:    base + p.markdownFile(),
+		// main contains every edition's files.
+		Source:     s.chrome.host.url(MainVersion, p.file, false),
+		Repository: s.chrome.host.repoURL,
+		Host:       s.chrome.host.name,
+		Navigation: navigation(e.pages, e.groups, i),
+		Contents:   contents(d),
+		Prev:       prev,
+		Next:       next,
+		Suggested:  suggestions(e.pages, e.groups, i),
+		Indexed:    !e.isMain() || s.latest() == nil,
+		site:       s,
+		edition:    e,
+		index:      i,
+	}
+	switch h := s.chrome.home; {
+	case isAbsURL(h):
+		v.Home = h
+	case h != "":
+		v.Home = base + "../" + h
 	}
 	for _, x := range s.editions {
-		v.versions = append(v.versions, x.versionLink(p.base(), p.path, x == e))
+		v.Versions = append(v.Versions, x.versionLink(base, p.path, x == e))
 	}
 	// read checked the note, which leaves no error here.
-	v.note, _ = e.noteHTML(i, s.editions)
-	// A first-page link represents all docs, so it is current when no other
-	// header link reaches the page.
-	var first []int
-	for _, l := range s.chrome.header {
-		href, to := s.chromeLink(e, i, l.URL)
-		if to == 0 {
-			first = append(first, len(v.header))
-		}
-		v.header = append(v.header,
-			headerEntry{Title: l.Title, Href: href, Icon: l.Icon, Current: to == i})
-	}
-	if !slices.ContainsFunc(v.header, func(h headerEntry) bool { return h.Current }) {
-		for _, k := range first {
-			v.header[k].Current = true
-		}
-	}
-	for _, l := range s.chrome.footer {
-		href, _ := s.chromeLink(e, i, l.URL)
-		v.footer = append(v.footer,
-			footerEntry{Title: l.Title, Href: href, Icon: l.Icon})
-	}
+	v.Note, _ = e.noteHTML(i, s.editions)
 	return v
 }
 
 // chromeLink returns dest's URL from page i of e and the target page index in e, or -1.
-// dest comes from main's first-page front matter.
+// dest is a template link resolved from main's first page.
 // A main-page link uses the same path in e, falling back to main if e lacks it.
 func (s *Site) chromeLink(e *edition, i int, dest string) (string, int) {
 	main, base := s.main(), e.pages[i].base()
