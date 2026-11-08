@@ -39,7 +39,8 @@ func TestCheckCSS(t *testing.T) {
 				"@font-face { font-family: X; src: url(x.woff2); font-display: swap; }\n" +
 				"@keyframes spin { to { rotate: 1turn; } }\n" +
 				"@supports (display: grid) { .c { display: grid; } }\n" +
-				"@layer base;\n"},
+				"@layer base;\n",
+		},
 		"typo": {
 			css: "a {\n  colr: red;\n}\n",
 			want: []string{
