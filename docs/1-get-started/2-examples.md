@@ -1,10 +1,10 @@
 # Examples
 
-The repository has 2 example docs folders, each with a style of its own. Serve one from the root of a clone of the repository to read it as a site.
+The repository has 2 example docs folders, each with a style of its own. Each is deployed as a site, and you can serve it from the root of a clone of the repository.
 
 ## A command-line tool
 
-[`example/cli/docs`](../../example/cli/docs/) documents wc, the Unix tool that counts lines, words and bytes, in the style of a man page in a terminal window.
+[`example/cli/docs`](../../example/cli/docs/) documents wc, the Unix tool that counts lines, words and bytes, in the style of a man page in a terminal window. See https://romshark.github.io/docpages/example/cli/
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="img/cli-dark.webp">
@@ -26,7 +26,7 @@ go run ./cmd/docpages -serve 127.0.0.1:7340 example/cli/docs
 
 ## A Go library
 
-[`example/library/docs`](../../example/library/docs/) documents ringbuf, a made-up Go ring buffer, in a monospace style.
+[`example/library/docs`](../../example/library/docs/) documents ringbuf, a made-up Go ring buffer, in a monospace style. See https://romshark.github.io/docpages/example/library/
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="img/library-dark.webp">

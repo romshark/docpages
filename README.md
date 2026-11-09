@@ -34,7 +34,7 @@ The documentation is a docpages site itself, at [romshark.github.io/docpages](ht
 - [Front matter](docs/3-reference/2-front-matter.md)
 - [Go library](docs/3-reference/4-go-library.md)
 
-[example/cli](example/cli) and [example/library](example/library) are complete docs folders, each in a style of its own.
+[example/cli](example/cli) and [example/library](example/library) are complete docs folders, each in a style of its own. See https://romshark.github.io/docpages/example/cli/ and https://romshark.github.io/docpages/example/library/
 
 ## Development
 

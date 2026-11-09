@@ -1,6 +1,6 @@
 # Example: a command-line tool
 
-[docs/](docs) documents wc, the Unix tool that counts lines, words and bytes.
+[docs/](docs) documents wc, the Unix tool that counts lines, words and bytes. See https://romshark.github.io/docpages/example/cli/
 
 It uses:
 

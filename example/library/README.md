@@ -1,6 +1,6 @@
 # Example: a Go library
 
-[docs/](docs) documents ringbuf, a made-up Go ring buffer.
+[docs/](docs) documents ringbuf, a made-up Go ring buffer. See https://romshark.github.io/docpages/example/library/
 
 It uses:
 
