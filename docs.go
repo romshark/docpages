@@ -321,11 +321,20 @@ func convertDocs(pages []page, srcs [][]byte, s *site) ([]doc, error) {
 		media := func(dest string) (string, error) {
 			return s.mediaURL(i, dest, pages[i].base())
 		}
+		header := func(dest string) (imageHeader, error) {
+			return s.mediaHeader(i, dest)
+		}
 		for _, img := range pageRefs[i].images {
-			dest, err := media(img.Destination.Value(src))
+			raw := img.Destination.Value(src)
+			dest, err := media(raw)
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", pages[i].file, err)
 			}
+			head, err := header(raw)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", pages[i].file, err)
+			}
+			sizeImage(img, head)
 			img.Destination = text.NewSingleLineValueFromString(
 				dest, text.IdentityDecoder,
 			)
@@ -338,8 +347,10 @@ func convertDocs(pages []page, srcs [][]byte, s *site) ([]doc, error) {
 			html.WithNodeRendererDecorator(ast.KindCodeBlock, codeBlocks()),
 			html.WithNodeRendererDecorator(ast.KindHeading, headingLinks),
 			html.WithNodeRendererDecorator(ast.KindBlockquote, callouts),
-			html.WithNodeRendererDecorator(ast.KindRawHTML, rawHTML(details, media)),
-			html.WithNodeRendererDecorator(ast.KindHTMLBlock, rawHTML(details, media)),
+			html.WithNodeRendererDecorator(ast.KindRawHTML,
+				rawHTML(details, media, header)),
+			html.WithNodeRendererDecorator(ast.KindHTMLBlock,
+				rawHTML(details, media, header)),
 		)
 		var body bytes.Buffer
 		if err := r.Render(&body, src, nodes[i]); err != nil {

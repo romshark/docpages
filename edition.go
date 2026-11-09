@@ -106,12 +106,16 @@ func (e *edition) noteHTML(i int, editions []*edition) (string, error) {
 		}
 		// Image paths are relative to README.md (page 0).
 		if img, ok := n.(*ast.Image); ok {
-			dest, err := e.links.mediaURL(
-				0, img.Destination.Value(src), e.pages[i].base(),
-			)
+			raw := img.Destination.Value(src)
+			dest, err := e.links.mediaURL(0, raw, e.pages[i].base())
 			if err != nil {
 				return ast.WalkStop, err
 			}
+			head, err := e.links.mediaHeader(0, raw)
+			if err != nil {
+				return ast.WalkStop, err
+			}
+			sizeImage(img, head)
 			img.Destination = text.NewSingleLineValueFromString(
 				dest, text.IdentityDecoder,
 			)

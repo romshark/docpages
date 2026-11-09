@@ -20,7 +20,11 @@ A folder without a number, as `2-guide/img/`, keeps the images next to their pag
 
 ## Size and themes
 
-For a size, write an `<img>` tag:
+docpages writes each image's file dimensions into the page, letting the browser reserve space while it loads so the text below stays in place. It reads PNG, JPEG, GIF, WebP and AVIF dimensions, plus SVG dimensions when `<svg>` has pixel `width` and `height` attributes. Images from other sites aren't sized automatically.
+
+The reserved space for opaque images pulses while they load. PNG, WebP and AVIF files with transparent pixels don't pulse, nor do GIF or SVG files, because the effect would show through them.
+
+To use another size, set `width` on an `<img>`. The page adds a proportional `height`:
 
 ```html
 <img src="img/search.webp" alt="The search dialog" width="480">
@@ -84,9 +88,11 @@ A `<picture>` can show another image on a small screen, as a screenshot of the l
 
 The theme switch changes only the `prefers-color-scheme` of a `media`, which leaves the width to pick the image. Narrow the window below 30rem to see the phone.
 
+If a `<source>` image has different proportions from the `<img>`, like the phone screenshot, docpages gives it its own width and height.
+
 ## Video and audio
 
-Write a `<video>` tag, with a `poster` that shows before the video plays:
+Write a `<video>` tag with a `poster`. It appears before playback and sets the video's size:
 
 ```html
 <video src="img/demo.mp4" poster="img/demo.webp" controls muted></video>

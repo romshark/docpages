@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math"
 	"net/url"
 	"path"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/yuin/goldmark/v2/ast"
@@ -27,6 +29,8 @@ const mediaDir = "media"
 type mediaCopy struct {
 	name string // The path of the copy relative to the directory of the edition.
 	data []byte
+	// header is that of an image that [readImageHeader] reads, or zero.
+	header imageHeader
 }
 
 // mediaElements are raw Markdown HTML that pages show: images, video, audio,
@@ -55,16 +59,41 @@ var mediaAttrs = map[string]bool{
 // unchanged. Other paths resolve file-relative, as on GitHub, to repository
 // files copied into [mediaDir].
 func (s *site) mediaURL(from int, dest, base string) (string, error) {
+	u, c, err := s.mediaFile(from, dest)
+	if err != nil {
+		return "", err
+	}
+	if c == nil {
+		return dest, nil
+	}
+	return withQueryFragment(base+(&url.URL{Path: c.name}).EscapedPath(), u), nil
+}
+
+// mediaHeader returns the header of the image file that dest names on pages[from].
+// It's zero for a URL with a scheme or host, and for a file that
+// [readImageHeader] doesn't read.
+func (s *site) mediaHeader(from int, dest string) (imageHeader, error) {
+	_, c, err := s.mediaFile(from, dest)
+	if err != nil || c == nil {
+		return imageHeader{}, err
+	}
+	return c.header, nil
+}
+
+// mediaFile returns dest parsed and the copy of the repository file that it
+// names on pages[from], which it reads the first time. The copy is nil for a
+// URL with a scheme or host, which pages keep as it is.
+func (s *site) mediaFile(from int, dest string) (*url.URL, *mediaCopy, error) {
 	u, err := url.Parse(dest)
 	if err != nil {
-		return "", fmt.Errorf("media %q: %w", dest, err)
+		return nil, nil, fmt.Errorf("media %q: %w", dest, err)
 	}
 	if u.Scheme != "" || u.Host != "" || u.Path == "" {
-		return dest, nil
+		return u, nil, nil
 	}
 	file := repoPath(s.pages[from].file, u.Path)
 	if s.root != "" && !inDir(file, s.root) {
-		return "", fmt.Errorf("media %q is outside %s, "+
+		return nil, nil, fmt.Errorf("media %q is outside %s, "+
 			"which a release holds its media in", dest, s.root)
 	}
 	c, ok := s.media[file]
@@ -72,41 +101,60 @@ func (s *site) mediaURL(from int, dest, base string) (string, error) {
 		data, err := fs.ReadFile(s.fsys, file)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
-				return "", fmt.Errorf("media %q: no file %s", dest, file)
+				return nil, nil, fmt.Errorf("media %q: no file %s", dest, file)
 			}
-			return "", fmt.Errorf("media %q: %w", dest, err)
+			return nil, nil, fmt.Errorf("media %q: %w", dest, err)
 		}
 		sum := sha256.Sum256(data)
 		c = mediaCopy{
 			name: path.Join(mediaDir, hex.EncodeToString(sum[:8]), path.Base(file)),
 			data: data,
 		}
+		c.header, _ = readImageHeader(data)
 		if s.media == nil {
 			s.media = make(map[string]mediaCopy)
 		}
 		s.media[file] = c
 	}
-	return withQueryFragment(base+(&url.URL{Path: c.name}).EscapedPath(), u), nil
+	return u, &c, nil
+}
+
+// opaqueAttr marks an image without transparent pixels,
+// which hides the CSS placeholder behind it once it loads.
+const opaqueAttr = "data-opaque"
+
+// sizeImage sets the width, height and [opaqueAttr] of Markdown image img from h.
+func sizeImage(img *ast.Image, h imageHeader) {
+	if h.width == 0 {
+		return
+	}
+	attr := func(key, val string) {
+		img.SetAttribute(key, text.NewMultiLineValueFromString(val, text.IdentityDecoder))
+	}
+	attr("width", strconv.Itoa(h.width))
+	attr("height", strconv.Itoa(h.height))
+	if h.opaque {
+		attr(opaqueAttr, "")
+	}
 }
 
 // rewriteMedia returns the visible parts of raw HTML: media elements limited to
-// [mediaAttrs], with src, srcset, and poster URLs replaced by resolve and
-// script-running URLs removed, plus anything c writes (nil means none). found
-// reports whether it kept media or c output. [mediaURLEdits] handles page copies.
+// [mediaAttrs], with src, srcset, and poster URLs replaced by resolve, the
+// attributes that [sizeMedia] adds from header, and script-running URLs removed,
+// plus anything c writes (nil means none). found reports whether it kept media
+// or c output. [mediaURLEdits] handles page copies.
 func rewriteMedia(
-	raw string, c *collapsibles, resolve func(string) (string, error),
+	raw string, c *collapsibles, resolve func(string) (string, error), header headerFunc,
 ) (out string, found bool, err error) {
-	z := html.NewTokenizer(strings.NewReader(raw))
+	toks, err := htmlTokens(raw)
+	if err != nil {
+		return "", false, err
+	}
 	var b strings.Builder
-	for {
-		tt := z.Next()
-		if tt == html.ErrorToken {
-			if errors.Is(z.Err(), io.EOF) {
-				return b.String(), found, nil
-			}
-			return "", false, z.Err()
-		}
-		tok := z.Token()
+	// pic is the <img> of the open <picture>.
+	var pic *pictureImg
+	for i, t := range toks {
+		tt, tok := t.typ, t.Token
 		tag := tt == html.StartTagToken || tt == html.SelfClosingTagToken ||
 			tt == html.EndTagToken
 		if !tag || !mediaElements[tok.Data] {
@@ -121,10 +169,18 @@ func rewriteMedia(
 		}
 		found = true
 		if tt == html.EndTagToken {
+			if tok.Data == "picture" {
+				pic = nil
+			}
 			b.WriteString("</")
 			b.WriteString(tok.Data)
 			b.WriteByte('>')
 			continue
+		}
+		if tok.Data == "picture" && tt == html.StartTagToken {
+			if pic, err = findPictureImg(toks[i+1:], header); err != nil {
+				return "", false, err
+			}
 		}
 		var attrs []html.Attribute
 		for _, a := range tok.Attr {
@@ -143,6 +199,9 @@ func rewriteMedia(
 			}
 			attrs = append(attrs, a)
 		}
+		if attrs, err = sizeMedia(tok, attrs, pic, header); err != nil {
+			return "", false, fmt.Errorf("<%s>: %w", tok.Data, err)
+		}
 		b.WriteByte('<')
 		b.WriteString(tok.Data)
 		for _, a := range attrs {
@@ -156,11 +215,249 @@ func rewriteMedia(
 		}
 		b.WriteByte('>')
 	}
+	return b.String(), found, nil
+}
+
+// headerFunc returns the header of the image file at URL dest as a page writes it,
+// or zero when unknown.
+type headerFunc func(dest string) (imageHeader, error)
+
+// htmlToken is a token of raw HTML and its type.
+type htmlToken struct {
+	typ html.TokenType
+	html.Token
+}
+
+// htmlTokens tokenizes raw HTML up front, for [findPictureImg] to look ahead.
+func htmlTokens(raw string) ([]htmlToken, error) {
+	z := html.NewTokenizer(strings.NewReader(raw))
+	var toks []htmlToken
+	for {
+		tt := z.Next()
+		if tt == html.ErrorToken {
+			if errors.Is(z.Err(), io.EOF) {
+				return toks, nil
+			}
+			return nil, z.Err()
+		}
+		toks = append(toks, htmlToken{typ: tt, Token: z.Token()})
+	}
+}
+
+// pictureImg is the <img> of a <picture>, which its <source> elements size by.
+type pictureImg struct {
+	w, h   int  // The size of its image, 0 when unknown.
+	aw, ah int  // Its width and height attributes, 0 when absent.
+	ok     bool // Whether the attributes are integers.
+	opaque bool // Whether every image of the picture is opaque.
+}
+
+// findPictureImg returns the <img> in toks, the tokens after a <picture>,
+// or nil when the picture or the raw HTML ends first.
+func findPictureImg(toks []htmlToken, header headerFunc) (*pictureImg, error) {
+	opaque := true
+	for _, t := range toks {
+		if t.typ == html.EndTagToken {
+			if t.Data == "picture" {
+				return nil, nil
+			}
+			continue
+		}
+		switch t.Data {
+		case "source":
+			o, err := srcsetOpaque(attrOf(t.Attr, "srcset"), header)
+			if err != nil {
+				return nil, fmt.Errorf("<source>: %w", err)
+			}
+			opaque = opaque && o
+		case "img":
+			img, o, err := imgImage(t.Attr, header)
+			if err != nil {
+				return nil, fmt.Errorf("<img>: %w", err)
+			}
+			p := pictureImg{w: img.width, h: img.height, opaque: opaque && o}
+			p.aw, p.ah, p.ok = dimensionAttrs(t.Attr)
+			return &p, nil
+		}
+	}
+	return nil, nil
+}
+
+// sizeMedia adds the width and height of tok's image to attrs, its kept
+// attributes, from the src of an <img> or the poster of a <video>.
+// An author's width or height scales the other, and both stay as written.
+// A <source> of pic's <picture> gets a size only if its proportions
+// differ from the <img>. An <img> with only opaque images gets [opaqueAttr].
+func sizeMedia(
+	tok html.Token, attrs []html.Attribute, pic *pictureImg, header headerFunc,
+) ([]html.Attribute, error) {
+	aw, ah, ok := dimensionAttrs(attrs)
+	var img imageHeader
+	var opaque bool
+	var err error
+	switch tok.Data {
+	case "img":
+		img, opaque, err = imgImage(tok.Attr, header)
+		if pic != nil {
+			opaque = pic.opaque
+		}
+	case "video":
+		img, err = header(attrOf(tok.Attr, "poster"))
+	case "source":
+		if pic == nil || !pic.ok {
+			return attrs, nil
+		}
+		img, err = srcsetImage(attrOf(tok.Attr, "srcset"), header)
+		if aw == 0 && ah == 0 {
+			if pic.aw > 0 && pic.ah > 0 ||
+				sameRatio(img.width, img.height, pic.w, pic.h) {
+				return attrs, nil
+			}
+			aw, ah = pic.aw, pic.ah
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	if ok && img.width > 0 {
+		w, h := fitSize(img.width, img.height, aw, ah)
+		attrs = setAttr(attrs, "width", strconv.Itoa(w))
+		attrs = setAttr(attrs, "height", strconv.Itoa(h))
+	}
+	if opaque {
+		attrs = append(attrs, html.Attribute{Key: opaqueAttr})
+	}
+	return attrs, nil
+}
+
+// imgImage returns the header of the src of an <img>, or of its first srcset
+// candidate without one. opaque reports whether all its images are opaque.
+func imgImage(
+	attrs []html.Attribute, header headerFunc,
+) (img imageHeader, opaque bool, err error) {
+	srcset := attrOf(attrs, "srcset")
+	if src := attrOf(attrs, "src"); src != "" {
+		img, err = header(src)
+	} else {
+		img, err = srcsetImage(srcset, header)
+	}
+	if err != nil {
+		return imageHeader{}, false, err
+	}
+	opaque, err = srcsetOpaque(srcset, header)
+	return img, opaque && img.opaque, err
+}
+
+// srcsetImage returns the header of the first candidate of srcset,
+// its size divided by a density such as "2x".
+func srcsetImage(srcset string, header headerFunc) (imageHeader, error) {
+	first, _, _ := strings.Cut(srcset, ",")
+	fields := strings.Fields(first)
+	if len(fields) == 0 {
+		return imageHeader{}, nil
+	}
+	img, err := header(fields[0])
+	if err != nil || img.width == 0 || len(fields) < 2 {
+		return img, err
+	}
+	if x, ok := strings.CutSuffix(fields[1], "x"); ok {
+		if d, err := strconv.ParseFloat(x, 64); err == nil && d > 0 {
+			img.width = max(1, round(float64(img.width)/d))
+			img.height = max(1, round(float64(img.height)/d))
+		}
+	}
+	return img, nil
+}
+
+// srcsetOpaque reports whether every candidate of srcset is an opaque image.
+func srcsetOpaque(srcset string, header headerFunc) (bool, error) {
+	for c := range strings.SplitSeq(srcset, ",") {
+		fields := strings.Fields(c)
+		if len(fields) == 0 {
+			continue
+		}
+		img, err := header(fields[0])
+		if err != nil || !img.opaque {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+// dimensionAttrs returns the width and height of attrs, 0 when absent.
+// ok is false for a value that isn't a positive integer.
+func dimensionAttrs(attrs []html.Attribute) (w, h int, ok bool) {
+	for _, a := range attrs {
+		if a.Key != "width" && a.Key != "height" {
+			continue
+		}
+		n, err := strconv.Atoi(strings.TrimSpace(a.Val))
+		if err != nil || n <= 0 {
+			return 0, 0, false
+		}
+		if a.Key == "width" {
+			w = n
+		} else {
+			h = n
+		}
+	}
+	return w, h, true
+}
+
+// fitSize returns the size of an element that shows a w by h image.
+// The author's width aw or height ah, 0 when absent, scales the other.
+func fitSize(w, h, aw, ah int) (int, int) {
+	switch {
+	case aw > 0 && ah > 0:
+		return aw, ah
+	case aw > 0:
+		return aw, max(1, round(float64(aw)*float64(h)/float64(w)))
+	case ah > 0:
+		return max(1, round(float64(ah)*float64(w)/float64(h))), ah
+	}
+	return w, h
+}
+
+// sameRatio reports whether w1/h1 and w2/h2 match within the 1% that rounding
+// leaves in a resized image. A width of 0 matches nothing.
+func sameRatio(w1, h1, w2, h2 int) bool {
+	if w1 == 0 || w2 == 0 {
+		return false
+	}
+	a, b := float64(w1)*float64(h2), float64(w2)*float64(h1)
+	return math.Abs(a-b) <= 0.01*max(a, b)
+}
+
+func round(f float64) int {
+	return int(math.Round(f))
+}
+
+// attrOf returns the value of attribute key in attrs, or "".
+func attrOf(attrs []html.Attribute, key string) string {
+	for _, a := range attrs {
+		if a.Key == key {
+			return a.Val
+		}
+	}
+	return ""
+}
+
+// setAttr sets attribute key of attrs to val, adding it at the end if absent.
+func setAttr(attrs []html.Attribute, key, val string) []html.Attribute {
+	for i := range attrs {
+		if attrs[i].Key == key {
+			attrs[i].Val = val
+			return attrs
+		}
+	}
+	return append(attrs, html.Attribute{Key: key, Val: val})
 }
 
 // resolveMediaAttr replaces each URL in attribute key's val with resolve's result.
 // A srcset contains URLs with optional widths or densities.
-func resolveMediaAttr(key, val string, resolve func(string) (string, error)) (string, error) {
+func resolveMediaAttr(
+	key, val string, resolve func(string) (string, error),
+) (string, error) {
 	if key != "srcset" {
 		return resolve(strings.TrimSpace(val))
 	}
@@ -180,10 +477,10 @@ func resolveMediaAttr(key, val string, resolve func(string) (string, error)) (st
 }
 
 // rawHTML decorates block or inline raw-HTML rendering. It shows media with
-// URLs replaced by resolve and <details> written by c. The decorated renderer
-// handles other raw HTML, which goldmark omits.
+// URLs replaced by resolve, attributes from header and <details> written by c.
+// The decorated renderer handles other raw HTML, which goldmark omits.
 func rawHTML(
-	c *collapsibles, resolve func(string) (string, error),
+	c *collapsibles, resolve func(string) (string, error), header headerFunc,
 ) goldhtml.NodeRendererDecorator {
 	return func(next goldhtml.NodeRenderer) goldhtml.NodeRenderer {
 		return renderer.NodeRendererFunc(func(
@@ -200,7 +497,7 @@ func rawHTML(
 			case *ast.HTMLBlock:
 				raw, block = string(n.Value.Bytes(source)), true
 			}
-			out, found, err := rewriteMedia(raw, c, resolve)
+			out, found, err := rewriteMedia(raw, c, resolve, header)
 			if err != nil {
 				return ast.WalkStop, err
 			}

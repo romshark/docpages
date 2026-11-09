@@ -1172,6 +1172,27 @@ neo-dialog.search dialog {
   margin-block-end: 1rem;
 }
 
+/* The box of an opaque image pulses until its pixels cover it. CSS can't detect
+   the load, so the pulse stops after 10 rounds, which also ends its repaints.
+   A transparent image lacks data-opaque, since the pulse would show through it. */
+.docs-content img[data-opaque] {
+  animation: neo-skeleton-pulse var(--neo-skeleton-duration) ease-in-out
+    var(--neo-placeholder-delay) 10;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-content img[data-opaque] {
+    animation-name: image-placeholder;
+  }
+}
+
+@keyframes image-placeholder {
+  from,
+  to {
+    background-color: var(--neo-skeleton-bg);
+  }
+}
+
 /* docs.js replaces Mermaid source with an SVG; without it, the source stays visible. */
 .docs-content pre.mermaid {
   padding: 0;

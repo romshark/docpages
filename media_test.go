@@ -1,9 +1,12 @@
 package docpages
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"image"
+	"image/png"
 	"path"
 	"strings"
 	"testing"
@@ -195,11 +198,215 @@ func TestRewriteMedia(t *testing.T) {
 		`<video controls muted src="v.mp4"></video>`:                       `<video controls muted src="/r/v.mp4"></video>`,
 		`<details><summary>More</summary></details>`:                       ``,
 	} {
-		got, found, err := rewriteMedia(raw, nil, testResolve)
+		got, found, err := rewriteMedia(raw, nil, testResolve, testHeader)
 		require.NoError(t, err)
 		require.Equal(t, want, got, raw)
 		require.Equal(t, want != "", found, raw)
 	}
+}
+
+// testHeader returns the headers of the test images that [TestRewriteMediaSize]
+// and [TestRewriteMediaOpaque] name, and zero for other URLs.
+// The .png images are transparent and the .jpg images opaque.
+func testHeader(dest string) (imageHeader, error) {
+	switch dest {
+	case "wide.png":
+		return imageHeader{width: 1920, height: 1200}, nil
+	case "wide-480.png":
+		return imageHeader{width: 480, height: 300}, nil
+	case "tall.png":
+		return imageHeader{width: 780, height: 1200}, nil
+	case "poster.png":
+		return imageHeader{width: 960, height: 540}, nil
+	case "photo.jpg", "photo-dark.jpg":
+		return imageHeader{width: 1920, height: 1200, opaque: true}, nil
+	case "photo-480.jpg":
+		return imageHeader{width: 480, height: 300, opaque: true}, nil
+	}
+	return imageHeader{}, nil
+}
+
+// TestRewriteMediaSize checks the width and height that page HTML gives raw-HTML
+// media, including an author's width or height and a <source> whose proportions
+// differ from its <img>.
+func TestRewriteMediaSize(t *testing.T) {
+	for _, tt := range []struct{ raw, want string }{
+		{
+			`<img src="wide.png" alt="A">`,
+			`<img src="/r/wide.png" alt="A" width="1920" height="1200">`,
+		},
+		{
+			`<img src="wide.png" width="480">`,
+			`<img src="/r/wide.png" width="480" height="300">`,
+		},
+		{
+			`<img src="wide.png" height="600">`,
+			`<img src="/r/wide.png" height="600" width="960">`,
+		},
+		{
+			`<img src="wide.png" width="480" height="100">`,
+			`<img src="/r/wide.png" width="480" height="100">`,
+		},
+		{
+			`<img src="wide.png" width="50%">`,
+			`<img src="/r/wide.png" width="50%">`,
+		},
+		{
+			`<img src="https://x.org/a.png">`,
+			`<img src="https://x.org/a.png">`,
+		},
+		{
+			`<img srcset="wide.png 2x" alt="A">`,
+			`<img srcset="/r/wide.png 2x" alt="A" width="960" height="600">`,
+		},
+		{
+			`<video src="v.mp4" poster="poster.png" controls></video>`,
+			`<video src="/r/v.mp4" poster="/r/poster.png" controls` +
+				` width="960" height="540"></video>`,
+		},
+		{
+			`<video poster="poster.png" width="480">` +
+				`<source src="v.mp4" type="video/mp4"></video>`,
+			`<video poster="/r/poster.png" width="480" height="270">` +
+				`<source src="/r/v.mp4" type="video/mp4"></video>`,
+		},
+		// A source with the proportions of the <img> takes its size.
+		{
+			`<picture><source media="(prefers-color-scheme: dark)" srcset="wide.png">` +
+				`<img src="wide.png" alt="A"></picture>`,
+			`<picture><source media="(prefers-color-scheme: dark)" ` +
+				`srcset="/r/wide.png">` +
+				`<img src="/r/wide.png" alt="A" width="1920" height="1200"></picture>`,
+		},
+		{
+			`<picture><source srcset="wide-480.png 480w, wide.png 1920w">` +
+				`<img src="wide.png" alt="A"></picture>`,
+			`<picture><source srcset="/r/wide-480.png 480w, /r/wide.png 1920w">` +
+				`<img src="/r/wide.png" alt="A" width="1920" height="1200"></picture>`,
+		},
+		{
+			`<picture><source media="(max-width: 30rem)" srcset="tall.png">` +
+				`<img src="wide.png" alt="A"></picture>`,
+			`<picture><source media="(max-width: 30rem)" srcset="/r/tall.png" width="780" height="1200">` +
+				`<img src="/r/wide.png" alt="A" width="1920" height="1200"></picture>`,
+		},
+		{
+			`<picture><source srcset="tall.png">` +
+				`<img src="wide.png" width="480"></picture>`,
+			`<picture><source srcset="/r/tall.png" width="480" height="738">` +
+				`<img src="/r/wide.png" width="480" height="300"></picture>`,
+		},
+		{
+			`<picture><source srcset="tall.png">` +
+				`<img src="wide.png" width="480" height="300"></picture>`,
+			`<picture><source srcset="/r/tall.png"><img src="/r/wide.png" width="480" height="300"></picture>`,
+		},
+		{
+			`<picture><source srcset="tall.png" width="390">` +
+				`<img src="wide.png"></picture>`,
+			`<picture><source srcset="/r/tall.png" width="390" height="600">` +
+				`<img src="/r/wide.png" width="1920" height="1200"></picture>`,
+		},
+		{
+			`<picture><source srcset="tall.png 2x"><img src="wide.png"></picture>`,
+			`<picture><source srcset="/r/tall.png 2x" width="390" height="600">` +
+				`<img src="/r/wide.png" width="1920" height="1200"></picture>`,
+		},
+		// Without its <img>, a source can't tell whether it needs a size.
+		{
+			`<picture><source srcset="tall.png">`,
+			`<picture><source srcset="/r/tall.png">`,
+		},
+	} {
+		got, _, err := rewriteMedia(tt.raw, nil, testResolve, testHeader)
+		require.NoError(t, err)
+		require.Equal(t, tt.want, got, tt.raw)
+	}
+}
+
+// TestRewriteMediaOpaque checks that page HTML marks an <img> opaque only when
+// its src, its srcset and the srcsets of its <picture> are all opaque.
+func TestRewriteMediaOpaque(t *testing.T) {
+	for _, tt := range []struct{ raw, want string }{
+		{
+			`<img src="photo.jpg" alt="A">`,
+			`<img src="/r/photo.jpg" alt="A" width="1920" height="1200" data-opaque>`,
+		},
+		{
+			`<img src="photo.jpg" width="480" height="100">`,
+			`<img src="/r/photo.jpg" width="480" height="100" data-opaque>`,
+		},
+		{
+			`<img src="photo.jpg" srcset="photo-480.jpg 480w, photo.jpg 1920w">`,
+			`<img src="/r/photo.jpg" srcset="/r/photo-480.jpg 480w, /r/photo.jpg 1920w"` +
+				` width="1920" height="1200" data-opaque>`,
+		},
+		{
+			`<img src="photo.jpg" srcset="photo-480.jpg 480w, wide.png 1920w">`,
+			`<img src="/r/photo.jpg" srcset="/r/photo-480.jpg 480w, /r/wide.png 1920w"` +
+				` width="1920" height="1200">`,
+		},
+		{
+			`<img src="https://x.org/a.jpg">`,
+			`<img src="https://x.org/a.jpg">`,
+		},
+		{
+			`<picture><source media="(prefers-color-scheme: dark)"` +
+				` srcset="photo-dark.jpg"><img src="photo.jpg" alt="A"></picture>`,
+			`<picture><source media="(prefers-color-scheme: dark)"` +
+				` srcset="/r/photo-dark.jpg">` +
+				`<img src="/r/photo.jpg" alt="A" width="1920" height="1200" data-opaque>` +
+				`</picture>`,
+		},
+		{
+			`<picture><source media="(prefers-color-scheme: dark)"` +
+				` srcset="wide.png"><img src="photo.jpg" alt="A"></picture>`,
+			`<picture><source media="(prefers-color-scheme: dark)"` +
+				` srcset="/r/wide.png">` +
+				`<img src="/r/photo.jpg" alt="A" width="1920" height="1200"></picture>`,
+		},
+		// A <video> shows its poster in a box of its own, without a placeholder.
+		{
+			`<video poster="photo.jpg"></video>`,
+			`<video poster="/r/photo.jpg" width="1920" height="1200"></video>`,
+		},
+	} {
+		got, _, err := rewriteMedia(tt.raw, nil, testResolve, testHeader)
+		require.NoError(t, err)
+		require.Equal(t, tt.want, got, tt.raw)
+	}
+}
+
+// TestMediaSize checks that page HTML sizes and marks an opaque Markdown image
+// and raw <img>, while the Markdown copy keeps them as written.
+func TestMediaSize(t *testing.T) {
+	var shotPNG bytes.Buffer
+	require.NoError(t, png.Encode(&shotPNG, image.NewGray(image.Rect(0, 0, 30, 20))))
+	page := dedent(`
+		# Testing
+
+		![Shot](img/shot.png)
+
+		<img src="img/shot.png" alt="Shot" width="15">
+	`)
+	fsys := testRepoFS()
+	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte(page)}
+	fsys["docs/2-guides/img/shot.png"] = &fstest.MapFile{Data: shotPNG.Bytes()}
+	s, err := read(fsys, "docs", noRemote, false)
+	require.NoError(t, err)
+	shot := "../" + mediaName(shotPNG.String(), "shot.png")
+
+	html := pageHTML(t, s, "guides/testing")
+	require.Contains(t, html,
+		`<img src="`+shot+`" alt="Shot" width="30" height="20" data-opaque="">`)
+	require.Contains(t, html,
+		`<img src="`+shot+`" alt="Shot" width="15" height="10" data-opaque>`)
+
+	files, err := s.Files()
+	require.NoError(t, err)
+	require.Equal(t,
+		strings.ReplaceAll(page, "img/shot.png", shot),
+		string(files["main/guides/testing.md"]))
 }
 
 // TestMediaURLEdits checks that a raw-HTML Markdown copy changes only media URLs,

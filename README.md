@@ -12,15 +12,15 @@ go run github.com/romshark/docpages/cmd/docpages@latest -serve 127.0.0.1:7340 do
 
 ## Compared to other tools
 
-| | docpages | [Hugo](https://gohugo.io) | [Docusaurus](https://docusaurus.io) | [VitePress](https://vitepress.dev) | [Starlight](https://starlight.astro.build) | [MkDocs](https://www.mkdocs.org) | [mdBook](https://rust-lang.github.io/mdBook/) |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Ecosystem | Go | Go | npm | npm | npm | pip | Cargo |
-| Structure | Folder and file names | Folders and `weight` | `sidebars.js` or folders | Config | Config or folders | `mkdocs.yml` or folders | `SUMMARY.md` |
-| Relative `.md` links | Yes | With a render hook | Yes | Yes | With a plugin | Yes | Yes |
-| Versions\* | Yes | No | Yes | With a plugin | With a plugin | With mike | No |
-| Search | Yes | With a theme | Algolia or a plugin | Yes | Yes | Yes | Yes |
-| Plugins | Not yet 🚧 | Yes | Yes | Yes | Yes | Yes | Yes |
-| Templates | [templ](https://templ.guide) | Go templates | React components | Vue components | Astro components | Jinja | Handlebars |
+| | docpages | [Hugo](https://gohugo.io) | [Docusaurus](https://docusaurus.io) | [VitePress](https://vitepress.dev) | [Starlight](https://starlight.astro.build) | [MkDocs](https://www.mkdocs.org) | [Zensical](https://zensical.org) | [mdBook](https://rust-lang.github.io/mdBook/) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Ecosystem | Go | Go | npm | npm | npm | pip | pip | Cargo |
+| Structure | Folder and file names | Folders and `weight` | `sidebars.js` or folders | Config | Config or folders | `mkdocs.yml` or folders | `zensical.toml` or folders | `SUMMARY.md` |
+| Relative `.md` links | Yes | With a render hook | Yes | Yes | With a plugin | Yes | Yes | Yes |
+| Versions\* | Yes | No | Yes | With a plugin | With a plugin | With mike | With mike | No |
+| Search | Yes | With a theme | Algolia or a plugin | Yes | Yes | Yes | Yes | Yes |
+| Plugins | Not yet 🚧 | Yes | Yes | Yes | Yes | Yes | Built-in only | Yes |
+| Templates | [templ](https://templ.guide) | Go templates | React components | Vue components | Astro components | Jinja | Jinja | Handlebars |
 
 \* Versions are copies of the docs for each release, with a menu that switches between them.
 

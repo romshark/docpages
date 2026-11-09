@@ -355,7 +355,7 @@ func TestVersionNote(t *testing.T) {
 	require.NotContains(t, string(files["docs/versions/v1.3/README.md"]), "note")
 }
 
-// TestVersionNoteImage checks note-image copy links from every page,
+// TestVersionNoteImage checks note-image copy links and sizes from every page,
 // note-only usage, and release notes using release images.
 func TestVersionNoteImage(t *testing.T) {
 	fsys := testRepoFS()
@@ -368,17 +368,19 @@ func TestVersionNoteImage(t *testing.T) {
 			`), 1,
 		)),
 	}
-	fsys["docs/img/new.svg"] = &fstest.MapFile{Data: []byte("<svg></svg>")}
+	const svg = `<svg width="16" height="12"></svg>`
+	fsys["docs/img/new.svg"] = &fstest.MapFile{Data: []byte(svg)}
 	s, err := read(fsys, "docs", noRemote, false)
 	require.NoError(t, err)
-	img := mediaName("<svg></svg>", "new.svg")
+	img := mediaName(svg, "new.svg")
 	require.Contains(t, pageHTML(t, s, "guides/events"),
 		`<p class="version-note" role="note"><img src="../`+
-			img+`" alt="New"> Try v2.</p>`)
-	require.Contains(t, pageHTML(t, s, ""), `<img src="./`+img+`" alt="New">`)
+			img+`" alt="New" width="16" height="12"> Try v2.</p>`)
+	require.Contains(t, pageHTML(t, s, ""),
+		`<img src="./`+img+`" alt="New" width="16" height="12">`)
 	files, err := s.Files()
 	require.NoError(t, err)
-	require.Equal(t, "<svg></svg>", string(files["main/"+img]))
+	require.Equal(t, svg, string(files["main/"+img]))
 
 	fsys = withReleases(t, testRepoFS(), "v1.2.0")
 	fsys["docs/img/new.svg"] = &fstest.MapFile{Data: []byte("<svg></svg>")}
