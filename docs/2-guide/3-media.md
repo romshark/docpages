@@ -94,7 +94,15 @@ Write a `<video>` tag, with a `poster` that shows before the video plays:
 
 <video src="img/demo.mp4" poster="img/demo.webp" controls muted></video>
 
-`<audio>` works the same way. `<source>` offers a file in more than 1 format, or with `media` a smaller one for a small screen, and `<track>` adds captions. The browser plays the first `<source>` whose `media` holds and whose `type` it plays. It picks it once, as the video loads:
+Write an `<audio>` tag the same way, without a `poster`:
+
+```html
+<audio src="img/demo.mp3" controls></audio>
+```
+
+<audio src="img/demo.mp3" controls></audio>
+
+`<source>` works in both tags. It offers a file in more than 1 format, or with `media` a smaller one for a small screen. `<track>` adds captions, which browsers show only for a video. The browser plays the first `<source>` whose `media` holds and whose `type` it plays. It picks it once, as the video loads:
 
 ```html
 <video poster="img/demo.webp" controls>

@@ -6,22 +6,14 @@ suggested: true
 
 # Introduction
 
-docpages turns a folder of Markdown files in your Git repository into a documentation site.
+docpages builds a static documentation site from a folder of Markdown files in your Git repository. Write GitHub Flavored Markdown with syntax-highlighted code, Mermaid diagrams, callouts, collapsible sections, responsive images, video and audio. docpages turns the folder structure into navigation and adds in-browser search, versions for `main` and every release, light and dark themes, custom styles and templates, and `llms.txt` with a Markdown copy of every page.
 
-There's no config file to list your pages: the folders and file names are the navigation. Links that work on GitHub work on the site, and a link to a heading that doesn't exist fails the build.
+Preview the site as you write: saving a file reloads the open page, and build errors appear in the browser until you fix them:
 
 ```sh title="Terminal"
 go run github.com/romshark/docpages/cmd/docpages@latest -serve 127.0.0.1:7340 docs
 ```
 
-## What you get
-
-- Navigation, page contents and previous and next links, from your folders
-- Search that runs in the browser, with no server
-- A version menu for `main` and each release
-- Light and dark themes, with your own styles and templates on top
-- `llms.txt` and a Markdown copy of every page for language models
-
 ## Next steps
 
-Start with the [quick start](1-get-started/1-quick-start.md), or see how the [layout](2-guide/1-layout.md) of your folder becomes the navigation.
+Follow the [quick start](1-get-started/1-quick-start.md) to build your first site, then see how the folder [layout](2-guide/1-layout.md) becomes its navigation.
