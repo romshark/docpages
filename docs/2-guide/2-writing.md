@@ -26,6 +26,22 @@ The `README.md` of the docs folder also holds the [site settings](4-site-setting
 
 Write links relative to the file, as you would for GitHub:
 
+```markdown title="docs/2-guide/2-writing.md"
+- [Images and video](3-media.md), a page
+- [Size and themes](3-media.md#size-and-themes), a heading of another page
+- [Callouts](#callouts), a heading of this page
+- [Introduction](../), the `README.md` of a folder
+- [License](../../LICENSE), a file of the repository
+```
+
+- [Images and video](3-media.md), a page
+- [Size and themes](3-media.md#size-and-themes), a heading of another page
+- [Callouts](#callouts), a heading of this page
+- [Introduction](../), the `README.md` of a folder
+- [License](../../LICENSE), a file of the repository
+
+docpages resolves and checks each link:
+
 - A link to the Markdown file of a page opens the page.
 - A link to a folder opens the page of its `README.md`.
 - A link to any other file of the repository opens the file in the repository. With `-serve`, it opens the file in your working tree instead, which includes changes you haven't pushed.
@@ -154,17 +170,49 @@ ORDER BY title;
 
 ## Callouts
 
-GitHub alerts become callouts:
+GitHub alerts become callouts, each kind with its own color and title:
 
 ```markdown
+> [!NOTE]
+> The search runs in the browser, with no server.
+
 > [!TIP]
 > Preview your docs with `docpages -serve`.
+
+> [!IMPORTANT]
+> Every page needs a level 1 heading or a `title`.
+
+> [!WARNING]
+> A build first deletes what the last build wrote in `site/`:
+>
+> - The version folders, as `main/` and `v1.2/`
+> - `index.html` and `llms.txt`
+>
+> Keep **files of your own** out of these. See [Deploy](9-deploy.md#build-in-ci).
+
+> [!CAUTION]
+> Deleting a release folder in `versions/` removes the release from the site.
 ```
 
+> [!NOTE]
+> The search runs in the browser, with no server.
+
 > [!TIP]
 > Preview your docs with `docpages -serve`.
 
-The kinds are `NOTE`, `TIP`, `IMPORTANT`, `WARNING` and `CAUTION`.
+> [!IMPORTANT]
+> Every page needs a level 1 heading or a `title`.
+
+> [!WARNING]
+> A build first deletes what the last build wrote in `site/`:
+>
+> - The version folders, as `main/` and `v1.2/`
+> - `index.html` and `llms.txt`
+>
+> Keep **files of your own** out of these. See [Deploy](9-deploy.md#build-in-ci).
+
+> [!CAUTION]
+> Deleting a release folder in `versions/` removes the release from the site.
 
 ## Details
 

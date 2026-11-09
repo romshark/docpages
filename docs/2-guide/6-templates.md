@@ -55,6 +55,26 @@ The `tool` directive keeps the requirement through `go mod tidy`, which finds no
 | `FooterLinks` | Links of the footer, between the link to your repository and `llms.txt`. |
 | `FooterEnd` | The end of the footer, as a license. |
 
+`Head` can load a font for [style.css](5-styling.md#colors-and-fonts):
+
+```templ title="docs/template.templ"
+templ DocpagesMain(p docpages.Page) {
+	@docpages.Layout(p, docpages.Parts{Head: fonts()})
+}
+
+templ fonts() {
+	<link rel="preconnect" href="https://fonts.googleapis.com"/>
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"/>
+}
+```
+
+```css title="docs/style.css"
+:root {
+  --font-sans: Inter, sans-serif;
+}
+```
+
 ## Links
 
 `docpages.HeaderLinks` and `docpages.FooterLinks` write links. Each `docpages.Link` has a `Title`, a `URL` and an optional `Icon`, a templ of an `<svg>`. Draw it with `currentColor` and it takes the color of the text in both themes.
@@ -80,17 +100,20 @@ templ DocpagesMain(p docpages.Page) {
 
 func banner(p docpages.Page) templ.Component {
 	if p.Version == "v0.9" {
-		return oldBanner()
+		return oldBanner(p.Versions[0])
 	}
 	return nil
 }
 
-templ oldBanner() {
-	<p class="old-banner">v0.9 has a known vulnerability. Upgrade to v1.0.</p>
+templ oldBanner(latest docpages.VersionLink) {
+	<p class="old-banner">
+		v0.9 has a known vulnerability.
+		<a href={ latest.Href }>Upgrade to { latest.Version }</a>.
+	</p>
 }
 ```
 
-Compare a version with `==`, since `<` sorts `v0.10` before `v0.9`. `p.Versions` lists the releases, the latest first, then `main`, and the `Href` of each leads to the same page in that version.
+Compare a version with `==`, since `<` sorts `v0.10` before `v0.9`. `p.Versions` lists the releases, the latest first, then `main`. The `Href` of each leads to the same page in that version, so the banner of a v0.9 page links that page in the latest release.
 
 ## A page of your own
 

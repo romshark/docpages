@@ -42,4 +42,11 @@ The navigation leaves out folders without a number, such as `icons/`. Keep the f
 
 ## Icons
 
-`logo.svg`, the `icon.svg` of a group and every other icon go into the page as inline SVG. Draw them with `currentColor` and they take the color of the text in both themes.
+`logo.svg`, the `icon.svg` of a group and every other icon go into the page as inline SVG. Draw them with `currentColor` and they take the color of the text in both themes, as the icon of this group beside "Guide" in the navigation:
+
+```svg title="docs/2-guide/icon.svg"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 5.5C5.5 4 8.5 4 12 6c3.5-2 6.5-2 9-.5v13c-2.5-1.5-5.5-1.5-9 .5-3.5-2-6.5-2-9-.5zM12 6v13"/>
+</svg>
+```

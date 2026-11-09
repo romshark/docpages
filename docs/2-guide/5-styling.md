@@ -33,7 +33,7 @@ Write each color as a `light-dark()` pair, the light one first. Then both themes
 
 ## Menus and dialogs
 
-The version menu, the theme menu, the search dialog and the navigation are Morpheus components. Your rules don't reach inside them, but these properties do:
+The version menu, the theme menu, the search dialog and the navigation are [Morpheus components](https://romshark.github.io/morpheus/). Your rules don't reach inside them, but these properties do:
 
 | Property | Sets |
 | --- | --- |
