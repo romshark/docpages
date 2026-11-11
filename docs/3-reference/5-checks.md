@@ -1,6 +1,6 @@
 # Checks
 
-A build stops at the mistakes below and names the file of each, and in Markdown and CSS its line, as `docs/2-guide/1-layout.md:12:`. `-serve` stops at them when it starts. A mistake that you make while it serves shows in the page until you fix it.
+A build stops at the mistakes below and names the file of each, and in Markdown and CSS its line, as `docs/2-guide/1-layout.md:12:`. A mistake in a release starts with its tag, as `release v1.2.3:`, and names the file at its place in the docs folder. `-serve` stops at them when it starts. A mistake that you make while it serves shows in the page until you fix it.
 
 ## Folders
 
@@ -8,14 +8,15 @@ A build stops at the mistakes below and names the file of each, and in Markdown 
 - A group without a page, and a group in a group.
 - A Markdown file in a group without a position, as `1-install.md`, and 2 entries of a folder with the same position.
 - 2 pages with the same URL, as `1-setup.md` and `2-setup.md`, the same file name in 2 groups of the same name, or `1-index.md` next to `README.md`.
-- A release folder not named after a minor version, as `v1.2`.
-- A file that nothing uses: no page shows it, and no link or setting names it. That catches an image that no page shows any more, and a page in a folder without a position, which the navigation would leave out. Hidden files don't count. In a docs folder at the root of the repository, only the groups count.
+- A folder in `versions/` not named after a minor version, as `v1.2`, one that matches no release, and a file in `versions/` outside such a folder.
+- A file that nothing uses: no page shows it, and no link or setting names it. That catches an image that no page shows any more, and a page in a folder without a position, which the navigation would leave out. A file of a release folder counts if the release uses it. Hidden files don't count. In a docs folder at the root of the repository, only the groups count.
 
 ## Front matter
 
 - YAML that doesn't parse, a key that docpages doesn't know, and front matter without its closing `---`.
 - `url` with `source`, `url` without `title`, and a `source` outside the repository.
-- Site settings outside `docs/README.md`, `note` outside the `README.md` of a docs folder, and a note of more than 1 paragraph.
+- Site settings outside `docs/README.md`, `note` outside the `README.md` of a docs folder or a release folder, and a note of more than 1 paragraph.
+- `releases` without `from`, a `from` that isn't a minor version, as `v1.2`, and a `from` without a tag, as in a clone without tags.
 - A missing icon of the host, and a host without a name or a file URL.
 
 ## Pages
@@ -23,8 +24,7 @@ A build stops at the mistakes below and names the file of each, and in Markdown 
 - A page without a level 1 heading or a `title`.
 - A link to a file or a folder that doesn't exist, as a page that you renamed.
 - A link to a heading that its page lacks.
-- A link of a release that leaves the folder of the release.
-- An image or a video whose file doesn't exist, and a media file of a release outside its folder.
+- An image or a video whose file doesn't exist, and an image of a release note outside the folder of the release.
 - A code block in a language that [Chroma doesn't highlight](https://github.com/alecthomas/chroma#supported-languages). A block without a language and a `mermaid` block pass.
 - Raw HTML that the page would leave out: an element other than `<img>`, `<picture>`, `<source>`, `<video>`, `<audio>`, `<track>`, `<details>` and `<summary>`, an attribute other than [those that pages keep](../2-guide/3-media.md#the-html-that-pages-keep), a `javascript:` URL and text outside a `<details>`. A comment passes, which GitHub hides too.
 - Lines that start with `|` but make no table, which needs a delimiter row as `| --- | --- |` below its first row, with as many cells.

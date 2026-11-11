@@ -301,19 +301,22 @@ templ skipLink() {
 }
 
 // VersionSelect is the version menu; docs.js opens the page in the chosen version.
+// A site without releases has only main, and no menu.
 templ VersionSelect(p Page) {
-	@neo.SelectAttrs(neo.SelectOpts{
-		Value:             neo.Set(currentVersion(p.Versions)),
-		Size:              neo.Set("sm"),
-		AriaLabel:         neo.Set("Documentation version"),
-		PopoverFitContent: neo.Set(true),
-	}, templ.Attributes{"class": "version-select"}) {
-		for _, l := range p.Versions {
-			@neo.OptionAttrs(neo.OptionOpts{Value: neo.Set(l.Version)}, templ.Attributes{
-				"data-href":     l.Href,
-				"data-fallback": l.Fallback,
-			}) {
-				{ l.Version }
+	if len(p.Versions) > 1 {
+		@neo.SelectAttrs(neo.SelectOpts{
+			Value:             neo.Set(currentVersion(p.Versions)),
+			Size:              neo.Set("sm"),
+			AriaLabel:         neo.Set("Documentation version"),
+			PopoverFitContent: neo.Set(true),
+		}, templ.Attributes{"class": "version-select"}) {
+			for _, l := range p.Versions {
+				@neo.OptionAttrs(neo.OptionOpts{Value: neo.Set(l.Version)}, templ.Attributes{
+					"data-href":     l.Href,
+					"data-fallback": l.Fallback,
+				}) {
+					{ l.Version }
+				}
 			}
 		}
 	}

@@ -13,7 +13,7 @@ A key that docpages doesn't know fails the build.
 
 ## The README.md of a version
 
-In `docs/README.md`, and in the `README.md` of each release in `versions/`:
+In `docs/README.md`, and in the `README.md` of a [release folder](../2-guide/7-versions.md#fix-a-release) in `versions/`:
 
 | Key | Value | What it does |
 | --- | --- | --- |
@@ -29,5 +29,6 @@ Only in `docs/README.md`:
 | `home` | URL | Where the logo leads, relative to the output folder. Default: the first page. |
 | `repository` | URL | Your repository. Default: the URL of the Git remote `origin`. |
 | `host` | Map | Where the repository is hosted: `name`, `icon`, `file` and `dir`. See [Repository host](../2-guide/8-repository-host.md). |
+| `releases` | Map | The releases from Git tags: `from`, the oldest version that the site shows, as `v1.2`, and the optional `prefix` of the tags, as `api/`. None without it. See [Versions](../2-guide/7-versions.md). |
 
 The links of the header and the footer belong to a [template](../2-guide/6-templates.md).

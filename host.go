@@ -68,8 +68,8 @@ func readHost(fsys fs.FS, dir, repoURL string, set *hostSettings) (*host, error)
 }
 
 // url returns repository-relative file's URL at ref, using the directory
-// template when dir. {path} uses escaped file because Markdown copies and
-// snapshots preserve it, and spaces end Markdown links.
+// template when dir. {path} uses escaped file because Markdown copies
+// preserve it, and spaces end Markdown links.
 func (h *host) url(ref, file string, dir bool) string {
 	t := h.file
 	if dir {

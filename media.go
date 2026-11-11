@@ -91,19 +91,24 @@ func (s *site) mediaFile(from int, dest string) (*url.URL, *mediaCopy, error) {
 	if u.Scheme != "" || u.Host != "" || u.Path == "" {
 		return u, nil, nil
 	}
-	file := repoPath(s.pages[from].file, u.Path)
-	if s.root != "" && !inDir(file, s.root) {
-		return nil, nil, fmt.Errorf("media %q is outside %s, "+
-			"which a release holds its media in", dest, s.root)
+	c, err := s.mediaCopyOf(repoPath(s.pages[from].file, u.Path), dest)
+	if err != nil {
+		return nil, nil, err
 	}
+	return u, c, nil
+}
+
+// mediaCopyOf returns the copy of repository-relative media file, named by
+// dest, which it reads the first time.
+func (s *site) mediaCopyOf(file, dest string) (*mediaCopy, error) {
 	c, ok := s.media[file]
 	if !ok {
 		data, err := fs.ReadFile(s.fsys, file)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
-				return nil, nil, fmt.Errorf("media %q: no file %s", dest, file)
+				return nil, fmt.Errorf("media %q: no file %s", dest, file)
 			}
-			return nil, nil, fmt.Errorf("media %q: %w", dest, err)
+			return nil, fmt.Errorf("media %q: %w", dest, err)
 		}
 		sum := sha256.Sum256(data)
 		c = mediaCopy{
@@ -116,7 +121,7 @@ func (s *site) mediaFile(from int, dest string) (*url.URL, *mediaCopy, error) {
 		}
 		s.media[file] = c
 	}
-	return u, &c, nil
+	return &c, nil
 }
 
 // opaqueAttr marks an image without transparent pixels,

@@ -138,7 +138,7 @@ func TestLint(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			fsys := testRepoFS()
 			fsys[lintPage] = &fstest.MapFile{Data: []byte(tt.md)}
-			_, err := read(fsys, "docs", noRemote, false)
+			_, err := read(fsys, "docs", noRemote, nil, false)
 			if len(tt.want) == 0 {
 				require.NoError(t, err)
 				return
@@ -159,7 +159,7 @@ func TestLint(t *testing.T) {
 func TestLintRepoDocs(t *testing.T) {
 	for _, dir := range []string{"docs", "example/cli/docs", "example/library/docs"} {
 		t.Run(dir, func(t *testing.T) {
-			_, err := read(os.DirFS("."), dir, noRemote, false)
+			_, err := read(os.DirFS("."), dir, noRemote, gitTags{root: "."}, false)
 			require.NoError(t, err)
 		})
 	}
@@ -174,7 +174,7 @@ func TestUnusedFiles(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/img/old.png"] = file("old")
 	fsys["docs/guides/draft.md"] = file("# Draft\n")
-	_, err := read(fsys, "docs", noRemote, false)
+	_, err := read(fsys, "docs", noRemote, nil, false)
 	require.EqualError(t, err, dedent(`
 		docs/2-guides/img/old.png: no page shows this file, and no link or setting names it
 		docs/guides/draft.md: no page shows this file, and no link or setting names it`))
@@ -188,6 +188,6 @@ func TestUnusedFiles(t *testing.T) {
 	fsys["docs/2-guides/files/a.txt"] = file("a")
 	fsys["docs/2-guides/files/b/c.txt"] = file("c")
 	fsys["docs/2-guides/.hidden"] = file("hidden")
-	_, err = read(fsys, "docs", noRemote, false)
+	_, err = read(fsys, "docs", noRemote, nil, false)
 	require.NoError(t, err)
 }

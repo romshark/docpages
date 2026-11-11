@@ -35,7 +35,8 @@ type Page struct {
 	Logo string
 	// Markdown is the URL of the Markdown copy of the page.
 	Markdown string
-	// Source is the page file's URL on the repository host.
+	// Source is the page file's URL on the repository host: at the tag of a
+	// release, or on main for main and for a file of a release folder.
 	Source string
 	// Repository is the repository URL; Host is its host name, such as "GitHub".
 	Repository, Host string

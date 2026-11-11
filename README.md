@@ -22,7 +22,7 @@ go run github.com/romshark/docpages/cmd/docpages@latest -serve 127.0.0.1:7340 do
 | Plugins | Not yet 🚧 | Yes | Yes | Yes | Yes | Yes | Built-in only | Yes |
 | Templates | [templ](https://templ.guide) | Go templates | React components | Vue components | Astro components | Jinja | Jinja | Handlebars |
 
-\* Versions are copies of the docs for each release, with a menu that switches between them.
+\* Versions are the docs at each release tag, with a menu that switches between them.
 
 ## Documentation
 

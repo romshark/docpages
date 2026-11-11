@@ -269,17 +269,21 @@ func settingFiles(
 	return r
 }
 
-// unusedFiles reports every edition docs file in fsys unused by s: not shown by
-// a page, named by a link, or used by settings. Examples are an obsolete image
-// or Markdown in an unpositioned directory omitted from navigation.
-// For root-level docs, it checks only groups because the rest is repository content.
+// unusedFiles reports every docs file in fsys that its edition of s doesn't use:
+// not shown by a page, named by a link, or used by settings. Examples are an
+// obsolete image or Markdown in an unpositioned directory omitted from navigation.
+// For a release, it checks the files of its folder in versions/,
+// which replace those of its tag. For root-level docs, it checks only groups
+// because the rest is repository content.
 func unusedFiles(fsys fs.FS, s *Site, settings []string) error {
-	used := make(map[string]bool)
-	for _, f := range settings {
-		used[f] = true
-	}
-	var linked []string
+	var errs []error
 	for _, e := range s.editions {
+		used := make(map[string]bool)
+		if e.isMain() {
+			for _, f := range settings {
+				used[f] = true
+			}
+		}
 		for _, p := range e.pages {
 			used[p.file] = true
 			if p.stub != "" {
@@ -289,37 +293,50 @@ func unusedFiles(fsys fs.FS, s *Site, settings []string) error {
 		for f := range e.links.media {
 			used[f] = true
 		}
+		var linked []string
 		for f := range e.links.linked {
 			linked = append(linked, f)
 		}
-	}
-	var errs []error
-	for _, e := range s.editions {
-		err := fs.WalkDir(fsys, e.dir, func(p string, d fs.DirEntry, err error) error {
-			if err != nil || p == e.dir {
+		// file maps a file in fsys to its path in e.
+		start, file := e.dir, func(p string) string { return p }
+		if !e.isMain() {
+			start = e.folder()
+			file = func(p string) string {
+				return path.Join(
+					e.dir, strings.TrimPrefix(strings.TrimPrefix(p, start), "/"),
+				)
+			}
+		}
+		err := fs.WalkDir(fsys, start, func(p string, d fs.DirEntry, err error) error {
+			switch {
+			case p == start && !e.isMain() && errors.Is(err, fs.ErrNotExist):
+				return fs.SkipAll
+			case err != nil || p == start:
 				return err
 			}
-			rel := p
+			f := file(p)
+			rel := f
 			if e.dir != "." {
-				rel = strings.TrimPrefix(p, e.dir+"/")
+				rel = strings.TrimPrefix(f, e.dir+"/")
 			}
 			top := !strings.Contains(rel, "/")
 			switch {
 			case strings.HasPrefix(d.Name(), "."),
 				e.isMain() && rel == versionsDir,
-				e.dir == "." && top && (!d.IsDir() || !orderPrefix.MatchString(rel)):
+				e.isMain() && e.dir == "." && top &&
+					(!d.IsDir() || !orderPrefix.MatchString(rel)):
 				if d.IsDir() {
 					return fs.SkipDir
 				}
 				return nil
-			case d.IsDir(), used[p]:
+			case d.IsDir(), used[f]:
 				return nil
 			// A group icon belongs to its directory.
 			case d.Name() == "icon.svg" && path.Dir(rel) != "." &&
 				!strings.Contains(path.Dir(rel), "/") &&
 				orderPrefix.MatchString(path.Dir(rel)):
 				return nil
-			case slices.ContainsFunc(linked, func(l string) bool { return inDir(p, l) }):
+			case slices.ContainsFunc(linked, func(l string) bool { return inDir(f, l) }):
 				return nil
 			}
 			errs = append(errs, fmt.Errorf(

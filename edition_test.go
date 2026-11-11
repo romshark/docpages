@@ -2,7 +2,6 @@ package docpages
 
 import (
 	"fmt"
-	"io/fs"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -12,31 +11,88 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestReleases checks numeric latest-first version directories and rejection of
-// other directory names.
-func TestReleases(t *testing.T) {
-	dir := &fstest.MapFile{Mode: fs.ModeDir}
-	got, err := releases(fstest.MapFS{
-		"docs/versions/v0.9":      dir,
-		"docs/versions/v1.10":     dir,
-		"docs/versions/v1.2":      dir,
-		"docs/versions/.git":      dir,
-		"docs/versions/README.md": {Data: []byte("# Versions\n")},
-	}, "docs")
-	require.NoError(t, err)
-	require.Equal(t, []string{"v1.10", "v1.2", "v0.9"}, got)
-
-	got, err = releases(fstest.MapFS{"docs/README.md": {}}, "docs")
-	require.NoError(t, err)
-	require.Nil(t, got)
-
-	_, err = releases(fstest.MapFS{"docs/versions/v1.2.3": dir}, "docs")
-	require.ErrorContains(t, err, "docs/versions/v1.2.3: the directory of a release "+
-		"is named after its feature version, as v1.2")
+// TestPickReleases checks that the releases setting selects the latest patch of
+// each feature version from the first, latest first, with or without a tag prefix.
+func TestPickReleases(t *testing.T) {
+	tags := []string{
+		"v0.9.0", "v1.0.0", "v1.0.2", "v1.0.10", "v1.2.0", "v1.3.0-rc.1",
+		"v1.10.0", "api/v1.0.3", "api/v2.0.0", "release-1", "v2",
+	}
+	for name, tt := range map[string]struct {
+		set  releasesSettings
+		want []release
+	}{
+		"from v1.0": {
+			set: releasesSettings{From: "v1.0"},
+			want: []release{
+				{version: "v1.10", tag: "v1.10.0"},
+				{version: "v1.2", tag: "v1.2.0"},
+				{version: "v1.0", tag: "v1.0.10"},
+			},
+		},
+		"from v1.2": {
+			set: releasesSettings{From: "v1.2"},
+			want: []release{
+				{version: "v1.10", tag: "v1.10.0"},
+				{version: "v1.2", tag: "v1.2.0"},
+			},
+		},
+		"prefix": {
+			set: releasesSettings{From: "v1.0", Prefix: "api/"},
+			want: []release{
+				{version: "v2.0", tag: "api/v2.0.0"},
+				{version: "v1.0", tag: "api/v1.0.3"},
+			},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, err := pickReleases(tags, tt.set)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
+		})
+	}
 }
 
-// TestEditionPages checks edition UI: same-page version links latest-first,
-// no note when unset, and noindex on main when a release exists.
+// TestPickReleasesErrors checks a setting without from, a from that is no feature
+// version, as one with the prefix, and a from without a tag, as in a clone without tags.
+func TestPickReleasesErrors(t *testing.T) {
+	tags := []string{"v1.2.0", "v1.3.0-rc.1"}
+	for name, tt := range map[string]struct {
+		set  releasesSettings
+		want string
+	}{
+		"no from": {
+			set:  releasesSettings{Prefix: "api/"},
+			want: "releases: from is missing, as from: v1.2",
+		},
+		"patch": {
+			set:  releasesSettings{From: "v1.2.0"},
+			want: `releases: from "v1.2.0" is no feature version, as v1.2`,
+		},
+		"prefix in from": {
+			set:  releasesSettings{From: "api/v1.2"},
+			want: `releases: from "api/v1.2" is no feature version, as v1.2`,
+		},
+		"no tag": {
+			set: releasesSettings{From: "v1.3"},
+			want: "releases: no tag v1.3.x, which a clone without tags lacks, " +
+				"as actions/checkout without fetch-depth: 0",
+		},
+		"no tag with the prefix": {
+			set: releasesSettings{From: "v1.2", Prefix: "api/"},
+			want: "releases: no tag api/v1.2.x, which a clone without tags lacks, " +
+				"as actions/checkout without fetch-depth: 0",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := pickReleases(tags, tt.set)
+			require.EqualError(t, err, tt.want)
+		})
+	}
+}
+
+// TestEditionPages checks edition UI: same-page version links latest-first, no version
+// menu without releases, no note when unset, and noindex on main when a release exists.
 func TestEditionPages(t *testing.T) {
 	const noindex = `<meta name="robots" content="noindex">`
 	option := func(version string) string {
@@ -44,8 +100,8 @@ func TestEditionPages(t *testing.T) {
 			`" data-fallback="../../` + version + `/" data-href="../../` + version +
 			`/guides/events">` + version + `</neo-option>`
 	}
-	releases, err := read(withReleases(t,
-		testRepoFS(), "v1.1.0", "v1.2.0"), "docs", noRemote, false)
+	fsys, tags := withReleases("v1.1", "v1.1.0", "v1.2.0")
+	releases, err := read(fsys, "docs", noRemote, tags, false)
 	require.NoError(t, err)
 	for name, tt := range map[string]struct {
 		s             *Site
@@ -72,8 +128,10 @@ func TestEditionPages(t *testing.T) {
 		},
 		"main alone": {
 			s: newTestSite(t), version: "main",
-			want:    []string{`<neo-select value="main" size="sm"`, option("main")},
-			wantNot: []string{`data-neo-value="v`, noindex},
+			want: []string{`<header class="site-header">`},
+			wantNot: []string{
+				`version-select`, `aria-label="Documentation version"`, noindex,
+			},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -96,12 +154,12 @@ func TestEditionPages(t *testing.T) {
 		strings.Index(html, option("main")))
 }
 
-// TestReleaseLinks checks links to release pages, release-tag URLs for snapshotted
-// outside files, source files on main, and main fallbacks for missing header pages.
+// TestReleaseLinks checks links to release pages, tag URLs for outside files,
+// page sources at the tag, and main fallbacks for missing header pages.
 func TestReleaseLinks(t *testing.T) {
-	fsys := withReleases(t, testRepoFS(), "v1.2.3")
+	fsys, tags := withReleases("v1.2", "v1.2.3")
 	fsys["docs/4-more/2-faq.md"] = &fstest.MapFile{Data: []byte("# FAQ\n")}
-	s, err := read(fsys, "docs", noRemote, false)
+	s, err := read(fsys, "docs", noRemote, tags, false)
 	require.NoError(t, err)
 	s.page = func(p Page) templ.Component {
 		return Layout(p, Parts{
@@ -114,8 +172,8 @@ func TestReleaseLinks(t *testing.T) {
 	for _, want := range []string{
 		`<a href="../reference/specification#actions">actions</a>`,
 		`<a href="https://github.com/o/demo/blob/v1.2.3/main.go">main.go</a>`,
-		`<a class="icon-link" href="https://github.com/o/demo/blob/main/` +
-			`docs/versions/v1.2/2-guides/01-events.md">`,
+		`<a class="icon-link" href="https://github.com/o/demo/blob/v1.2.3/` +
+			`docs/2-guides/01-events.md">`,
 		`<a class="header-link" href="../../main/more/faq">Examples</a>`,
 		`<a class="icon-link" href="../reference/changelog">Changelog</a>`,
 	} {
@@ -127,14 +185,65 @@ func TestReleaseLinks(t *testing.T) {
 		`<a class="header-link" href="../../main/more/faq">Examples</a>`)
 }
 
-// TestReleaseErrors checks that releases reject
-// site settings and outside links or sources.
+// TestReleaseFolder checks that the files of a release folder replace and add
+// to those of the tag, and that their source and links lead to main.
+func TestReleaseFolder(t *testing.T) {
+	fsys, tags := withReleases("v1.2", "v1.2.3")
+	fsys["docs/versions/v1.2/2-guides/10-testing.md"] = &fstest.MapFile{
+		Data: []byte(dedent(`
+			# Testing
+
+			Fixed after the release. See [the notes](notes.txt) and [Mocks](11-mocks.md).
+		`)),
+	}
+	fsys["docs/versions/v1.2/2-guides/notes.txt"] = &fstest.MapFile{
+		Data: []byte("Notes."),
+	}
+	fsys["docs/versions/v1.2/2-guides/11-mocks.md"] = &fstest.MapFile{
+		Data: []byte("# Mocks\n"),
+	}
+	s, err := read(fsys, "docs", noRemote, tags, false)
+	require.NoError(t, err)
+	html := editionPageHTML(t, s, "v1.2", "guides/testing")
+	for _, want := range []string{
+		`Fixed after the release.`,
+		`<a href="https://github.com/o/demo/blob/main/` +
+			`docs/versions/v1.2/2-guides/notes.txt">the notes</a>`,
+		`<a href="../guides/mocks">Mocks</a>`,
+		`<a class="icon-link" href="https://github.com/o/demo/blob/main/` +
+			`docs/versions/v1.2/2-guides/10-testing.md">`,
+	} {
+		require.Contains(t, html, want)
+	}
+	require.Contains(t, editionPageHTML(t, s, "v1.2", "guides/mocks"), "Mocks")
+	require.NotContains(t, pageHTML(t, s, "guides/testing"), "Fixed after the release.")
+}
+
+// TestReleaseTagReadme checks that a release drops the site settings and the
+// note of main that the README.md of its tag holds.
+func TestReleaseTagReadme(t *testing.T) {
+	fsys, tags := withReleases("v1.2", "v1.2.3")
+	readme := strings.Replace(testRoot, "name: Demo\n", "name: Old\n", 1)
+	tags["v1.2.3"]["docs/README.md"] = &fstest.MapFile{
+		Data: []byte(strings.Replace(readme,
+			"suggested: true\n", "suggested: true\nnote: Not released yet.\n", 1)),
+	}
+	s, err := read(fsys, "docs", noRemote, tags, false)
+	require.NoError(t, err)
+	html := editionPageHTML(t, s, "v1.2", "guides/events")
+	require.NotContains(t, html, "Not released yet.")
+	require.NotContains(t, html, "Old")
+}
+
+// TestReleaseErrors checks the errors of release folders and of the pages of
+// a release, which name its tag.
 func TestReleaseErrors(t *testing.T) {
 	for name, tt := range map[string]struct {
-		file, data, want string
+		releases, file, data, want string
 	}{
 		"settings": {
-			file: "docs/versions/v1.2/README.md",
+			releases: "v1.2",
+			file:     "docs/versions/v1.2/README.md",
 			data: dedent(`
 				---
 				name: Old
@@ -142,41 +251,64 @@ func TestReleaseErrors(t *testing.T) {
 
 				# Introduction
 			`),
-			want: "docs/versions/v1.2/README.md: a release takes the settings of " +
-				"the site from the README.md of the docs directory",
+			want: "release v1.2.3: docs/versions/v1.2/README.md: a release takes " +
+				"the settings of the site from docs/README.md",
 		},
-		"link out of the release": {
-			file: "docs/versions/v1.2/2-guides/10-testing.md",
+		"page": {
+			releases: "v1.2",
+			file:     "docs/versions/v1.2/2-guides/10-testing.md",
 			data: dedent(`
 				# Testing
 
-				See [main.go](../../../../main.go).
+				See [none](none.md).
 			`),
-			want: `link "../../../../main.go" leads out of docs/versions/v1.2`,
+			want: `release v1.2.3: docs/2-guides/10-testing.md: ` +
+				`link "none.md": no file docs/2-guides/none.md`,
 		},
-		"source out of the release": {
-			file: "docs/versions/v1.2/3-reference/2-changelog.md",
-			data: dedent(`
-				---
-				source: ../../../../CHANGELOG.md
-				---
-
-				# Changelog
-			`),
-			want: "docs/versions/v1.2/3-reference/2-changelog.md: " +
-				"source CHANGELOG.md is outside docs/versions/v1.2",
+		"folder name": {
+			releases: "v1.2",
+			file:     "docs/versions/latest/README.md",
+			data:     "# Introduction\n",
+			want: "docs/versions/latest: the folder of a release is named " +
+				"after its feature version, as v1.2",
 		},
-		"directory name": {
-			file: "docs/versions/latest/README.md",
+		"folder of no release": {
+			releases: "v1.2",
+			file:     "docs/versions/v1.1/README.md",
+			data:     "# Introduction\n",
+			want:     "docs/versions/v1.1: no release v1.1 among the tags from v1.2",
+		},
+		"folder without releases": {
+			file: "docs/versions/v1.2/README.md",
 			data: "# Introduction\n",
-			want: "docs/versions/latest: the directory of a release is named " +
-				"after its feature version",
+			want: "docs/versions/v1.2: the folder of a release needs releases " +
+				"in the front matter of docs/README.md",
+		},
+		"file in versions": {
+			releases: "v1.2",
+			file:     "docs/versions/README.md",
+			data:     "# Versions\n",
+			want: "docs/versions/README.md: docs/versions holds only " +
+				"the folders of releases, as v1.2",
+		},
+		"unused file": {
+			releases: "v1.2",
+			file:     "docs/versions/v1.2/img/old.png",
+			data:     "old",
+			want: "docs/versions/v1.2/img/old.png: no page shows this file, " +
+				"and no link or setting names it",
+		},
+		"no tag": {
+			releases: "v1.0",
+			want:     "docs/README.md: releases: no tag v1.0.x",
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			fsys := withReleases(t, testRepoFS(), "v1.2.3")
-			fsys[tt.file] = &fstest.MapFile{Data: []byte(tt.data)}
-			_, err := read(fsys, "docs", noRemote, false)
+			fsys, tags := withReleases(tt.releases, "v1.2.3")
+			if tt.file != "" {
+				fsys[tt.file] = &fstest.MapFile{Data: []byte(tt.data)}
+			}
+			_, err := read(fsys, "docs", noRemote, tags, false)
 			require.ErrorContains(t, err, tt.want)
 		})
 	}
@@ -197,9 +329,8 @@ func TestDocsIndex(t *testing.T) {
 
 // TestDefaultEdition checks that index.html opens the latest release, or main if none.
 func TestDefaultEdition(t *testing.T) {
-	s, err := read(
-		withReleases(t, testRepoFS(), "v1.1.0", "v1.2.0"), "docs", noRemote, false,
-	)
+	fsys, tags := withReleases("v1.1", "v1.1.0", "v1.2.0")
+	s, err := read(fsys, "docs", noRemote, tags, false)
 	require.NoError(t, err)
 	files, err := s.Files()
 	require.NoError(t, err)
@@ -211,9 +342,8 @@ func TestDefaultEdition(t *testing.T) {
 
 // TestVersionsLlmsTxt checks root llms.txt links to every edition, latest first.
 func TestVersionsLlmsTxt(t *testing.T) {
-	s, err := read(
-		withReleases(t, testRepoFS(), "v1.1.0", "v1.2.0"), "docs", noRemote, false,
-	)
+	fsys, tags := withReleases("v1.1", "v1.1.0", "v1.2.0")
+	s, err := read(fsys, "docs", noRemote, tags, false)
 	require.NoError(t, err)
 	require.Equal(t, dedent(`
 		# Demo
@@ -269,14 +399,16 @@ func TestMorpheusBundleVersion(t *testing.T) {
 		"run go generate")
 }
 
-// TestVersionNote checks edition README notes above every page, page-relative
-// links including other editions, page-version naming in the body, and snapshots
-// omitting main's note.
+// TestVersionNote checks edition README notes above every page, links that
+// resolve from the README.md holding the note, including links to other editions,
+// and page-version naming in the body.
 func TestVersionNote(t *testing.T) {
-	fsys := withReleases(t, testRepoFS(), "v1.1.0", "v1.2.0")
+	fsys, tags := withReleases("v1.1", "v1.1.0", "v1.2.0")
 	fsys["docs/README.md"] = &fstest.MapFile{Data: []byte(strings.Replace(testRoot,
 		"suggested: true\n", dedent(`
 			suggested: true
+			releases:
+			  from: v1.1
 			note: Main moves fast. See [Testing](2-guides/10-testing.md) and the
 			  [intro](README.md#introduction), or
 			  [v1.2](versions/v1.2/2-guides/01-events.md#dispatch).
@@ -300,12 +432,11 @@ func TestVersionNote(t *testing.T) {
 
 		Demo is a web framework.
 	`))}
-	s, err := read(fsys, "docs", noRemote, false)
+	s, err := read(fsys, "docs", noRemote, tags, false)
 	require.NoError(t, err)
 	for name, tt := range map[string]struct {
 		version, path string
 		want          []string
-		wantNot       []string
 	}{
 		"main": {
 			version: "main", path: "guides/events",
@@ -344,15 +475,8 @@ func TestVersionNote(t *testing.T) {
 			for _, want := range tt.want {
 				require.Contains(t, html, want)
 			}
-			for _, notWant := range tt.wantNot {
-				require.NotContains(t, html, notWant)
-			}
 		})
 	}
-
-	_, files, err := snapshot(fsys, "docs", "v1.3.0", noRemote)
-	require.NoError(t, err)
-	require.NotContains(t, string(files["docs/versions/v1.3/README.md"]), "note")
 }
 
 // TestVersionNoteImage checks note-image copy links and sizes from every page,
@@ -370,7 +494,7 @@ func TestVersionNoteImage(t *testing.T) {
 	}
 	const svg = `<svg width="16" height="12"></svg>`
 	fsys["docs/img/new.svg"] = &fstest.MapFile{Data: []byte(svg)}
-	s, err := read(fsys, "docs", noRemote, false)
+	s, err := read(fsys, "docs", noRemote, nil, false)
 	require.NoError(t, err)
 	img := mediaName(svg, "new.svg")
 	require.Contains(t, pageHTML(t, s, "guides/events"),
@@ -382,30 +506,42 @@ func TestVersionNoteImage(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, svg, string(files["main/"+img]))
 
-	fsys = withReleases(t, testRepoFS(), "v1.2.0")
-	fsys["docs/img/new.svg"] = &fstest.MapFile{Data: []byte("<svg></svg>")}
-	fsys["docs/versions/v1.2/README.md"] = &fstest.MapFile{Data: []byte(dedent(`
-		---
-		note: "![New](../../img/new.svg)"
-		---
+	releaseNote := func(note string) fstest.MapFS {
+		fsys, _ := withReleases("v1.2")
+		fsys["docs/versions/v1.2/img/old.svg"] = &fstest.MapFile{Data: []byte(svg)}
+		fsys["docs/versions/v1.2/README.md"] = &fstest.MapFile{Data: []byte(dedent(`
+			---
+			note: "` + note + `"
+			---
 
-		# Introduction
+			# Introduction
 
-		Demo.
-	`))}
-	_, err = read(fsys, "docs", noRemote, false)
-	require.ErrorContains(t,
-		err, `media "../../img/new.svg" is outside docs/versions/v1.2`)
+			Demo.
+		`))}
+		return fsys
+	}
+	tags := testTags{"v1.2.0": testRepoFS()}
+	s, err = read(releaseNote("![Old](img/old.svg)"), "docs", noRemote, tags, false)
+	require.NoError(t, err)
+	require.Contains(t, editionPageHTML(t, s, "v1.2", "guides/events"),
+		`<img src="../`+mediaName(svg, "old.svg")+`" alt="Old" width="16" height="12">`)
+	fsys = releaseNote("![New](../../img/new.svg)")
+	fsys["docs/img/new.svg"] = &fstest.MapFile{Data: []byte(svg)}
+	_, err = read(fsys, "docs", noRemote, tags, false)
+	require.ErrorContains(t, err, `media "../../img/new.svg" is outside `+
+		`docs/versions/v1.2, which holds the files of the release`)
 }
 
 // TestVersionNoteErrors checks that notes are one paragraph, link to existing
-// headings within a release or pages in another edition, and appear only in a
-// docs-directory README.md.
+// files and headings, and appear only in the README.md of the docs directory or
+// of a release folder.
 func TestVersionNoteErrors(t *testing.T) {
 	// main sets its note in the test docs front matter.
 	main := func(note string) string {
 		return strings.Replace(testRoot, "suggested: true\n", fmt.Sprintf(dedent(`
 			suggested: true
+			releases:
+			  from: v1.2
 			note: %s
 		`), note), 1)
 	}
@@ -425,18 +561,20 @@ func TestVersionNoteErrors(t *testing.T) {
 		"dead fragment": {
 			file: "docs/README.md",
 			data: main(`"[x](2-guides/01-events.md#missing)"`),
-			want: `docs/README.md: note: link "2-guides/01-events.md#missing" names no heading`,
+			want: `docs/README.md: note: ` +
+				`link "2-guides/01-events.md#missing" names no heading`,
 		},
-		"link out of a release": {
+		"missing file": {
 			file: "docs/versions/v1.2/README.md",
 			data: dedent(`
 				---
-				note: "[x](../../../CHANGELOG.md)"
+				note: "[x](../../../NONE.md)"
 				---
 
 				# Introduction
 			`),
-			want: `link "../../../CHANGELOG.md" leads out of docs/versions/v1.2`,
+			want: `docs/versions/v1.2/README.md: ` +
+				`note: link "../../../NONE.md": no file NONE.md`,
 		},
 		"dead fragment of another edition": {
 			file: "docs/versions/v1.2/README.md",
@@ -464,9 +602,9 @@ func TestVersionNoteErrors(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			fsys := withReleases(t, testRepoFS(), "v1.2.3")
+			fsys, tags := withReleases("v1.2", "v1.2.3")
 			fsys[tt.file] = &fstest.MapFile{Data: []byte(tt.data)}
-			_, err := read(fsys, "docs", noRemote, false)
+			_, err := read(fsys, "docs", noRemote, tags, false)
 			require.ErrorContains(t, err, tt.want)
 		})
 	}

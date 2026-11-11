@@ -51,8 +51,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      # The tests build example/library, whose releases come from its tags.
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Install Go 1.27.3
         uses: actions/setup-go@v7
         with:

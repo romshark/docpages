@@ -151,4 +151,4 @@ Other HTML, other attributes, such as `style` and `onerror`, and a `javascript:`
 
 Each version holds a copy of each file in `media/`, in a folder named after the content of the file, as `main/media/3f2a9c1be07d4e58/search.webp`. 2 files with the same name don't collide, and a changed file gets a new URL, which no browser cache holds. The page and its [Markdown copy](../3-reference/3-output.md) lead to the copy.
 
-A [release](7-versions.md) keeps its own copies. `-snapshot` copies the files that its pages show: those in the docs folder keep their place, and the others go into `media/` of the release.
+A [release](7-versions.md) holds its own copies, of the files at its tag and in its [folder](7-versions.md#fix-a-release) in `versions/`.

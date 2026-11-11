@@ -29,13 +29,13 @@ func forgeRepoFS() fstest.MapFS {
 }
 
 // TestHost checks that host settings name and icon repository links, and build
-// file URLs at main on pages and at the release tag in snapshots.
+// file URLs at main on the pages of main and at the tag on those of a release.
 func TestHost(t *testing.T) {
 	const (
 		repo = "https://git.example.com/o/demo"
 		icon = `<svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3 3"/></svg>`
 	)
-	s, err := read(forgeRepoFS(), "docs", noRemote, false)
+	s, err := read(forgeRepoFS(), "docs", noRemote, nil, false)
 	require.NoError(t, err)
 	html := pageHTML(t, s, "guides/events")
 	for _, want := range []string{
@@ -50,10 +50,17 @@ func TestHost(t *testing.T) {
 	}
 	require.NotContains(t, html, "GitHub")
 
-	_, files, err := snapshot(forgeRepoFS(), "docs", "v1.2.3", noRemote)
+	fsys := forgeRepoFS()
+	fsys["docs/README.md"].Data = []byte(strings.Replace(
+		string(fsys["docs/README.md"].Data),
+		"suggested: true\n", "suggested: true\nreleases:\n  from: v1.2\n", 1,
+	))
+	s, err = read(fsys, "docs", noRemote, testTags{"v1.2.3": forgeRepoFS()}, false)
 	require.NoError(t, err)
-	require.Contains(t, string(files["docs/versions/v1.2/2-guides/01-events.md"]),
-		"[main.go]("+repo+"/src/v1.2.3/main.go)")
+	html = editionPageHTML(t, s, "v1.2", "guides/events")
+	require.Contains(t, html, `<a href="`+repo+`/src/v1.2.3/main.go">main.go</a>`)
+	require.Contains(t, html,
+		`<a class="icon-link" href="`+repo+`/src/v1.2.3/docs/2-guides/01-events.md">`)
 }
 
 // TestHostURL checks repository file and directory URLs, with directories using
@@ -115,7 +122,7 @@ func TestHostErrors(t *testing.T) {
 				Data: []byte(strings.Replace(testRoot,
 					"suggested: true\n", "suggested: true\n"+tt.host, 1)),
 			}
-			_, err := read(fsys, "docs", noRemote, false)
+			_, err := read(fsys, "docs", noRemote, nil, false)
 			require.ErrorContains(t, err, tt.want)
 		})
 	}

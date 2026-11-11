@@ -43,7 +43,7 @@ func TestMedia(t *testing.T) {
 	fsys["docs/2-guides/img/shot.png"] = &fstest.MapFile{Data: []byte("shot")}
 	fsys["docs/2-guides/img/demo.mp4"] = &fstest.MapFile{Data: []byte("demo")}
 	fsys["assets/logo.png"] = &fstest.MapFile{Data: []byte("logo")}
-	s, err := read(fsys, "docs", noRemote, false)
+	s, err := read(fsys, "docs", noRemote, nil, false)
 	require.NoError(t, err)
 	shot := mediaName("shot", "shot.png")
 	logo := mediaName("logo", "logo.png")
@@ -86,7 +86,7 @@ func TestMediaSharedReference(t *testing.T) {
 		[shot]: img/shot.png
 	`))}
 	fsys["docs/2-guides/img/shot.png"] = &fstest.MapFile{Data: []byte("shot")}
-	s, err := read(fsys, "docs", noRemote, false)
+	s, err := read(fsys, "docs", noRemote, nil, false)
 	require.NoError(t, err)
 	shot := mediaName("shot", "shot.png")
 
@@ -136,7 +136,7 @@ func TestMediaAcrossLines(t *testing.T) {
 		Data: []byte(mediaAcrossLines("img/shot.png")),
 	}
 	fsys["docs/2-guides/img/shot.png"] = &fstest.MapFile{Data: []byte("shot")}
-	s, err := read(fsys, "docs", noRemote, false)
+	s, err := read(fsys, "docs", noRemote, nil, false)
 	require.NoError(t, err)
 	shot := mediaName("shot", "shot.png")
 
@@ -152,7 +152,7 @@ func TestMediaAcrossLines(t *testing.T) {
 	require.Contains(t, string(files["main/llms-full.txt"]), mediaAcrossLines(shot))
 }
 
-// TestMediaErr checks failure for missing media and release media outside its directory.
+// TestMediaErr checks failure for missing media.
 func TestMediaErr(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{
@@ -162,22 +162,9 @@ func TestMediaErr(t *testing.T) {
 			![None](img/none.png)
 		`)),
 	}
-	_, err := read(fsys, "docs", noRemote, false)
+	_, err := read(fsys, "docs", noRemote, nil, false)
 	require.ErrorContains(t, err, `docs/2-guides/10-testing.md: `+
 		`media "img/none.png": no file docs/2-guides/img/none.png`)
-
-	fsys = withReleases(t, testRepoFS(), "v1.2.0")
-	fsys["assets/logo.png"] = &fstest.MapFile{Data: []byte("logo")}
-	fsys["docs/versions/v1.2/2-guides/10-testing.md"] = &fstest.MapFile{
-		Data: []byte(dedent(`
-			# Testing
-
-			<img src="../../../../assets/logo.png">
-		`)),
-	}
-	_, err = read(fsys, "docs", noRemote, false)
-	require.ErrorContains(t,
-		err, `media "../../../../assets/logo.png" is outside docs/versions/v1.2`)
 }
 
 // testResolve resolves test raw-HTML URLs, preserving schemes like [site.mediaURL].
@@ -392,7 +379,7 @@ func TestMediaSize(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte(page)}
 	fsys["docs/2-guides/img/shot.png"] = &fstest.MapFile{Data: shotPNG.Bytes()}
-	s, err := read(fsys, "docs", noRemote, false)
+	s, err := read(fsys, "docs", noRemote, nil, false)
 	require.NoError(t, err)
 	shot := "../" + mediaName(shotPNG.String(), "shot.png")
 
@@ -475,83 +462,39 @@ func TestAttrValues(t *testing.T) {
 	}
 }
 
-// TestSnapshotMedia checks that snapshots keep docs media in place,
-// move other displayed media under media/, and show the copies.
-func TestSnapshotMedia(t *testing.T) {
-	fsys := testRepoFS()
-	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte(dedent(`
+// TestReleaseMedia checks that a release shows the media of its tag, inside and
+// outside the docs directory, and those of its folder in versions/.
+func TestReleaseMedia(t *testing.T) {
+	fsys, tags := withReleases("v1.2")
+	fsys["docs/versions/v1.2/2-guides/img/new.png"] = &fstest.MapFile{Data: []byte("new")}
+	fsys["docs/versions/v1.2/2-guides/10-testing.md"] = &fstest.MapFile{
+		Data: []byte(dedent(`
+			# Testing
+
+			![New](img/new.png)
+		`)),
+	}
+	tag := testRepoFS()
+	tag["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte(dedent(`
 		# Testing
 
 		![Shot](../images/shot.png) ![Logo](../../assets/logo.png)
+	`))}
+	tag["docs/2-guides/01-events.md"] = &fstest.MapFile{Data: []byte(dedent(`
+		# Events
 
 		<img src="../../assets/logo.png" width="10">
 	`))}
-	fsys["docs/images/shot.png"] = &fstest.MapFile{Data: []byte("shot")}
-	fsys["assets/logo.png"] = &fstest.MapFile{Data: []byte("logo")}
-	_, files, err := snapshot(fsys, "docs", "v1.2.3", noRemote)
+	tag["docs/images/shot.png"] = &fstest.MapFile{Data: []byte("shot")}
+	tag["assets/logo.png"] = &fstest.MapFile{Data: []byte("logo")}
+	tags["v1.2.0"] = tag
+	s, err := read(fsys, "docs", noRemote, tags, false)
 	require.NoError(t, err)
-	const v = "docs/versions/v1.2/"
-	require.Equal(t, "shot", string(files[v+"images/shot.png"]))
-	require.Equal(t, "logo", string(files[v+"media/assets/logo.png"]))
-	require.Equal(t, dedent(`
-		# Testing
-
-		![Shot](../images/shot.png) ![Logo](../media/assets/logo.png)
-
-		<img src="../media/assets/logo.png" width="10">
-	`),
-		string(files[v+"2-guides/10-testing.md"]))
-
-	s, err := read(withReleases(t, fsys, "v1.2.3"), "docs", noRemote, false)
+	require.Contains(t, editionPageHTML(t, s, "v1.2", "guides/events"),
+		`<img src="../`+mediaName("logo", "logo.png")+`" width="10">`)
+	require.Contains(t, editionPageHTML(t, s, "v1.2", "guides/testing"),
+		`<img src="../`+mediaName("new", "new.png")+`" alt="New">`)
+	files, err := s.Files()
 	require.NoError(t, err)
-	html := editionPageHTML(t, s, "v1.2", "guides/testing")
-	require.Contains(t,
-		html, `<img src="../`+mediaName("logo", "logo.png")+`" width="10">`)
-}
-
-// TestSnapshotMediaSharedReference checks that a shared link/image reference
-// uses the image's media copy, not the tagged URL a lone link would use.
-func TestSnapshotMediaSharedReference(t *testing.T) {
-	fsys := testRepoFS()
-	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{Data: []byte(dedent(`
-		# Testing
-
-		See [the logo][logo] and ![The logo][logo].
-
-		[logo]: ../../assets/logo.png
-	`))}
-	fsys["assets/logo.png"] = &fstest.MapFile{Data: []byte("logo")}
-	_, files, err := snapshot(fsys, "docs", "v1.2.3", noRemote)
-	require.NoError(t, err)
-	const v = "docs/versions/v1.2/"
-	require.Equal(t, "logo", string(files[v+"media/assets/logo.png"]))
-	require.Equal(t, dedent(`
-		# Testing
-
-		See [the logo][logo] and ![The logo][logo].
-
-		[logo]: ../media/assets/logo.png
-	`),
-		string(files[v+"2-guides/10-testing.md"]))
-}
-
-// TestSnapshotMediaAcrossLines checks that a snapshot preserves split raw-HTML
-// tags except for replaced URLs, which the release displays.
-func TestSnapshotMediaAcrossLines(t *testing.T) {
-	fsys := testRepoFS()
-	fsys["docs/2-guides/10-testing.md"] = &fstest.MapFile{
-		Data: []byte(mediaAcrossLines("../../assets/shot.png")),
-	}
-	fsys["assets/shot.png"] = &fstest.MapFile{Data: []byte("shot")}
-	_, files, err := snapshot(fsys, "docs", "v1.2.3", noRemote)
-	require.NoError(t, err)
-	require.Equal(t, mediaAcrossLines("../media/assets/shot.png"),
-		string(files["docs/versions/v1.2/2-guides/10-testing.md"]))
-
-	s, err := read(withReleases(t, fsys, "v1.2.3"), "docs", noRemote, false)
-	require.NoError(t, err)
-	html := editionPageHTML(t, s, "v1.2", "guides/testing")
-	shot := mediaName("shot", "shot.png")
-	require.Contains(t, html, `<img src="../`+shot+`" alt="Shot" width="10">`)
-	require.Equal(t, 2, strings.Count(html, `<img src="../`+shot+`" alt="Shot">`))
+	require.Equal(t, "new", string(files["v1.2/"+mediaName("new", "new.png")]))
 }

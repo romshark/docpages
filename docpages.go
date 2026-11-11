@@ -15,8 +15,8 @@
 //	  1-installation.md    a page, at get-started/installation
 //	  2-upgrading.md
 //	2-tutorial/
-//	versions/              the docs of the releases, optional
-//	  v1.2/                a docs directory of the same layout, for v1.2.x
+//	versions/              fixes of releases, optional
+//	  v1.2/                files in place of those at the tag of v1.2.x
 //
 // Numbers order groups and pages but are omitted from URLs and titles.
 // Page front matter can set a title, suggest the page in search, show an external
@@ -28,8 +28,9 @@
 // docs directory, with the running docpages, which must be compatible with the
 // version that the module requires. See [VersionError].
 //
-// The docs directory describes main.
-// [Snapshot] makes an editable release copy under versions/.
+// The docs directory describes main. The releases setting, as from: v1.2,
+// makes the Git tag of the latest patch of each feature version from v1.2 on
+// a release, read from the docs directory at that tag.
 package docpages
 
 import (
@@ -59,7 +60,7 @@ type Options struct {
 	Dir string
 }
 
-// Site contains the docs for main and every release in the versions directory.
+// Site contains the docs for main and every release.
 type Site struct {
 	// editions are the releases, the latest first, followed by main.
 	editions []*edition
@@ -99,6 +100,7 @@ type chrome struct {
 var faviconNames = []string{"favicon.svg", "favicon.png", "favicon.ico"}
 
 // Read reads the documentation of o.Dir in o.Root and converts it.
+// Releases need the git command and the tags of the repository.
 func Read(o Options) (*Site, error) {
 	return readOptions(o, false)
 }
@@ -127,7 +129,7 @@ func readOptions(o Options, served bool) (*Site, error) {
 // readRepo reads o's docs from disk like [readOptions] but uses [DefaultPage].
 func readRepo(o Options, served bool) (*Site, error) {
 	s, err := read(os.DirFS(o.Root), path.Clean(filepath.ToSlash(o.Dir)),
-		func() (string, error) { return gitRemote(o.Root) }, served)
+		func() (string, error) { return gitRemote(o.Root) }, gitTags{root: o.Root}, served)
 	if err != nil {
 		return nil, err
 	}
@@ -136,10 +138,11 @@ func readRepo(o Options, served bool) (*Site, error) {
 }
 
 // read reads docs directory dir from repository fsys. remote returns origin's URL,
-// overridden by [frontMatter].Repository.
+// overridden by [frontMatter].Repository. tags holds the releases that
+// [frontMatter].Releases selects; nil means a repository without tags.
 // When served, [Handler] serves non-page repository links.
 func read(
-	fsys fs.FS, dir string, remote func() (string, error), served bool,
+	fsys fs.FS, dir string, remote func() (string, error), tags tagStore, served bool,
 ) (*Site, error) {
 	root, err := readPage(fsys, path.Join(dir, readmeName), "", -1)
 	if err != nil {
@@ -216,18 +219,29 @@ func read(
 	if served {
 		s.served = make(map[string]bool)
 	}
-	versions, err := releases(fsys, dir)
-	if err != nil {
+	var rels []release
+	if set.Releases != nil {
+		var names []string
+		if tags != nil {
+			if names, err = tags.tags(); err != nil {
+				return nil, err
+			}
+		}
+		if rels, err = pickReleases(names, *set.Releases); err != nil {
+			return nil, fmt.Errorf("%s: %w", path.Join(dir, readmeName), err)
+		}
+	}
+	if err := checkFolders(fsys, dir, rels, set.Releases); err != nil {
 		return nil, err
 	}
-	for _, v := range versions {
-		e, err := readEdition(fsys, path.Join(dir, versionsDir, v), v, c.host, s.served)
+	for _, r := range rels {
+		e, err := readRelease(fsys, dir, r, tags, c.host)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("release %s: %w", r.tag, err)
 		}
 		s.editions = append(s.editions, e)
 	}
-	main, err := readEdition(fsys, dir, MainVersion, c.host, s.served)
+	main, err := readMain(fsys, dir, c.host, s.served)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +249,7 @@ func read(
 	// Rendering validates a note and its links, including links to other editions.
 	for _, e := range s.editions {
 		if _, err := e.noteHTML(0, s.editions); err != nil {
-			return nil, fmt.Errorf("%s: note: %w", path.Join(e.dir, readmeName), err)
+			return nil, fmt.Errorf("%s: note: %w", e.noteFile, err)
 		}
 	}
 	// Pages, links, and settings have now named every file the site uses.
@@ -400,19 +414,18 @@ func (s *Site) pageView(e *edition, i int) Page {
 		Home:        base,
 		Logo:        s.chrome.logo,
 		Markdown:    base + p.markdownFile(),
-		// main contains every edition's files.
-		Source:     s.chrome.host.url(MainVersion, p.file, false),
-		Repository: s.chrome.host.repoURL,
-		Host:       s.chrome.host.name,
-		Navigation: navigation(e.pages, e.groups, i),
-		Contents:   contents(d),
-		Prev:       prev,
-		Next:       next,
-		Suggested:  suggestions(e.pages, e.groups, i),
-		Indexed:    !e.isMain() || s.latest() == nil,
-		site:       s,
-		edition:    e,
-		index:      i,
+		Source:      e.links.sourceURL(p.file),
+		Repository:  s.chrome.host.repoURL,
+		Host:        s.chrome.host.name,
+		Navigation:  navigation(e.pages, e.groups, i),
+		Contents:    contents(d),
+		Prev:        prev,
+		Next:        next,
+		Suggested:   suggestions(e.pages, e.groups, i),
+		Indexed:     !e.isMain() || s.latest() == nil,
+		site:        s,
+		edition:     e,
+		index:       i,
 	}
 	switch h := s.chrome.home; {
 	case isAbsURL(h):

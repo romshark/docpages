@@ -25,7 +25,7 @@ func TestStyleMinified(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/style.css"] = &fstest.MapFile{Data: []byte(testStyle)}
 
-	s, err := read(fsys, "docs", noRemote, false)
+	s, err := read(fsys, "docs", noRemote, nil, false)
 	require.NoError(t, err)
 	files, err := s.Files()
 	require.NoError(t, err)
@@ -33,7 +33,7 @@ func TestStyleMinified(t *testing.T) {
 		":root{--bg: light-dark(#ffffff, #000000);.docs-page &{color:red}}\n",
 		string(files["main/style.css"]))
 
-	s, err = read(fsys, "docs", noRemote, true)
+	s, err = read(fsys, "docs", noRemote, nil, true)
 	require.NoError(t, err)
 	files, err = s.Files()
 	require.NoError(t, err)
@@ -49,7 +49,7 @@ func TestStyleChecked(t *testing.T) {
 		}
 	`))}
 	for _, served := range []bool{false, true} {
-		_, err := read(fsys, "docs", noRemote, served)
+		_, err := read(fsys, "docs", noRemote, nil, served)
 		require.EqualError(t, err,
 			`docs/style.css:2:3: "colr" is not a known CSS property `+
 				`(Did you mean "color" instead?)`)

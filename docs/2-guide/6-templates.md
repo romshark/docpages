@@ -123,7 +123,7 @@ Compare a version with `==`, since `<` sorts `v0.10` before `v0.9`. `p.Versions`
 | --- | --- |
 | `Head(p)` | `<head>` with the title, the styles and the scripts, then the elements inside it, as fonts. Every page needs it. |
 | `Body(p)` | `<body>`, which the styles and the search need, with a link that skips to the text. |
-| `Header(p)` | The logo, the version menu, the links in it, the search and the theme switch. |
+| `Header(p)` | The logo, the version menu of a site with releases, the links in it, the search and the theme switch. |
 | `Navigation(p)` | The navigation. |
 | `Main(p)` | The note of the version, the text and the links to the previous and the next page. |
 | `Contents(p)` | The contents of the page, beside the text on wide screens. |

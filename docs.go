@@ -389,8 +389,9 @@ type site struct {
 	ids   []map[string]bool // The heading IDs of every page.
 	ref   string            // The Git ref of the links to the repository.
 	host  *host             // Where the repository is hosted.
-	// root is a release's docs directory, which its links cannot leave; empty for main.
-	root string
+	// replaced maps each file of a release that its folder in versions/
+	// replaces to the replacing file on main. Nil for main.
+	replaced map[string]string
 	// served holds linked repository files other than pages while [Handler]
 	// serves them, and is nil otherwise. The handler replaces the host, which
 	// would show Git versions rather than working-tree files.
@@ -427,13 +428,20 @@ func (s *site) resolveOn(
 	if u.Scheme != "" || u.Host != "" {
 		return dest, nil
 	}
-	to := from
+	file := ""
 	if u.Path != "" {
-		file := repoPath(s.pages[from].file, u.Path)
-		if s.root != "" && !inDir(file, s.root) {
-			return "", fmt.Errorf("link %q leads out of %s, "+
-				"which a release links as a URL", dest, s.root)
-		}
+		file = repoPath(s.pages[from].file, u.Path)
+	}
+	return s.resolveFile(on, from, file, u, dest, base, target)
+}
+
+// resolveFile resolves link dest, parsed as u, to repository-relative file,
+// as [site.resolveOn] does. An empty file is pages[from].
+func (s *site) resolveFile(
+	on, from int, file string, u *url.URL, dest, base string, target func(page) string,
+) (string, error) {
+	to := from
+	if file != "" {
 		if to = s.pageOf(file); to < 0 {
 			// fstest.MapFS reports a path out of the repository as missing,
 			// os.DirFS as invalid.
@@ -505,16 +513,28 @@ func (s *site) fileURL(file string, dir bool, base string, u *url.URL) string {
 	}
 	s.linked[file] = true
 	var r string
-	if s.served != nil {
+	switch main, ok := s.replaced[file]; {
+	case s.served != nil:
 		s.served[file] = true
 		r = (&url.URL{Path: path.Join(base, "..", repositoryPath, file)}).EscapedPath()
 		if dir {
 			r += "/"
 		}
-	} else {
+	case ok:
+		r = s.host.url(MainVersion, main, dir)
+	default:
 		r = s.host.url(s.ref, file, dir)
 	}
 	return withQueryFragment(r, u)
+}
+
+// sourceURL returns the URL of repository-relative file on the host:
+// at the ref of s, or on main for a file that a release folder replaces.
+func (s *site) sourceURL(file string) string {
+	if main, ok := s.replaced[file]; ok {
+		return s.host.url(MainVersion, main, false)
+	}
+	return s.host.url(s.ref, file, false)
 }
 
 // withQueryFragment returns the URL r with the query and the fragment of u.
@@ -534,8 +554,8 @@ type edit struct {
 	text string
 }
 
-// newParser returns a GitHub Flavored Markdown parser with opts. Parsing pages,
-// notes, and [Snapshot] copies alike keeps links and raw HTML in the same places.
+// newParser returns a GitHub Flavored Markdown parser with opts. Parsing pages
+// and notes alike keeps links and raw HTML in the same places.
 func newParser(opts ...parser.Option) parser.Parser {
 	return parser.New(append(opts, parser.WithExtensions(extension.NewGFMParser()))...)
 }
@@ -546,18 +566,6 @@ type refs struct {
 	links  []*ast.Link
 	images []*ast.Image
 	raws   []ast.Node
-}
-
-// collectRefs returns the refs of the tree n.
-func collectRefs(n ast.Node) refs {
-	var r refs
-	_ = ast.Walk(n, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if entering {
-			r.add(n)
-		}
-		return ast.WalkContinue, nil
-	})
-	return r
 }
 
 // add adds n to r if it is a link, an image or raw HTML.

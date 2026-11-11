@@ -6,11 +6,8 @@
 //	docpages [flags] [dir]
 //
 // dir is the docs directory, defaulting to the current one. Main pages go to
-// <out>/main/; releases such as dir/versions/v1.2/ go to <out>/v1.2/.
+// <out>/main/; releases, read from their Git tags, go to <out>/v1.2/.
 // <out>/index.html and <out>/llms.txt lead to the latest release, or main if none.
-//
-// -snapshot v1.2.3 copies dir to dir/versions/v1.2/ as that release's docs
-// instead of writing the site.
 package main
 
 import (
@@ -43,12 +40,11 @@ func main() {
 }
 
 // config is what the command-line arguments select. At most 1 of out,
-// addr, tag and version is set by a flag.
+// addr and version is set by a flag.
 type config struct {
 	dir     string // Docs directory.
 	out     string // Output directory of the site.
 	addr    string // Address to serve the docs on, or empty.
-	tag     string // Release tag to snapshot the docs as, or empty.
 	version bool   // Whether to print the version of docpages.
 }
 
@@ -98,9 +94,6 @@ func parseArgs(args []string, stderr io.Writer) (config, error) {
 	flags.StringVar(&c.addr, "serve", "",
 		"Serve the pages on this address instead of writing them, "+
 			"reloading them on changes")
-	flags.StringVar(&c.tag, "snapshot", "",
-		"Copy the docs into the versions directory as the docs of this "+
-			"release tag, as v1.2.3, instead of writing the site")
 	flags.BoolVar(&c.version, "version", false, "Print the version of docpages")
 	flags.Usage = func() {
 		_, _ = fmt.Fprintf(stderr, "usage: docpages [flags] [dir]\n")
@@ -116,7 +109,7 @@ func parseArgs(args []string, stderr io.Writer) (config, error) {
 	var modes []string
 	flags.Visit(func(f *flag.Flag) {
 		switch f.Name {
-		case "o", "serve", "snapshot", "version":
+		case "o", "serve", "version":
 			modes = append(modes, "-"+f.Name)
 		}
 	})
@@ -160,16 +153,7 @@ func run(args []string, stdout, stderr io.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	switch {
-	case c.tag != "":
-		target, err := docpages.Snapshot(o, c.tag)
-		if err != nil {
-			return docsError(c.dir, err)
-		}
-		_, _ = fmt.Fprintf(stdout, "wrote the docs of %s into %s\n", c.tag,
-			filepath.Join(o.Root, filepath.FromSlash(target)))
-		return nil
-	case c.addr != "":
+	if c.addr != "" {
 		// The handler shows later errors in a page that reloads after fixes.
 		// An initial build failure more likely means these are the wrong docs.
 		s, err := docpages.Read(o)

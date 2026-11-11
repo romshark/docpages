@@ -17,7 +17,7 @@ docs/
     README.md             opens the group, at tutorial/
     1-create-project.md   a page, at tutorial/create-project
   icons/                  other files, such as icons
-  versions/               the docs of your releases
+  versions/               fixes of your releases
 ```
 
 ## Groups and pages
@@ -38,7 +38,7 @@ The numbers stay out of URLs and titles. The title of a page is the text of its 
 
 ## Other files
 
-The navigation leaves out folders without a number, such as `icons/`. Keep the files there that your pages and settings link to. `versions/` holds your [releases](7-versions.md).
+The navigation leaves out folders without a number, such as `icons/`. Keep the files there that your pages and settings link to. `versions/` holds the [fixes of your releases](7-versions.md#fix-a-release).
 
 ## Icons
 

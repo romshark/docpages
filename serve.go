@@ -105,7 +105,8 @@ func Handler(o Options) http.Handler {
 type watcher struct {
 	root, dir string
 	lock      sync.Mutex
-	// sources are files outside docs shown at the last read: page sources and media.
+	// sources are files outside docs that main showed at the last read:
+	// page sources and media.
 	sources []string
 
 	// read serializes reads. readState is the last state read, producing readFiles
@@ -133,17 +134,17 @@ func (w *watcher) readSite(o Options, state string) (map[string][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Releases read files at their tags, which don't change.
 	var sources []string
-	for _, e := range s.editions {
-		for _, p := range e.pages {
-			if p.stub != "" {
-				sources = append(sources, p.file)
-			}
+	main := s.main()
+	for _, p := range main.pages {
+		if p.stub != "" {
+			sources = append(sources, p.file)
 		}
-		for file := range e.links.media {
-			if !inDir(file, path.Clean(filepath.ToSlash(o.Dir))) {
-				sources = append(sources, file)
-			}
+	}
+	for file := range main.links.media {
+		if !inDir(file, main.dir) {
+			sources = append(sources, file)
 		}
 	}
 	w.lock.Lock()

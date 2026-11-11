@@ -136,7 +136,7 @@ func TestReadTemplates(t *testing.T) {
 			for name, data := range tt.files {
 				fsys[name] = file(data)
 			}
-			s, err := read(fsys, "docs", noRemote, false)
+			s, err := read(fsys, "docs", noRemote, nil, false)
 			if tt.want != "" {
 				require.EqualError(t, err, tt.want)
 				return
@@ -164,7 +164,7 @@ func TestReadTemplates(t *testing.T) {
 		`)),
 		"page_templ.go": file("package site\n"),
 	}
-	s, err := read(fsys, ".", noRemote, false)
+	s, err := read(fsys, ".", noRemote, nil, false)
 	require.NoError(t, err)
 	require.Empty(t, s.templates)
 }

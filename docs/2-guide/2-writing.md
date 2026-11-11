@@ -191,7 +191,7 @@ GitHub alerts become callouts, each kind with its own color and title:
 > Keep **files of your own** out of these. See [Deploy](9-deploy.md#build-in-ci).
 
 > [!CAUTION]
-> Deleting a release folder in `versions/` removes the release from the site.
+> Deleting the tags of a release removes it from the site.
 ```
 
 > [!NOTE]
@@ -212,7 +212,7 @@ GitHub alerts become callouts, each kind with its own color and title:
 > Keep **files of your own** out of these. See [Deploy](9-deploy.md#build-in-ci).
 
 > [!CAUTION]
-> Deleting a release folder in `versions/` removes the release from the site.
+> Deleting the tags of a release removes it from the site.
 
 ## Details
 

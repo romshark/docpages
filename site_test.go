@@ -177,7 +177,7 @@ func noRemote() (string, error) { return "", errors.New("no remote") }
 // newTestSite returns [testRepoFS]'s release-free docs site using [testPage].
 func newTestSite(t *testing.T) *Site {
 	t.Helper()
-	s, err := read(testRepoFS(), "docs", noRemote, false)
+	s, err := read(testRepoFS(), "docs", noRemote, nil, false)
 	require.NoError(t, err)
 	s.page = testPage
 	return s
@@ -207,17 +207,32 @@ func testIcon(d string) templ.Component {
 	)
 }
 
-// withReleases adds a docs/ snapshot to fsys for every tag.
-func withReleases(t *testing.T, fsys fstest.MapFS, tags ...string) fstest.MapFS {
-	t.Helper()
-	for _, tag := range tags {
-		_, files, err := snapshot(fsys, "docs", tag, noRemote)
-		require.NoError(t, err)
-		for name, data := range files {
-			fsys[name] = &fstest.MapFile{Data: data}
-		}
+// testTags is a [tagStore] that holds the repository files at each tag.
+type testTags map[string]fstest.MapFS
+
+func (t testTags) tags() ([]string, error) { return slices.Sorted(maps.Keys(t)), nil }
+
+func (t testTags) tree(tag, _ string) (fs.FS, error) {
+	fsys, ok := t[tag]
+	if !ok {
+		return nil, errors.New("no tag " + tag)
 	}
-	return fsys
+	return fsys, nil
+}
+
+// withReleases returns [testRepoFS] with releases from the feature version
+// from, none if empty, and [testTags] that hold testRepoFS at each of tags.
+func withReleases(from string, tags ...string) (fstest.MapFS, testTags) {
+	fsys := testRepoFS()
+	if from != "" {
+		fsys["docs/README.md"] = &fstest.MapFile{Data: []byte(strings.Replace(testRoot,
+			"suggested: true\n", "suggested: true\nreleases:\n  from: "+from+"\n", 1))}
+	}
+	t := make(testTags)
+	for _, tag := range tags {
+		t[tag] = testRepoFS()
+	}
+	return fsys, t
 }
 
 // pageHTML returns s's main-page HTML at URL path p.
@@ -676,7 +691,7 @@ func TestSiteDefaults(t *testing.T) {
 	}
 	s, err := read(fsys, ".", func() (string, error) {
 		return "git@github.com:o/tool.git", nil
-	}, false)
+	}, nil, false)
 	require.NoError(t, err)
 	html := pageHTML(t, s, "a/b")
 	for _, want := range []string{
@@ -694,7 +709,7 @@ func TestSiteDefaults(t *testing.T) {
 		require.NotContains(t, html, notWant)
 	}
 
-	_, err = read(fsys, ".", noRemote, false)
+	_, err = read(fsys, ".", noRemote, nil, false)
 	require.ErrorContains(t, err, "set repository in the front matter of README.md")
 }
 
@@ -784,7 +799,7 @@ func TestPageNameWithSpace(t *testing.T) {
 			`)),
 		},
 	}
-	s, err := read(fsys, "docs", noRemote, false)
+	s, err := read(fsys, "docs", noRemote, nil, false)
 	require.NoError(t, err)
 	files, err := s.Files()
 	require.NoError(t, err)
@@ -798,9 +813,10 @@ func TestPageNameWithSpace(t *testing.T) {
 }
 
 // TestSiteFiles checks edition files and assets under main/ or <feature-version>/,
-// root index.html and llms.txt, and release pages using sources from their directory.
+// root index.html and llms.txt, and release pages using sources at their tag.
 func TestSiteFiles(t *testing.T) {
-	s, err := read(withReleases(t, testRepoFS(), "v1.2.3"), "docs", noRemote, false)
+	fsys, tags := withReleases("v1.2", "v1.2.3")
+	s, err := read(fsys, "docs", noRemote, tags, false)
 	require.NoError(t, err)
 	files, err := s.Files()
 	require.NoError(t, err)

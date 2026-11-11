@@ -1,6 +1,9 @@
 ---
 name: ringbuf
 repository: https://github.com/romshark/docpages
+releases:
+  from: v0.9
+  prefix: example/library/
 note: This version isn't released yet, the latest release is [v1.0](versions/v1.0/README.md).
 ---
 

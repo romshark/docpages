@@ -25,7 +25,7 @@ host:
 In `file` and `dir`:
 
 - `{repository}` is the URL of `repository`.
-- `{ref}` is `main`, or the release tag in a snapshot.
+- `{ref}` is `main`, or the tag of a release, as `v1.2.3`. A file of a [release folder](7-versions.md#fix-a-release) uses `main`.
 - `{path}` is the path from the root of the repository, escaped as a URL path, as `Design%20Doc.pdf`.
 
 Without `host`, the links show the GitHub icon and use the URLs of GitHub: `{repository}/blob/{ref}/{path}` and `{repository}/tree/{ref}/{path}/`.

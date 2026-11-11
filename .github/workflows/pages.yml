@@ -1,9 +1,9 @@
 name: Deploy GitHub Pages
 
 # The site is docs/ built by the docpages of the same commit, with each
-# example below example/. 1 build writes main and every release snapshot in
-# docs/versions/, so each push to main deploys the whole site. A change of
-# docpages itself changes the site too.
+# example below example/. 1 build writes main and every release from its Git
+# tag, so each push to main deploys the whole site. A change of docpages
+# itself changes the site too.
 on:
   push:
     branches:
@@ -25,8 +25,11 @@ jobs:
       cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
+      # The releases of example/library come from its tags.
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Install Go 1.27.3
         uses: actions/setup-go@v7

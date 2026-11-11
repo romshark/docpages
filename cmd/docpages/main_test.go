@@ -27,10 +27,6 @@ func TestParseArgs(t *testing.T) {
 			want: config{dir: "docs", out: "site", addr: ":7340"},
 		},
 		{
-			args: []string{"-snapshot", "v1.2.3", "docs"},
-			want: config{dir: "docs", out: "site", tag: "v1.2.3"},
-		},
-		{
 			args: []string{"-version"},
 			want: config{dir: ".", out: "site", version: true},
 		},
@@ -46,27 +42,19 @@ func TestParseArgs(t *testing.T) {
 }
 
 // TestParseArgsErr tests that wrong arguments return errUsage after their error
-// and the usage, such as -o, -serve and -snapshot set together.
+// and the usage, such as -o, -serve and -version set together.
 func TestParseArgsErr(t *testing.T) {
 	for _, tt := range []struct {
 		args []string
 		want string // The error before the usage, empty for usage alone.
 	}{
 		{
-			args: []string{"-serve", ":0", "-snapshot", "v1.2.3"},
-			want: "-serve and -snapshot can't be used together\n",
-		},
-		{
 			args: []string{"-o", "out", "-serve", ":0"},
 			want: "-o and -serve can't be used together\n",
 		},
 		{
-			args: []string{"-snapshot", "v1.2.3", "-o", "site"},
-			want: "-o and -snapshot can't be used together\n",
-		},
-		{
-			args: []string{"-o", "out", "-serve", ":0", "-snapshot", "v1.2.3"},
-			want: "-o, -serve and -snapshot can't be used together\n",
+			args: []string{"-o", "out", "-serve", ":0", "-version"},
+			want: "-o, -serve and -version can't be used together\n",
 		},
 		{
 			args: []string{"-version", "-serve", ":0"},

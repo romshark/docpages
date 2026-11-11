@@ -32,8 +32,8 @@ type frontMatter struct {
 	// URL makes the entry a link that leaves the site.
 	URL string `yaml:"url"`
 
-	// Note is a Markdown paragraph above every version page.
-	// Only a main or release docs README.md accepts it; empty means no note.
+	// Note is a Markdown paragraph above every version page. Only the docs
+	// README.md and that of a release folder accept it; empty means no note.
 	Note string `yaml:"note"`
 
 	// Site settings, accepted only in the docs README.md.
@@ -48,6 +48,15 @@ type frontMatter struct {
 	Repository string `yaml:"repository"`
 	// Host describes where the repository is hosted, GitHub without it.
 	Host *hostSettings `yaml:"host"`
+	// Releases selects the tags that are releases; nil means no releases.
+	Releases *releasesSettings `yaml:"releases"`
+}
+
+// releasesSettings selects the release tags: those of feature version From, as
+// v1.2, and later, each with Prefix, as api/ for api/v1.2.3.
+type releasesSettings struct {
+	From   string `yaml:"from"`
+	Prefix string `yaml:"prefix"`
 }
 
 // readmeName is the file GitHub shows for a directory.
@@ -237,7 +246,8 @@ func (l *layout) add(r readPageResult) {
 
 // hasSettings reports whether fm sets a setting of the site.
 func (fm frontMatter) hasSettings() bool {
-	return fm.Name != "" || fm.Home != "" || fm.Repository != "" || fm.Host != nil
+	return fm.Name != "" || fm.Home != "" || fm.Repository != "" || fm.Host != nil ||
+		fm.Releases != nil
 }
 
 // orderedEntry is a group directory or a page file with its position.

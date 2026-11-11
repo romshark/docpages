@@ -18,6 +18,10 @@ The links of the header and the footer belong to a [template](6-templates.md).
 
 `repository` is the URL of your repository. It defaults to the URL of the Git remote `origin`. If your repository isn't on GitHub, set [`host`](8-repository-host.md) too.
 
+## Releases
+
+`releases` turns on releases from Git tags. Its `from` is the oldest version that the site shows, as `v1.2`, and each later minor version with a tag is a release too. Its optional `prefix` selects tags such as `api/v1.2.0`. See [Versions](7-versions.md).
+
 ## Logo and favicon
 
 Put `logo.svg` in the docs folder to show it in place of the name. The logo leads to the first page, or to `home`: a URL relative to the output folder, as `../` for a landing page above the docs.
