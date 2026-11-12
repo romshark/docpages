@@ -314,17 +314,34 @@ func TestReleaseErrors(t *testing.T) {
 	}
 }
 
-// TestDocsIndex checks that root index.html opens its edition's first page.
+// TestDocsIndex checks that root index.html opens its edition's first page with
+// a script before the stylesheets, or a refresh without scripts, and shows the
+// project in the stored theme and the colors of the edition.
 func TestDocsIndex(t *testing.T) {
-	html := render(t, docsIndex("v1.2/", &chrome{name: "Demo", favicon: "favicon.svg"}))
+	c := &chrome{name: "Demo", favicon: "favicon.svg", style: true}
+	html := render(t, docsIndex("v1.2/", c))
+	for _, want := range []string{
+		`<script data-dir="v1.2/">`,
+		`location.replace(document.currentScript.dataset.dir);`,
+		`<meta http-equiv="refresh" content="0; url=v1.2/">`,
+		`<meta name="color-scheme" content="light dark">`,
+		`<title>Demo documentation</title>`,
+		`<link rel="icon" href="v1.2/favicon.svg" type="image/svg+xml">`,
+		`localStorage.getItem("theme")`,
+		`<link rel="stylesheet" href="v1.2/docpages.css">`,
+		`<link rel="stylesheet" href="v1.2/style.css">`,
+		`<body class="docs-index"><a class="docs-index-link" href="v1.2/">Demo</a></body>`,
+	} {
+		require.Contains(t, html, want)
+	}
+	require.Less(t,
+		strings.Index(html, "location.replace"), strings.Index(html, `rel="stylesheet"`))
+
+	c.style, c.logo = false, `<svg class="logo-svg"></svg>`
+	html = render(t, docsIndex("main/", c))
+	require.NotContains(t, html, "style.css")
 	require.Contains(t, html,
-		`<meta http-equiv="refresh" content="0; url=v1.2/">`)
-	require.Contains(t, html,
-		`<title>Demo documentation</title>`)
-	require.Contains(t, html,
-		`<a href="v1.2/">`)
-	require.Contains(t, html,
-		`<link rel="icon" href="v1.2/favicon.svg" type="image/svg+xml">`)
+		`<a class="docs-index-link" href="main/"><svg class="logo-svg"></svg></a>`)
 }
 
 // TestDefaultEdition checks that index.html opens the latest release, or main if none.

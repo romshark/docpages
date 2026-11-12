@@ -464,12 +464,34 @@ templ docsIndex(dir string, c *chrome) {
 	<html lang="en">
 		<head>
 			<meta charset="utf-8"/>
+			// The script redirects before the stylesheets load; the refresh is
+			// for browsers without scripts. replace keeps this page out of history.
+			<script data-dir={ dir }>
+				location.replace(document.currentScript.dataset.dir);
+			</script>
 			<meta http-equiv="refresh" content={ "0; url=" + dir }/>
+			// Before the stylesheets load, the browser paints a dark canvas
+			// in a dark system theme instead of a white one.
+			<meta name="color-scheme" content="light dark"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ c.name } documentation</title>
 			@favicon(dir, c.favicon)
+			@themeScript()
+			// The stylesheets of the version give the colors of its pages,
+			// with those of the docs style.css, and are cached for them.
+			<link rel="stylesheet" href={ dir + "docpages.css" }/>
+			if c.style {
+				<link rel="stylesheet" href={ dir + "style.css" }/>
+			}
 		</head>
-		<body>
-			<a href={ dir }>{ c.name } documentation</a>
+		<body class="docs-index">
+			<a class="docs-index-link" href={ dir }>
+				if c.logo != "" {
+					@templ.Raw(c.logo)
+				} else {
+					{ c.name }
+				}
+			</a>
 		</body>
 	</html>
 }
