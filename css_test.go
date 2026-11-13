@@ -12,7 +12,7 @@ import (
 // light-dark(), and scroll-driven animations pass [minifyCSS].
 func TestCheckCSSValid(t *testing.T) {
 	for _, name := range []string{
-		"static/style.css",
+		"web/style.css",
 		"docs/style.css",
 		"example/cli/docs/style.css",
 		"example/library/docs/style.css",

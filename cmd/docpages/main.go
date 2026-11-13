@@ -45,6 +45,7 @@ type config struct {
 	dir     string // Docs directory.
 	out     string // Output directory of the site.
 	addr    string // Address to serve the docs on, or empty.
+	offline bool   // Whether the site offers offline viewing.
 	version bool   // Whether to print the version of docpages.
 }
 
@@ -94,6 +95,8 @@ func parseArgs(args []string, stderr io.Writer) (config, error) {
 	flags.StringVar(&c.addr, "serve", "",
 		"Serve the pages on this address instead of writing them, "+
 			"reloading them on changes")
+	flags.BoolVar(&c.offline, "offline", true,
+		"Offer offline viewing with a service worker; -offline=false leaves it out")
 	flags.BoolVar(&c.version, "version", false, "Print the version of docpages")
 	flags.Usage = func() {
 		_, _ = fmt.Fprintf(stderr, "usage: docpages [flags] [dir]\n")
@@ -107,10 +110,13 @@ func parseArgs(args []string, stderr io.Writer) (config, error) {
 	}
 	// Visit, unlike the values, tells -o apart from its default.
 	var modes []string
+	offlineSet := false
 	flags.Visit(func(f *flag.Flag) {
 		switch f.Name {
 		case "o", "serve", "version":
 			modes = append(modes, "-"+f.Name)
+		case "offline":
+			offlineSet = true
 		}
 	})
 	if n := len(modes); n > 1 {
@@ -121,6 +127,11 @@ func parseArgs(args []string, stderr io.Writer) (config, error) {
 	}
 	if c.version && flags.NArg() > 0 {
 		_, _ = fmt.Fprintf(stderr, "-version takes no dir\n")
+		flags.Usage()
+		return config{}, errUsage
+	}
+	if c.version && offlineSet {
+		_, _ = fmt.Fprintf(stderr, "-offline and -version can't be used together\n")
 		flags.Usage()
 		return config{}, errUsage
 	}
@@ -153,6 +164,7 @@ func run(args []string, stdout, stderr io.Writer) (err error) {
 	if err != nil {
 		return err
 	}
+	o.NoOffline = !c.offline
 	if c.addr != "" {
 		// The handler shows later errors in a page that reloads after fixes.
 		// An initial build failure more likely means these are the wrong docs.

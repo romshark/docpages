@@ -1,0 +1,18 @@
+{
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+	"files": {
+		"includes": ["*.ts", "sw/*.ts", "style.css", "*.json", "sw/*.json"]
+	},
+	"css": {
+		"formatter": {
+			"enabled": false
+		}
+	},
+	"linter": {
+		"rules": {
+			"style": {
+				"noDescendingSpecificity": "off"
+			}
+		}
+	}
+}

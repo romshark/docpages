@@ -16,12 +16,16 @@ import (
 const module = "github.com/romshark/morpheus"
 
 // components are page-rendered Morpheus components; "morpheus bundle" adds dependencies.
-var components = []string{"button", "clipcopy", "dialog", "elastic", "select", "sidebar"}
+var components = []string{
+	"aura", "button", "checkbox", "clipcopy", "dialog", "elastic", "popover", "progress",
+	"select", "sidebar", "tooltip",
+}
 
 // icons are Morpheus icons shown by icons.templ or loaded by page components,
 // such as <neo-select>'s caret. Missing Morpheus icons live in static/icons.
 var icons = []string{
-	"chevron-down", "chevrons-up-down", "file", "github", "menu", "moon", "search", "sun",
+	"chevron-down", "chevrons-up-down", "circle-check", "download", "file", "github",
+	"info", "menu", "moon", "search", "sun",
 }
 
 const dir = "static/morpheus"

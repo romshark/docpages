@@ -10,7 +10,7 @@ if err != nil {
 return site.Write("public/docs")
 ```
 
-`Options.Root` is the root of the repository, and `Options.Dir` the docs folder in it. `Read` of docs with [templates](../2-guide/6-templates.md) needs the go command, which builds them. It returns a `*VersionError` if the docs module requires a version of docpages that the running one isn't compatible with.
+`Options.Root` is the root of the repository, and `Options.Dir` the docs folder in it. `Options.NoOffline` leaves out [offline viewing](3-output.md#offline-viewing), as `-offline=false` does. `Read` of docs with [templates](../2-guide/6-templates.md) needs the go command, which builds them. It returns a `*VersionError` if the docs module requires a version of docpages that the running one isn't compatible with.
 
 | Function | What it does |
 | --- | --- |

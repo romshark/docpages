@@ -344,7 +344,8 @@ neo-icon > svg {
 /* Size the docs version and theme controls to their content. Override Morpheus
    button, popover, and option colors, which lack dark variants. */
 .version-select,
-.theme-select {
+.theme-select,
+.offline {
   --neo-select-min-width: 0;
   --neo-button-bg: var(--bg);
   --neo-button-color: var(--text);
@@ -557,7 +558,7 @@ html:has(.docs-page) {
 
 /* On screens too narrow for a contents column, use a bar that sticks below the
    header, or at the top when the header does not stick, and opens over text.
-   It covers text beneath it with 0.5rem around its summary. docs.js keeps the
+   It covers text beneath it with 0.5rem around its summary. docs.ts keeps the
    list in the viewport and sets data-stuck while the bar sticks. */
 .toc-inline {
   display: none;
@@ -783,7 +784,7 @@ html:has(.docs-page) {
   }
 }
 
-/* docs.js sets --search-top and --search-height to the visual viewport left by
+/* docs.ts sets --search-top and --search-height to the visual viewport left by
    an on-screen keyboard while open. Keep one tenth of that height above the dialog. */
 neo-dialog.search dialog {
   inline-size: min(40rem, calc(100vw - 2rem));
@@ -839,7 +840,7 @@ neo-dialog.search dialog {
   overflow: clip;
 }
 
-/* --search-room is docs.js's measured list height above an on-screen keyboard. */
+/* --search-room is docs.ts's measured list height above an on-screen keyboard. */
 .search-results {
   max-block-size: min(26rem, 60dvh, var(--search-room, 100dvh));
   overflow-y: auto;
@@ -1193,7 +1194,7 @@ neo-dialog.search dialog {
   }
 }
 
-/* docs.js replaces Mermaid source with an SVG; without it, the source stays visible. */
+/* docs.ts replaces Mermaid source with an SVG; without it, the source stays visible. */
 .docs-content pre.mermaid {
   padding: 0;
   border: 0;
@@ -1421,6 +1422,192 @@ neo-dialog.search dialog {
       color: var(--text);
     }
   }
+}
+
+/* ── Offline viewing ─────────────────────────────── */
+
+.offline {
+  display: inline-flex;
+  /* The round --page-radius would draw radio buttons. */
+  --neo-checkbox-radius: 0.25rem;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+/* Round, as tall as the theme switch. */
+.offline-button {
+  display: grid;
+  place-items: center;
+  inline-size: var(--control-height);
+  block-size: var(--control-height);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text);
+  }
+
+  neo-icon {
+    inline-size: 1rem;
+    block-size: 1rem;
+  }
+
+  neo-icon[name="circle-check"],
+  .offline[data-offline-state="saved"] & neo-icon[name="download"] {
+    display: none;
+  }
+
+  .offline[data-offline-state="saved"] & neo-icon[name="circle-check"] {
+    display: block;
+  }
+
+  .offline[data-offline-state="saving"] & {
+    color: var(--accent);
+  }
+}
+
+/* Only the part of the current state shows. */
+.offline-panel {
+  display: grid;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+
+  > :is(.offline-choose, .offline-saving, .offline-unavailable) {
+    display: none;
+  }
+}
+
+.offline[data-offline-state="none"] .offline-choose,
+.offline[data-offline-state="saved"] .offline-choose,
+.offline[data-offline-state="saving"] .offline-saving,
+.offline[data-offline-state="unavailable"] .offline-unavailable {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.offline:not([data-offline-state="saved"]) .offline-saved-text {
+  display: none;
+}
+
+/* The margin cancels the padding that the aura's ring draws in. */
+.offline-aura {
+  margin: calc(-1 * var(--neo-aura-width, 0.125rem));
+}
+
+.offline-title {
+  font-weight: 600;
+}
+
+.offline-option {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+
+  &[hidden] {
+    display: none;
+  }
+
+  label {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+  }
+
+  /* A disabled group greys out with its checkbox. */
+  &:has(neo-checkbox[disabled]) label {
+    color: var(--text-muted);
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.offline-size,
+.offline-progress-text,
+.offline-unavailable {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.offline-size {
+  margin-inline-start: auto;
+}
+
+.offline-error {
+  color: var(--text);
+
+  &:empty {
+    display: none;
+  }
+}
+
+.offline-too-big[hidden] {
+  display: none;
+}
+
+.offline-info {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: help;
+
+  &:hover {
+    color: var(--text);
+  }
+
+  neo-icon {
+    inline-size: 1rem;
+    block-size: 1rem;
+  }
+}
+
+.offline-saved-text {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  neo-icon {
+    inline-size: 1rem;
+    block-size: 1rem;
+  }
+}
+
+/* Unsaved media, offline. */
+.offline-placeholder {
+  display: inline-grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.5rem;
+  max-inline-size: 100%;
+  min-block-size: 6rem;
+  padding: 1rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--page-radius, 0.25rem);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  vertical-align: middle;
+
+  svg {
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
+  }
+}
+
+.offline-placeholder-audio {
+  display: flex;
+  min-block-size: 3rem;
+  inline-size: 100%;
 }
 
 /* ── Root index ──────────────────────────────────── */

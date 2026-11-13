@@ -30,7 +30,7 @@ const pollInterval = 250 * time.Millisecond
 
 // Handler serves o's site at output-relative paths, as [Site.Write] lays it out.
 // It rereads docs after a read file changes, showing changes without a restart,
-// and reloads pages. Styles and scripts stay unminified.
+// and reloads pages.
 // Paths follow GitHub Pages: trailing "/" serves index.html; a missing path serves
 // its ".html" file, even with a dot as in guide/v1.2-notes.
 // Errors such as a missing link heading are reloadable pages too.
@@ -151,23 +151,7 @@ func (w *watcher) readSite(o Options, state string) (map[string][]byte, error) {
 	w.sources = sources
 	w.lock.Unlock()
 	s.chrome.reload = state
-	files, err := s.Files()
-	if err != nil {
-		return nil, err
-	}
-	css, err := fs.ReadFile(static, "static/style.css")
-	if err != nil {
-		return nil, err
-	}
-	js, err := fs.ReadFile(static, "static/docs.js")
-	if err != nil {
-		return nil, err
-	}
-	for _, e := range s.editions {
-		files[e.outDir()+"docpages.css"] = css
-		files[e.outDir()+"docpages.js"] = js
-	}
-	return files, nil
+	return s.Files()
 }
 
 // state hashes paths, sizes, and mtimes of docs files and page sources.

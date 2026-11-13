@@ -67,3 +67,30 @@ jobs:
 
       - name: Compile
         run: go build -o /dev/null ./...
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # Takes the version of pnpm from packageManager in web/package.json.
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: web/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Biome lint and format check, and tsc of the page and the service worker.
+      - name: Check
+        run: pnpm run check-all

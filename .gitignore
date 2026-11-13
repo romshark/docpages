@@ -3,3 +3,5 @@
 # GoReleaser output. Go stamps a build "+dirty" while untracked files exist,
 # and such a docpages has no version to build the .templ files of a site with.
 /dist/
+# pnpm dependencies of the TypeScript checks.
+/web/node_modules/

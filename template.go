@@ -157,6 +157,7 @@ func renderMain(args []string, stdout io.Writer, page func(Page) templ.Component
 	flags.StringVar(&o.Dir, "dir", ".", "Docs directory, relative to the root")
 	flags.BoolVar(&served, "served", false, "Read the docs as Handler does")
 	flags.StringVar(&reload, "reload", "", "State of the files that Handler reads")
+	flags.BoolVar(&o.NoOffline, "no-offline", false, "Leave out offline viewing")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -185,7 +186,8 @@ func (s *Site) renderTemplates() (map[string][]byte, error) {
 		return nil, err
 	}
 	cmd := exec.Command(program, "-root", root, "-dir", s.options.Dir,
-		"-served="+strconv.FormatBool(s.served != nil), "-reload", s.chrome.reload)
+		"-served="+strconv.FormatBool(s.served != nil), "-reload", s.chrome.reload,
+		"-no-offline="+strconv.FormatBool(s.options.NoOffline))
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {

@@ -8,7 +8,7 @@ import (
 	"github.com/yuin/goldmark/v2/ast"
 )
 
-// searchEntry is a page section searched by docs.js from search.json.
+// searchEntry is a page section searched by docs.ts from search.json.
 // Short names keep the file small.
 type searchEntry struct {
 	Page    string `json:"p"` // Title of the page.

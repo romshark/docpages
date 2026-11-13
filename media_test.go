@@ -19,7 +19,7 @@ import (
 // mediaName returns media file name's content-addressed, edition-relative copy path.
 func mediaName(data, name string) string {
 	sum := sha256.Sum256([]byte(data))
-	return path.Join(mediaDir, hex.EncodeToString(sum[:8]), name)
+	return path.Join(mediaDir, hex.EncodeToString(sum[:mediaHashSize]), name)
 }
 
 // TestMedia checks copies of displayed media from docs or elsewhere in the repository,

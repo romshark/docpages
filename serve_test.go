@@ -57,13 +57,13 @@ func TestHandler(t *testing.T) {
 	require.Equal(t, http.StatusOK, code)
 	require.Contains(t, body, `<script data-url="./../_reload"`)
 
-	css, err := static.ReadFile("static/style.css")
+	css, err := static.ReadFile("static/style.min.css")
 	require.NoError(t, err)
 	code, body = get(t, h, "/main/docpages.css")
 	require.Equal(t, http.StatusOK, code)
 	require.Equal(t, string(css), body)
 
-	js, err := static.ReadFile("static/docs.js")
+	js, err := static.ReadFile("static/docs.min.js")
 	require.NoError(t, err)
 	code, body = get(t, h, "/main/docpages.js")
 	require.Equal(t, http.StatusOK, code)

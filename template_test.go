@@ -245,10 +245,21 @@ func TestTemplate(t *testing.T) {
 	}
 	require.NotContains(t, html, "_reload")
 
+	require.Contains(t, html, `class="offline"`)
+
 	code, body := get(t, Handler(o), "/main/guides/events")
 	require.Equal(t, 200, code)
 	require.Contains(t, body, `<meta name="template" content="test"></head>`)
 	require.Contains(t, body, `<script data-url="../../_reload"`)
+
+	// The template renderer omits it too.
+	o.NoOffline = true
+	s, err = Read(o)
+	require.NoError(t, err)
+	files, err = s.Files()
+	require.NoError(t, err)
+	require.NotContains(t, string(files["main/guides/events.html"]), `class="offline"`)
+	require.NotContains(t, files, "main/sw.js")
 }
 
 // TestTemplateErrors checks that renderer build and run errors name the .templ

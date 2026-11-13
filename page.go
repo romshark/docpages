@@ -85,7 +85,7 @@ type VersionLink struct {
 	Current bool // Whether the page belongs to this version.
 	// Href is the same page in this version.
 	Href string
-	// Fallback is this version's first page, opened by docs.js if the page is absent.
+	// Fallback is this version's first page, opened by docs.ts if the page is absent.
 	Fallback string
 }
 

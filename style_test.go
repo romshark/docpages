@@ -20,24 +20,19 @@ const testStyle = `/* The colors. */
 `
 
 // TestStyleMinified checks that sites minify docs style.css comments and spaces,
-// while [Handler]'s served mode keeps it unchanged.
+// in [Handler]'s served mode too, which serves the site of a build.
 func TestStyleMinified(t *testing.T) {
 	fsys := testRepoFS()
 	fsys["docs/style.css"] = &fstest.MapFile{Data: []byte(testStyle)}
-
-	s, err := read(fsys, "docs", noRemote, nil, false)
-	require.NoError(t, err)
-	files, err := s.Files()
-	require.NoError(t, err)
-	require.Equal(t,
-		":root{--bg: light-dark(#ffffff, #000000);.docs-page &{color:red}}\n",
-		string(files["main/style.css"]))
-
-	s, err = read(fsys, "docs", noRemote, nil, true)
-	require.NoError(t, err)
-	files, err = s.Files()
-	require.NoError(t, err)
-	require.Equal(t, testStyle, string(files["main/style.css"]))
+	for _, served := range []bool{false, true} {
+		s, err := read(fsys, "docs", noRemote, nil, served)
+		require.NoError(t, err)
+		files, err := s.Files()
+		require.NoError(t, err)
+		require.Equal(t,
+			":root{--bg: light-dark(#ffffff, #000000);.docs-page &{color:red}}\n",
+			string(files["main/style.css"]), "served %v", served)
+	}
 }
 
 // TestStyleChecked checks that invalid docs style.css fails in static and served modes.

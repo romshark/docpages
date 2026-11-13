@@ -116,9 +116,91 @@ templ Header(p Page) {
 				{ p.Host }
 			</a>
 			@Search(p)
+			@Offline(p)
 			@ThemeSwitch()
 		</nav>
 	</header>
+}
+
+// Offline renders the button that saves p's version for offline viewing,
+// or nothing with [Options].NoOffline.
+templ Offline(p Page) {
+	if p.site != nil && !p.site.options.NoOffline {
+		<div class="offline" data-offline-state="none" hidden>
+			@neo.Popover(neo.PopoverOpts{
+				Placement:    neo.Set(neo.PlacementBottomEnd),
+				FollowScroll: neo.Set(neo.PopoverFollowScrollUntilTriggerInvisible),
+			}) {
+				// The aura runs during downloads.
+				@neo.AuraAttrs(neo.AuraOpts{Disabled: neo.Set(true)},
+					templ.Attributes{"class": "offline-aura"}) {
+					<button
+						type="button"
+						class="offline-button"
+						aria-label="Offline viewing"
+						title="Offline viewing"
+						{ neo.PopoverTrigger()... }
+					>
+						@icon("download")
+						@icon("circle-check")
+					</button>
+				}
+				<div class="offline-panel" { neo.PopoverContent()... }>
+					<p class="offline-title">Offline viewing</p>
+					// Apply saves the checked groups and drops the others.
+					<div class="offline-choose">
+						<p class="offline-saved-text">
+							@icon("circle-check")
+							Cached for offline viewing
+						</p>
+						@offlineOption(offlinePages, "Pages")
+						@offlineOption(offlineImages, "Images")
+						@offlineOption(offlineVideos, "Videos and audio")
+						@neo.ButtonAttrs(neo.ButtonOpts{Size: neo.Set("sm"), Disabled: neo.Set(true)},
+							templ.Attributes{"class": "offline-apply"}) {
+							Apply
+						}
+						<p class="offline-error" role="alert"></p>
+					</div>
+					<div class="offline-saving">
+						@neo.ProgressAttrs(neo.ProgressOpts[int]{
+							HideValue: neo.Set(true),
+							AriaLabel: neo.Set("Saving for offline viewing"),
+						}, nil)
+						<p class="offline-progress-text" aria-live="polite"></p>
+						@neo.ButtonAttrs(neo.ButtonOpts{Size: neo.Set("sm")},
+							templ.Attributes{"class": "offline-cancel"}) {
+							Cancel
+						}
+					</div>
+					<p class="offline-unavailable">
+						Connect to the network to save these docs for offline viewing.
+					</p>
+				</div>
+			}
+		</div>
+	}
+}
+
+// offlineOption is the checkbox of group in [Offline], checked when cached,
+// with its size and an info button for a group too big to cache.
+templ offlineOption(group, label string) {
+	<div class="offline-option" data-group={ group }>
+		<label>
+			@neo.CheckboxAttrs(neo.CheckboxOpts{Size: neo.Set("sm")},
+				templ.Attributes{"data-group": group})
+			{ label }
+			<span class="offline-size"></span>
+		</label>
+		<span class="offline-too-big" hidden>
+			@neo.Tooltip(neo.TooltipOpts{Placement: neo.Set(neo.PlacementTop)}) {
+				<button type="button" class="offline-info" aria-label={ label + " don't fit" }>
+					@icon("info")
+				</button>
+				<span { neo.TooltipContent()... }></span>
+			}
+		</span>
+	</div>
 }
 
 // menuButton opens [Navigation] over the page.
@@ -155,7 +237,7 @@ templ Main(p Page) {
 			@versionNote(p.Note)
 		}
 		// On narrow screens, a bar sticks below the header and opens over text.
-		// It shows the page title until docs.js replaces it with the current section title.
+		// It shows the page title until docs.ts replaces it with the current section title.
 		if len(p.Contents) > 0 {
 			<details class="toc-inline">
 				<summary>
@@ -300,7 +382,7 @@ templ skipLink() {
 	<a class="skip-link" href="#main-content">Skip to content</a>
 }
 
-// VersionSelect is the version menu; docs.js opens the page in the chosen version.
+// VersionSelect is the version menu; docs.ts opens the page in the chosen version.
 // A site without releases has only main, and no menu.
 templ VersionSelect(p Page) {
 	if len(p.Versions) > 1 {
@@ -339,7 +421,7 @@ templ hostIcon(h *host) {
 	}
 }
 
-// Search renders its button and dialog. docs.js lists search.json results,
+// Search renders its button and dialog. docs.ts lists search.json results,
 // or suggestions for an empty field.
 templ Search(p Page) {
 	@neo.DialogAttrs(neo.DialogOpts{}, templ.Attributes{"class": "search"}) {

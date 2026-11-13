@@ -19,16 +19,20 @@ func TestParseArgs(t *testing.T) {
 		args []string
 		want config
 	}{
-		{args: nil, want: config{dir: ".", out: "site"}},
-		{args: []string{"docs"}, want: config{dir: "docs", out: "site"}},
-		{args: []string{"-o", "out", "docs"}, want: config{dir: "docs", out: "out"}},
+		{args: nil, want: config{dir: ".", out: "site", offline: true}},
+		{args: []string{"docs"}, want: config{dir: "docs", out: "site", offline: true}},
+		{args: []string{"-o", "out", "docs"}, want: config{dir: "docs", out: "out", offline: true}},
 		{
 			args: []string{"-serve", ":7340", "docs"},
-			want: config{dir: "docs", out: "site", addr: ":7340"},
+			want: config{dir: "docs", out: "site", addr: ":7340", offline: true},
+		},
+		{
+			args: []string{"-offline=false", "docs"},
+			want: config{dir: "docs", out: "site"},
 		},
 		{
 			args: []string{"-version"},
-			want: config{dir: ".", out: "site", version: true},
+			want: config{dir: ".", out: "site", version: true, offline: true},
 		},
 	} {
 		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {
@@ -63,6 +67,10 @@ func TestParseArgsErr(t *testing.T) {
 		{
 			args: []string{"-version", "docs"},
 			want: "-version takes no dir\n",
+		},
+		{
+			args: []string{"-version", "-offline=false"},
+			want: "-offline and -version can't be used together\n",
 		},
 		{
 			args: []string{"-bogus"},

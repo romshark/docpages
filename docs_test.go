@@ -1011,7 +1011,7 @@ func TestPageLinks(t *testing.T) {
 }
 
 // TestMermaid checks that a Mermaid block becomes the escaped,
-// button-free element that docs.js draws.
+// button-free element that docs.ts draws.
 func TestMermaid(t *testing.T) {
 	body := convert(t, dedentMD(`
 		# T

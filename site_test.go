@@ -890,8 +890,8 @@ func TestSearchSuggestions(t *testing.T) {
 	require.Equal(t, 2, strings.Count(html, `id="search_suggestion_`))
 }
 
-// TestStaticAssets checks that all loaded assets and [Handler]-served sources
-// are embedded, with a minified script.
+// TestStaticAssets checks the embedded assets, the minified script among
+// them, and their sources in web/.
 func TestStaticAssets(t *testing.T) {
 	assets, err := siteAssets()
 	require.NoError(t, err)
@@ -901,8 +901,11 @@ func TestStaticAssets(t *testing.T) {
 		"morpheus/icons/arrow-up-right.svg",
 		"morpheus/icons/chevron-down.svg",
 		"morpheus/icons/chevrons-up-down.svg",
+		"morpheus/icons/circle-check.svg",
+		"morpheus/icons/download.svg",
 		"morpheus/icons/file.svg",
 		"morpheus/icons/github.svg",
+		"morpheus/icons/info.svg",
 		"morpheus/icons/markdown.svg",
 		"morpheus/icons/menu.svg",
 		"morpheus/icons/monitor.svg",
@@ -914,8 +917,8 @@ func TestStaticAssets(t *testing.T) {
 	min, err := static.ReadFile("static/docs.min.js")
 	require.NoError(t, err)
 	require.Equal(t, string(min), string(assets["docpages.js"]))
-	for _, source := range []string{"static/style.css", "static/docs.js"} {
-		_, err = fs.Stat(static, source)
+	for _, source := range []string{"web/style.css", "web/docs.ts", "web/sw/sw.ts"} {
+		_, err = os.Stat(source)
 		require.NoError(t, err)
 	}
 }

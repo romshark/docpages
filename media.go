@@ -25,6 +25,24 @@ import (
 // Content-named subdirectories separate files with the same name.
 const mediaDir = "media"
 
+// mediaHashSize is the number of bytes of the SHA-256 of a copy's content
+// that name its subdirectory in hex.
+const mediaHashSize = 8
+
+// isMediaCopy reports whether version-relative name is a media copy,
+// as media/0a1b2c3d4e5f6a7b/shot.webp.
+// The pages of a docs group named media lie in media/ too, without the hash.
+func isMediaCopy(name string) bool {
+	rest, ok := strings.CutPrefix(name, mediaDir+"/")
+	if !ok {
+		return false
+	}
+	hash, file, ok := strings.Cut(rest, "/")
+	return ok && len(hash) == 2*mediaHashSize &&
+		strings.Trim(hash, "0123456789abcdef") == "" &&
+		file != "" && !strings.Contains(file, "/")
+}
+
 // mediaCopy is the copy of a media file in the site.
 type mediaCopy struct {
 	name string // The path of the copy relative to the directory of the edition.
@@ -112,7 +130,11 @@ func (s *site) mediaCopyOf(file, dest string) (*mediaCopy, error) {
 		}
 		sum := sha256.Sum256(data)
 		c = mediaCopy{
-			name: path.Join(mediaDir, hex.EncodeToString(sum[:8]), path.Base(file)),
+			name: path.Join(
+				mediaDir,
+				hex.EncodeToString(sum[:mediaHashSize]),
+				path.Base(file),
+			),
 			data: data,
 		}
 		c.header, _ = readImageHeader(data)

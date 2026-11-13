@@ -30,7 +30,7 @@ var codeTitle = regexp.MustCompile(`\btitle="([^"]*)"`)
 
 // codeBlocks returns one page's code-block renderer. It shows optional titles
 // above blocks, adds copy buttons, and uses Chroma when the info-string language
-// has a lexer. docs.js draws mermaid blocks as diagrams, as GitHub does.
+// has a lexer. docs.ts draws mermaid blocks as diagrams, as GitHub does.
 //
 // It is a decorator because goldmark applies extension renderers, including
 // CommonMark, after option renderers. Per-page block numbering supplies copy IDs,

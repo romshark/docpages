@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/romshark/docpages/actions/workflows/ci.yml/badge.svg)](https://github.com/romshark/docpages/actions/workflows/ci.yml) [![Go Reference](https://pkg.go.dev/badge/github.com/romshark/docpages.svg)](https://pkg.go.dev/github.com/romshark/docpages) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-docpages renders the Markdown files of a docs folder of a Git repository as a static documentation site, with a version for `main` and for each release. The folders and file names make the navigation, links work as they do on GitHub, and a link to a file or a heading that doesn't exist fails the build. The site has search in the browser, light and dark themes, and `llms.txt` for language models.
+docpages renders the Markdown files of a docs folder of a Git repository as a static documentation site, with a version for `main` and for each release. The folders and file names make the navigation, links work as they do on GitHub, and a link to a file or a heading that doesn't exist fails the build. The site has search in the browser, offline viewing, light and dark themes, and `llms.txt` for language models.
 
 ```sh
 go run github.com/romshark/docpages/cmd/docpages@latest -serve 127.0.0.1:7340 docs
@@ -38,4 +38,6 @@ The documentation is a docpages site itself, at [romshark.github.io/docpages](ht
 
 ## Development
 
-`make gen` writes the Go code of the templ templates, `static/style.min.css`, `static/docs.min.js` and the Morpheus bundle. They are committed, and CI fails when they are out of date. `make fmt` formats the code with gofumpt, which CI checks too.
+`make gen` writes the Go code of the templ templates, `static/style.min.css`, the Morpheus bundle, and `static/docs.min.js` and `static/sw.min.js`, which esbuild compiles from `web/style.css` and the TypeScript of `web/docs.ts` and `web/sw/sw.ts`. They are committed, and CI fails when they are out of date. Building docpages needs only Go. `make fmt` formats the Go code with gofumpt, which CI checks too.
+
+`make check` lints and format-checks the TypeScript and `web/style.css` with [Biome](https://biomejs.dev), and type-checks the TypeScript with `tsc`, as CI does. It needs Node 24, pnpm and a `pnpm install` in `web/`. `pnpm run format` there formats the TypeScript.

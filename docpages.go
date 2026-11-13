@@ -58,6 +58,8 @@ type Options struct {
 	Root string
 	// Dir is the docs directory, relative to Root, as "guide" or ".".
 	Dir string
+	// NoOffline omits sw.js, offline.json and [Offline].
+	NoOffline bool
 }
 
 // Site contains the docs for main and every release.
@@ -128,8 +130,13 @@ func readOptions(o Options, served bool) (*Site, error) {
 
 // readRepo reads o's docs from disk like [readOptions] but uses [DefaultPage].
 func readRepo(o Options, served bool) (*Site, error) {
-	s, err := read(os.DirFS(o.Root), path.Clean(filepath.ToSlash(o.Dir)),
-		func() (string, error) { return gitRemote(o.Root) }, gitTags{root: o.Root}, served)
+	s, err := read(
+		os.DirFS(o.Root),
+		path.Clean(filepath.ToSlash(o.Dir)),
+		func() (string, error) { return gitRemote(o.Root) },
+		gitTags{root: o.Root},
+		served,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -204,11 +211,7 @@ func read(
 		if err != nil {
 			return nil, err
 		}
-		// [Handler] serves both stylesheets unminified for easier browser reading.
-		if !served {
-			data = min
-		}
-		c.style, assets["style.css"] = true, data
+		c.style, assets["style.css"] = true, min
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return nil, err
 	}
@@ -278,10 +281,9 @@ func (s *Site) defaultEdition() *edition { return s.editions[0] }
 // Description returns the text of the first paragraph of the first page of main.
 func (s *Site) Description() string { return s.main().docs[0].description }
 
-// Files returns site files by output-relative path. Each edition directory,
-// main/ or a release such as v1.2/, contains its pages, Markdown copies,
-// search.json, llms.txt, llms-full.txt, and page assets. Root index.html and
-// llms.txt lead to the latest release, or main when there are none.
+// Files returns the site's files by output-relative path, a directory per version,
+// as main/ or v1.2/, plus index.html and llms.txt,
+// which lead to the latest release or main.
 func (s *Site) Files() (map[string][]byte, error) {
 	var index bytes.Buffer
 	err := docsIndex(s.defaultEdition().outDir(), &s.chrome).
@@ -319,6 +321,11 @@ func (s *Site) Files() (map[string][]byte, error) {
 		return nil, err
 	}
 	maps.Copy(files, pages)
+	if !s.options.NoOffline {
+		if err := s.addOfflineFiles(files); err != nil {
+			return nil, err
+		}
+	}
 	return files, nil
 }
 

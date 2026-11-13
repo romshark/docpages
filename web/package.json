@@ -1,0 +1,19 @@
+{
+	"private": true,
+	"type": "module",
+	"packageManager": "pnpm@12.18.0",
+	"engines": {
+		"node": ">=24",
+		"pnpm": ">=12"
+	},
+	"scripts": {
+		"lint": "biome lint",
+		"lint-apply": "biome lint --write",
+		"format": "biome format --write",
+		"check-all": "biome check && tsc --noEmit -p . && tsc --noEmit -p sw"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.6.3",
+		"typescript": "7.0.2"
+	}
+}
