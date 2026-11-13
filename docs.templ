@@ -176,6 +176,30 @@ templ Offline(p Page) {
 					<p class="offline-unavailable">
 						Connect to the network to save these docs for offline viewing.
 					</p>
+					// Apply opens it to confirm before saved files go.
+					// The trigger that neo-dialog requires stays hidden.
+					@neo.DialogAttrs(neo.DialogOpts{}, templ.Attributes{"class": "offline-confirm"}) {
+						<span hidden { neo.DialogTrigger()... }></span>
+						<dialog aria-labelledby="offline-confirm-title">
+							@neo.DialogHeader() {
+								@neo.DialogTitleAttrs(templ.Attributes{"id": "offline-confirm-title"}) {
+									Delete offline files?
+								}
+								@neo.DialogDescriptionAttrs(templ.Attributes{"class": "offline-confirm-text"}) {
+								}
+							}
+							@neo.DialogFooter() {
+								@neo.ButtonAttrs(neo.ButtonOpts{Variant: neo.Set(neo.ButtonVariantGhost)},
+									templ.Attributes{"class": "offline-keep", "data-neo-dialog-close": true}) {
+									Keep
+								}
+								@neo.ButtonAttrs(neo.ButtonOpts{Variant: neo.Set(neo.ButtonVariantDanger)},
+									templ.Attributes{"class": "offline-delete"}) {
+									Delete
+								}
+							}
+						</dialog>
+					}
 				</div>
 			}
 		</div>
@@ -185,7 +209,7 @@ templ Offline(p Page) {
 // offlineOption is the checkbox of group in [Offline], checked when cached,
 // with its size and an info button for a group too big to cache.
 templ offlineOption(group, label string) {
-	<div class="offline-option" data-group={ group }>
+	<div class="offline-option" data-group={ group } data-label={ label }>
 		<label>
 			@neo.CheckboxAttrs(neo.CheckboxOpts{Size: neo.Set("sm")},
 				templ.Attributes{"data-group": group})

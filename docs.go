@@ -373,6 +373,7 @@ var templateIDs = []string{
 	"docs-nav-toggle",
 	"docs-toc-title",
 	"search-results",
+	"offline-confirm-title",
 }
 
 // goldmarkIDs uses goldmark's default ID generation. Parse keeps IDs added to a

@@ -27,6 +27,10 @@
   --btn-fg: var(--text);
   --btn-border: var(--border);
   --btn-hover-bg: var(--bg-card);
+  /* The danger variant of buttons, as Delete of offline viewing. */
+  --danger-bg: light-dark(#cf222e, #da3633);
+  --danger-fg: #ffffff;
+  --danger-hover-bg: light-dark(#a40e26, #f85149);
   --page-font-family: var(--font-sans);
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;

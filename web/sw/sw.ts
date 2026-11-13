@@ -126,6 +126,9 @@ self.addEventListener("message", (e) => {
 		case "save":
 			e.waitUntil(serial(() => start(e.data.groups)));
 			break;
+		case "keep":
+			e.waitUntil(serial(() => keep(e.data.groups)));
+			break;
 		case "cancel":
 			e.waitUntil(serial(cancel));
 			break;
@@ -193,6 +196,23 @@ const cancel = async () => {
 	await writeState({ groups: kept, kept, build, status: "saved" });
 	progress = { done: 0, total: 0 };
 	failure = "";
+	await report();
+};
+
+// keep deletes the saved files outside groups, without a download.
+// Groups that aren't all saved need one, so they start a save.
+const keep = async (groups: string[]) => {
+	const state = await readState();
+	const index = await caches.match(indexURL, { cacheName: filesCache });
+	if (
+		state?.status !== "saved" ||
+		!index ||
+		!groups.every((g) => state.groups.includes(g))
+	) {
+		return start(groups);
+	}
+	await prune((await index.json()) as OfflineIndex, groups);
+	await writeState({ ...state, groups, kept: groups });
 	await report();
 };
 

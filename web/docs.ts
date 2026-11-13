@@ -12,6 +12,10 @@ interface NeoSelect extends HTMLElement {
 interface NeoCheckbox extends HTMLElement {
 	checked: boolean;
 }
+interface NeoDialog extends HTMLElement {
+	show(): void;
+	hide(): void;
+}
 
 // find returns the element of parent that selector names,
 // which the templates render with parent.
@@ -705,7 +709,7 @@ interface OfflineReport {
 // A message to sw.js.
 type OfflineMessage =
 	| { type: "status" | "cancel" | "remove" | "keepalive" }
-	| { type: "save"; groups: string[] };
+	| { type: "save" | "keep"; groups: string[] };
 
 // Offline viewing. sw.js caches the offline.json groups that the reader checks,
 // reports on a BroadcastChannel and serves the files offline.
@@ -1017,6 +1021,38 @@ if (offline && "serviceWorker" in navigator && "BroadcastChannel" in window) {
 		pending = false;
 		send({ type: "remove" });
 	};
+	// keep deletes the saved groups outside groups, with no download to show.
+	const keep = (groups: string[]) => {
+		applyButton.setAttribute("disabled", "");
+		send({ type: "keep", groups });
+	};
+
+	// apply saves groups and drops the other saved groups.
+	const apply = (groups: string[]) => {
+		const saved = state.status === "saved" ? state.groups : [];
+		if (groups.length === 0) {
+			remove();
+		} else if (groups.every((g) => saved.includes(g))) {
+			keep(groups);
+		} else {
+			save(groups);
+		}
+	};
+
+	// The dialog that confirms the groups that Apply deletes.
+	const confirm = find<NeoDialog>(offline, ".offline-confirm");
+	const label = (name: string) =>
+		options.find((o) => o.dataset.group === name)?.dataset.label ?? name;
+	// list joins names as "a, b and c".
+	const list = (names: string[]) =>
+		names.length < 2
+			? names.join("")
+			: `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+	let confirmed: string[] = [];
+	find(confirm, ".offline-delete").addEventListener("click", () => {
+		confirm.hide();
+		apply(confirmed);
+	});
 
 	offline.addEventListener("neo-checkbox-change", () => fit());
 	// Apply saves the checked groups, then drops the others.
@@ -1026,11 +1062,18 @@ if (offline && "serviceWorker" in navigator && "BroadcastChannel" in window) {
 			return;
 		}
 		const groups = chosen();
-		if (groups.length > 0) {
-			save(groups);
-		} else {
-			remove();
+		const saved = state.status === "saved" ? state.groups : [];
+		const dropped = saved.filter((g) => !groups.includes(g));
+		if (dropped.length === 0) {
+			apply(groups);
+			return;
 		}
+		confirmed = groups;
+		const bytes = dropped.reduce((sum, g) => sum + groupSize(g), 0);
+		find(confirm, ".offline-confirm-text").textContent =
+			`${list(dropped.map(label))} (${size(bytes)}) will be deleted from this ` +
+			"browser and won't be available offline.";
+		confirm.show();
 	});
 	find(offline, ".offline-cancel").addEventListener("click", cancel);
 	// The popover can open before the page has loaded.
