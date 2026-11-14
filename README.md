@@ -8,7 +8,7 @@ docpages renders the Markdown files of a docs folder of a Git repository as a st
 go run github.com/romshark/docpages/cmd/docpages@latest -serve 127.0.0.1:7340 docs
 ```
 
-`-serve` previews the site and reloads it on changes, and `-o site` writes it. docpages needs Go 1.27.3 or later.
+`-serve` previews the site and reloads it on changes, and `-o site` writes it. docpages needs Go 1.27.4 or later.
 
 ## Compared to other tools
 

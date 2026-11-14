@@ -38,7 +38,7 @@ var templatePrefix = dedent(`
 var templateGoMod = dedent(`
 	module example.com/docs
 
-	go 1.27.3
+	go 1.27.4
 
 	require github.com/romshark/docpages v0.0.0-00010101000000-000000000000
 	`)
@@ -461,7 +461,7 @@ func TestRendererModFile(t *testing.T) {
 	mod := &docsModule{file: "docs/go.mod", goMod: []byte(dedent(`
 		module example.com/docs
 
-		go 1.27.3
+		go 1.27.4
 
 		require github.com/romshark/docpages v0.3.0
 
@@ -475,7 +475,7 @@ func TestRendererModFile(t *testing.T) {
 			want: dedent(`
 				module example.com/docs
 
-				go 1.27.3
+				go 1.27.4
 
 				require github.com/romshark/docpages v0.3.0
 
@@ -487,7 +487,7 @@ func TestRendererModFile(t *testing.T) {
 			want: dedent(`
 				module example.com/docs
 
-				go 1.27.3
+				go 1.27.4
 
 				require github.com/romshark/docpages v0.3.2
 			`),

@@ -5,3 +5,7 @@
 /dist/
 # pnpm dependencies of the TypeScript checks.
 /web/node_modules/
+# templ generate output of docs templates, which the site builds itself.
+# Committed, it makes go mod tidy of the docs module require templ directly.
+/docs/template_templ.go
+/example/*/docs/template_templ.go

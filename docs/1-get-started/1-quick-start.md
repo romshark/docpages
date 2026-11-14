@@ -4,7 +4,7 @@ suggested: true
 
 # Quick start
 
-You need Go 1.27.3 or later, and a Git repository for your docs.
+You need Go 1.27.4 or later, and a Git repository for your docs.
 
 ## Install
 
