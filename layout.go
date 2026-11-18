@@ -197,6 +197,12 @@ func readPage(fsys fs.FS, file, urlPath string, gi int) (readPageResult, error) 
 		return readPageResult{}, fmt.Errorf(
 			"%s: only the README.md of a docs directory takes a note", file)
 	}
+	// The site root redirects to the index.html of this page.
+	if urlPath == "" && fm.URL != "" {
+		return readPageResult{}, fmt.Errorf(
+			"%s: the README.md of the docs directory opens the site and takes no url",
+			file)
+	}
 	p := page{
 		file:      file,
 		path:      urlPath,

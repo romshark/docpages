@@ -9,7 +9,7 @@ A key that docpages doesn't know fails the build.
 | `title` | Text | Replaces the level 1 heading in the navigation and the browser tab. |
 | `suggested` | `true` | Offers the page in the search before you type. |
 | `source` | Path | Shows this Markdown file in place of the page. Links to the file lead to the page. |
-| `url` | URL | Makes the entry a link off the site. Needs `title`, and can't go with `source`. |
+| `url` | URL | Makes the entry a link off the site. Needs `title`, and can't go with `source` or on the `README.md` of the docs folder, which opens the site. |
 
 ## The README.md of a version
 

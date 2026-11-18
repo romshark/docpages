@@ -432,6 +432,19 @@ func TestReadLayoutErr(t *testing.T) {
 			},
 			want: "docs/1-a/1-b.md: a page with url needs a title",
 		},
+		"url of the docs README.md": {
+			files: map[string]string{
+				"docs/README.md": dedent(`
+					---
+					url: https://x.dev
+					title: A
+					---
+				`),
+				"docs/1-a/1-b.md": "# B\n",
+			},
+			want: "docs/README.md: the README.md of the docs directory opens the site " +
+				"and takes no url",
+		},
 		"url and source": {
 			files: map[string]string{
 				"docs/1-a/1-b.md": dedent(`
