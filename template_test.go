@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -19,7 +20,7 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	rendererRoot = func() string { return dir }
+	rendererRoot = func() (string, error) { return dir, nil }
 	code := m.Run()
 	_ = os.RemoveAll(dir)
 	os.Exit(code)
@@ -475,6 +476,34 @@ func TestCheckVersion(t *testing.T) {
 	t.Cleanup(func() { runningVersion = old })
 	_, err := Read(Options{Root: root, Dir: "docs"})
 	require.NoError(t, err)
+}
+
+// TestRendererDir checks that renderers build in the user cache directory,
+// not in the shared temporary directory, in a directory that only the user can open,
+// and that a build without a user cache directory fails.
+func TestRendererDir(t *testing.T) {
+	cache, err := os.UserCacheDir()
+	require.NoError(t, err)
+	root, err := userRendererRoot()
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(cache, "docpages"), root)
+
+	build, err := rendererDir(t.TempDir(), "docs")
+	require.NoError(t, err)
+	info, err := os.Stat(build)
+	require.NoError(t, err)
+	if runtime.GOOS != "windows" {
+		require.Equal(t, os.FileMode(0o700), info.Mode().Perm())
+	}
+
+	saved := rendererRoot
+	t.Cleanup(func() { rendererRoot = saved })
+	rendererRoot = userRendererRoot
+	for _, v := range []string{"HOME", "XDG_CACHE_HOME", "LocalAppData", "home"} {
+		t.Setenv(v, "")
+	}
+	_, err = rendererDir(t.TempDir(), "docs")
+	require.ErrorContains(t, err, "the .templ files need a user cache directory")
 }
 
 // TestRendererModFile tests that the go.mod of a renderer drops the docs

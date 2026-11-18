@@ -446,18 +446,34 @@ func raceEnabled() bool {
 	return race
 }
 
-// rendererDir returns, creating if needed, the build directory for dir in root.
-// Each docs directory gets one that another machine user cannot own.
+// rendererDir returns, creating if needed, the build directory for dir in root,
+// in [rendererRoot]. docpages runs the program that it builds there, so only
+// the user may write to it. In a shared directory, as /tmp, another user could
+// create it first and put a program there.
 func rendererDir(root, dir string) (string, error) {
+	parent, err := rendererRoot()
+	if err != nil {
+		return "", fmt.Errorf("the .templ files need a user cache directory: %w", err)
+	}
 	abs := filepath.Join(root, filepath.FromSlash(dir))
 	h := sha256.Sum256([]byte(abs))
-	build := filepath.Join(rendererRoot(), "docpages-"+hex.EncodeToString(h[:8]))
-	return build, os.MkdirAll(build, 0o755)
+	build := filepath.Join(parent, "renderer-"+hex.EncodeToString(h[:8]))
+	return build, os.MkdirAll(build, 0o700)
 }
 
-// rendererRoot contains [rendererDir] directories.
+// rendererRoot returns the directory of the [rendererDir] directories.
 // Tests replace it so temporary docs leave no renderers.
-var rendererRoot = os.TempDir
+var rendererRoot = userRendererRoot
+
+// userRendererRoot returns docpages in the user cache directory, beside the
+// Go build cache, as ~/.cache/docpages on Linux.
+func userRendererRoot() (string, error) {
+	dir, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "docpages"), nil
+}
 
 // goCommand runs go with args in dir and returns its output.
 // It ignores ambient go.work and GOFLAGS, which would change the build.
