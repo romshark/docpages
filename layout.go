@@ -318,10 +318,16 @@ func groupTitle(slug string) string {
 // frontMatterDelim is the line that opens and closes front matter.
 const frontMatterDelim = "---"
 
+// utf8BOM is the byte order mark that some Windows editors write at the start
+// of a UTF-8 file. GitHub ignores it, and goldmark reads it as text.
+const utf8BOM = "\xEF\xBB\xBF"
+
 // parseFrontMatter returns the front matter of data and the Markdown after it.
-// data without front matter is all Markdown.
+// data without front matter is all Markdown. Neither keeps a leading [utf8BOM],
+// which would hide the opening --- and turn a first # heading into text.
 func parseFrontMatter(data []byte) (frontMatter, []byte, error) {
 	var fm frontMatter
+	data = bytes.TrimPrefix(data, []byte(utf8BOM))
 	first, rest, ok := cutLine(data)
 	if !ok || first != frontMatterDelim {
 		return fm, data, nil

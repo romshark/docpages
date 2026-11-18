@@ -308,6 +308,16 @@ func TestReadLayout(t *testing.T) {
 		"the Markdown starts after the front matter")
 }
 
+// TestReadLayoutBOM checks that the docs README keeps its site settings after
+// a UTF-8 byte order mark, which some Windows editors write.
+func TestReadLayoutBOM(t *testing.T) {
+	fsys := testRepoFS()
+	fsys["docs/README.md"].Data = append([]byte(utf8BOM), testRoot...)
+	l, err := readLayout(fsys, "docs")
+	require.NoError(t, err)
+	require.Equal(t, "Demo", l.settings.Name)
+}
+
 // TestReadLayoutErr checks that incomplete navigation and contradictory front
 // matter fail.
 func TestReadLayoutErr(t *testing.T) {
@@ -463,14 +473,20 @@ func TestGroupTitle(t *testing.T) {
 }
 
 // TestParseFrontMatter checks front matter between two --- lines with any line ending,
-// followed by Markdown.
+// followed by Markdown, and that both drop a leading UTF-8 byte order mark.
 func TestParseFrontMatter(t *testing.T) {
 	for name, tt := range map[string]struct {
 		data   string
 		want   frontMatter
 		wantMD string
 	}{
-		"none": {data: "# A\n", wantMD: "# A\n"},
+		"none":      {data: "# A\n", wantMD: "# A\n"},
+		"BOM, none": {data: utf8BOM + "# A\n", wantMD: "# A\n"},
+		"BOM": {
+			data:   utf8BOM + "---\ntitle: A\n---\n# B\n",
+			want:   frontMatter{Title: "A"},
+			wantMD: "# B\n",
+		},
 		"thematic break later": {
 			data: dedent(`
 				# A
