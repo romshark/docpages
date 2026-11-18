@@ -152,7 +152,7 @@ func (e *edition) noteLink(i int, dest string, editions []*edition) (string, err
 		// A repository file, at the ref of x.
 		return x.links.resolveFile(-1, 0, file, u, dest, base, page.urlPath)
 	}
-	href := x.versionLink(base, x.pages[to].path, false).Href
+	href := x.versionLink(base, x.pages[to].urlPath(), false).Href
 	if u.Fragment == "" {
 		return href, nil
 	}
@@ -207,7 +207,7 @@ func inDir(file, dir string) bool {
 	return dir == "." || file == dir || strings.HasPrefix(file, dir+"/")
 }
 
-// versionLink links from version-root URL base to path in e and records current.
+// versionLink links from version-root URL base to the URL path in e and records current.
 func (e *edition) versionLink(base, path string, current bool) VersionLink {
 	root := strings.TrimPrefix(base, "./") + "../" + e.outDir()
 	return VersionLink{

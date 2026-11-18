@@ -25,7 +25,7 @@ const searchTextLimit = 1500
 // above the first subheading; every heading listed in contents starts another.
 // Code blocks are omitted.
 func searchEntries(d doc, node ast.Node, src []byte) []searchEntry {
-	entries := []searchEntry{{Page: d.page.title, URL: d.page.path}}
+	entries := []searchEntry{{Page: d.page.title, URL: d.page.urlPath()}}
 	var text strings.Builder
 	flush := func() {
 		e := &entries[len(entries)-1]
@@ -46,7 +46,7 @@ func searchEntries(d doc, node ast.Node, src []byte) []searchEntry {
 			entries = append(entries, searchEntry{
 				Page:    d.page.title,
 				Section: plainText(n, src),
-				URL:     d.page.path + "#" + id.Value(src),
+				URL:     d.page.urlPath() + "#" + id.Value(src),
 			})
 		case *ast.CodeBlock, *ast.HTMLBlock, *ast.ThematicBreak:
 		default:

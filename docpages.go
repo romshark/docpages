@@ -420,7 +420,7 @@ func (s *Site) pageView(e *edition, i int) Page {
 		Root:        base,
 		Home:        base,
 		Logo:        s.chrome.logo,
-		Markdown:    base + p.markdownFile(),
+		Markdown:    base + p.markdownURL(),
 		Source:      e.links.sourceURL(p.file),
 		Repository:  s.chrome.host.repoURL,
 		Host:        s.chrome.host.name,
@@ -441,7 +441,7 @@ func (s *Site) pageView(e *edition, i int) Page {
 		v.Home = base + "../" + h
 	}
 	for _, x := range s.editions {
-		v.Versions = append(v.Versions, x.versionLink(base, p.path, x == e))
+		v.Versions = append(v.Versions, x.versionLink(base, p.urlPath(), x == e))
 	}
 	// read checked the note, which leaves no error here.
 	v.Note, _ = e.noteHTML(i, s.editions)
@@ -459,12 +459,12 @@ func (s *Site) chromeLink(e *edition, i int, dest string) (string, int) {
 		href, _ := main.links.resolve(0, dest, base, page.urlPath)
 		return href, -1
 	}
-	p := main.pages[to].path
-	href := base + p
+	p := main.pages[to]
+	href := base + p.urlPath()
 	j := slices.IndexFunc(e.pages,
-		func(q page) bool { return !q.external() && q.path == p })
+		func(q page) bool { return !q.external() && q.path == p.path })
 	if j < 0 {
-		href = base + "../" + main.outDir() + p
+		href = base + "../" + main.outDir() + p.urlPath()
 	}
 	if u, err := url.Parse(dest); err == nil && u.Fragment != "" {
 		href += "#" + u.Fragment

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"net/url"
 	"path"
 	"slices"
 	"strconv"
@@ -115,7 +114,7 @@ func offlineURL(name string) string {
 	case strings.HasSuffix(name, ".html"):
 		name = strings.TrimSuffix(name, ".html")
 	}
-	return (&url.URL{Path: name}).EscapedPath()
+	return escapePath(name)
 }
 
 // addOfflineFiles adds offline.json and sw.js to each version in files.

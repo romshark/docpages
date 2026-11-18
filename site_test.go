@@ -308,6 +308,38 @@ func TestReadLayout(t *testing.T) {
 		"the Markdown starts after the front matter")
 }
 
+// TestPageURLs checks that a page whose name needs escaping in a URL, as with
+// # or :, gets escaped URLs in links, the navigation, the pager, the Markdown
+// copy link, search.json and offline.json, and keeps its name as a file.
+func TestPageURLs(t *testing.T) {
+	fsys := testRepoFS()
+	fsys["docs/2-guides/20-c#-sharp.md"] = &fstest.MapFile{Data: []byte("# C sharp\n")}
+	fsys["docs/2-guides/21-a b:c.md"] = &fstest.MapFile{Data: []byte(dedent(`
+		# A b c
+
+		See [C sharp](20-c%23-sharp.md).
+	`))}
+	s, err := read(fsys, "docs", noRemote, nil, false)
+	require.NoError(t, err)
+	html := editionPageHTML(t, s, "main", "guides/a b:c")
+	for _, want := range []string{
+		`<p>See <a href="../guides/c%23-sharp">C sharp</a>.</p>`,
+		`<a href="../guides/a%20b%3Ac" aria-current="page">`,
+		`<a class="pager-prev" href="../guides/c%23-sharp" rel="prev">`,
+		`<a class="icon-link" href="../guides/a%20b%3Ac.md">`,
+	} {
+		require.Contains(t, html, want)
+	}
+	files, err := s.Files()
+	require.NoError(t, err)
+	require.Contains(t, string(files["main/search.json"]), `"u":"guides/c%23-sharp"`)
+	require.Contains(t, string(files["main/search.json"]), `"u":"guides/a%20b%3Ac"`)
+	require.Contains(t, string(files["main/offline.json"]), `"url":"guides/c%23-sharp"`)
+	require.Contains(t, string(files["main/offline.json"]), `"url":"guides/a%20b%3Ac.md"`)
+	require.Contains(t, files, "main/guides/c#-sharp.html")
+	require.Contains(t, files, "main/guides/a b:c.md")
+}
+
 // TestReadLayoutBOM checks that the docs README keeps its site settings after
 // a UTF-8 byte order mark, which some Windows editors write.
 func TestReadLayoutBOM(t *testing.T) {

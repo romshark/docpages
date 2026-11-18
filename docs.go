@@ -53,16 +53,19 @@ func (p page) markdownFile() string {
 	return strings.TrimSuffix(p.outFile(), ".html") + ".md"
 }
 
-// markdownURL returns p's Markdown-copy URL relative to the version root,
-// for links from other copies or llms.txt.
-// It escapes [page.markdownFile] because a space ends a Markdown link.
-func (p page) markdownURL() string {
-	return (&url.URL{Path: p.markdownFile()}).EscapedPath()
-}
+// markdownURL returns p's Markdown-copy URL relative to the version root.
+func (p page) markdownURL() string { return escapePath(p.markdownFile()) }
 
 // urlPath returns p's URL relative to the version root. Page links use it;
 // Markdown-copy links use [page.markdownURL].
-func (p page) urlPath() string { return p.path }
+func (p page) urlPath() string { return escapePath(p.path) }
+
+// escapePath returns version-relative path name as a relative URL,
+// as guide/c%23-sharp for the page of 2-c#-sharp.md. It also escapes ':',
+// which would make a first segment such as "c:" a scheme.
+func escapePath(name string) string {
+	return strings.ReplaceAll((&url.URL{Path: name}).EscapedPath(), ":", "%3A")
+}
 
 // base returns the URL of the root of the version relative to p.
 func (p page) base() string {
@@ -158,7 +161,7 @@ func suggestions(pages []page, groups []group, current int) []Suggestion {
 		if !p.suggested {
 			continue
 		}
-		href := pages[current].base() + p.path
+		href := pages[current].base() + p.urlPath()
 		if p.external() {
 			href = p.url
 		}
@@ -182,7 +185,7 @@ func navigation(pages []page, groups []group, current int) []NavGroup {
 		if p.external() {
 			e.Href, e.External = p.url, true
 		} else {
-			e.Href = pages[current].base() + p.path
+			e.Href = pages[current].base() + p.urlPath()
 		}
 		g := &nav[len(nav)-1]
 		g.Links = append(g.Links, e)
@@ -194,7 +197,7 @@ func navigation(pages []page, groups []group, current int) []NavGroup {
 // Links that leave the site are skipped.
 func neighbors(pages []page, current int) (prev, next NavLink) {
 	link := func(p page) NavLink {
-		return NavLink{Title: p.title, Href: pages[current].base() + p.path}
+		return NavLink{Title: p.title, Href: pages[current].base() + p.urlPath()}
 	}
 	for i := current - 1; i >= 0; i-- {
 		if !pages[i].external() {

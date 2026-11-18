@@ -53,6 +53,13 @@ func TestHandler(t *testing.T) {
 	require.Equal(t, http.StatusOK, code)
 	require.Contains(t, body, "<title>Notes of v1.2 - Demo</title>")
 
+	// Pages link 12-c#-sharp.md as guides/c%23-sharp.
+	sharp := filepath.Join(root, "docs", "2-guides", "12-c#-sharp.md")
+	require.NoError(t, os.WriteFile(sharp, []byte("# C sharp\n"), 0o644))
+	code, body = get(t, h, "/main/guides/c%23-sharp")
+	require.Equal(t, http.StatusOK, code)
+	require.Contains(t, body, "<title>C sharp - Demo</title>")
+
 	code, body = get(t, h, "/main/")
 	require.Equal(t, http.StatusOK, code)
 	require.Contains(t, body, `<script data-url="./../_reload"`)
