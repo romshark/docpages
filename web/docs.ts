@@ -272,12 +272,113 @@ interface SearchEntry {
 	s?: string;
 	t: string;
 }
-// A SearchEntry with lowercase heading, page title and text.
+// A SearchEntry with its heading, page title and text as fold makes them.
 interface IndexedEntry extends SearchEntry {
-	head: string;
-	page: string;
-	text: string;
+	head: Folded;
+	page: Folded;
+	text: Folded;
 }
+
+// Text as search compares it: in lower case, without accents. starts marks
+// the code units of s that begin a word. from and to, when fold maps them,
+// give the range in the original of the character of each code unit.
+interface Folded {
+	s: string;
+	starts: Uint8Array;
+	from: number[];
+	to: number[];
+}
+
+// A query word and the index of its first letter or digit, -1 without one.
+// A word that starts with punctuation, as -o, matches where its letter starts a word.
+interface Word {
+	w: string;
+	lead: number;
+}
+
+// The letters of scripts without spaces between words, as Chinese and Thai,
+// in which a word can start at any letter.
+const unspaced =
+	/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
+
+// kind returns 1 for a lower-case letter, 2 for another letter, 3 for a digit
+// and 0 for anything else. ASCII skips the regular expressions.
+const kind = (c: string) => {
+	const n = c.charCodeAt(0);
+	if (n < 0x80) {
+		if (n >= 97 && n <= 122) {
+			return 1;
+		}
+		if (n >= 65 && n <= 90) {
+			return 2;
+		}
+		return n >= 48 && n <= 57 ? 3 : 0;
+	}
+	return /\p{Ll}/u.test(c)
+		? 1
+		: /\p{L}/u.test(c)
+			? 2
+			: /\p{N}/u.test(c)
+				? 3
+				: 0;
+};
+
+// fold returns t as search compares it, so that "cafe" finds "Café".
+// A word starts after a character other than a letter or a digit, at an upper-case
+// letter after a lower-case one, as in readFile, at a digit after a letter,
+// as in v1.2, and at each letter of an unspaced script. map adds from and to,
+// which highlights need, to text on screen but not to the whole index.
+const fold = (t: string, map = false): Folded => {
+	let s = "";
+	const starts: number[] = [];
+	const from: number[] = [];
+	const to: number[] = [];
+	let prev = 0;
+	let at = 0;
+	for (const c of t) {
+		const f =
+			c.charCodeAt(0) < 0x80
+				? c.toLowerCase()
+				: c.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+		const k = kind(c);
+		const begins =
+			k !== 0 &&
+			(prev === 0 ||
+				(prev === 1 && k === 2 && c !== c.toLowerCase()) ||
+				(prev !== 3 && k === 3) ||
+				(k === 2 && c.charCodeAt(0) >= 0x80 && unspaced.test(c)));
+		for (let i = 0; i < f.length; i++) {
+			starts.push(i === 0 && begins ? 1 : 0);
+			if (map) {
+				from.push(at);
+				to.push(at + c.length);
+			}
+		}
+		s += f;
+		at += c.length;
+		// A combining mark of a decomposed letter belongs to that letter.
+		if (f) {
+			prev = k;
+		}
+	}
+	return { s, starts: Uint8Array.from(starts), from, to };
+};
+
+// findWord returns the first index from start of w in f where w starts a word, or -1.
+const findWord = (f: Folded, w: Word, start = 0) => {
+	for (let i = f.s.indexOf(w.w, start); i >= 0; i = f.s.indexOf(w.w, i + 1)) {
+		if (w.lead < 0 || f.starts[i + w.lead]) {
+			return i;
+		}
+	}
+	return -1;
+};
+
+// word returns w as a [Word].
+const word = (w: string): Word => ({
+	w,
+	lead: fold(w).starts.indexOf(1),
+});
 
 // Search lists search.json sections containing every query word,
 // ranked by matches in the heading, page title, then text.
@@ -342,9 +443,9 @@ if (search) {
 			.then((entries) =>
 				entries.map((e) => ({
 					...e,
-					head: (e.s || e.p).toLowerCase(),
-					page: e.p.toLowerCase(),
-					text: e.t.toLowerCase(),
+					head: fold(e.s || e.p),
+					page: fold(e.p),
+					text: fold(e.t),
 				})),
 			)
 			.catch((err) => {
@@ -354,54 +455,67 @@ if (search) {
 		return index;
 	};
 
-	const words = (q: string) => q.toLowerCase().split(/\s+/).filter(Boolean);
+	const words = (q: string) => fold(q).s.split(/\s+/).filter(Boolean).map(word);
+	const query = (ws: Word[]) => ws.map((w) => w.w).join(" ");
 
-	const score = (e: IndexedEntry, ws: string[]) => {
+	// score ranks e for ws by where each word starts a word: in the heading,
+	// most at its start, then in the page title, then in the text.
+	const score = (e: IndexedEntry, ws: Word[]) => {
 		let s = 0;
 		for (const w of ws) {
-			if (e.head.includes(w)) {
-				s += e.head.startsWith(w) ? 12 : 8;
-			} else if (e.page.includes(w)) {
+			const h = findWord(e.head, w);
+			if (h >= 0) {
+				s += h === 0 ? 12 : 8;
+			} else if (findWord(e.page, w) >= 0) {
 				s += 5;
-			} else if (e.text.includes(w)) {
+			} else if (findWord(e.text, w) >= 0) {
 				s += 1;
 			} else {
 				return 0;
 			}
 		}
-		if (ws.length > 1 && e.head.includes(ws.join(" "))) {
+		if (ws.length > 1 && findWord(e.head, word(query(ws))) >= 0) {
 			s += 10;
 		}
 		return s;
 	};
 
-	const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
 	// highlight appends s to el, wrapping every word match in <mark>.
-	const highlight = (el: HTMLElement, s: string, ws: string[]) => {
-		const re = new RegExp(ws.map(escapeRegExp).join("|"), "gi");
+	const highlight = (el: HTMLElement, s: string, ws: Word[]) => {
+		const f = fold(s, true);
+		const ranges: [number, number][] = [];
+		for (const w of ws) {
+			for (let i = findWord(f, w); i >= 0; i = findWord(f, w, i + 1)) {
+				ranges.push([f.from[i], f.to[i + w.w.length - 1]]);
+			}
+		}
+		ranges.sort((a, b) => a[0] - b[0]);
 		let last = 0;
-		for (const m of s.matchAll(re)) {
-			el.append(s.slice(last, m.index));
+		for (const [start, end] of ranges) {
+			// Of overlapping matches, the first marks the text.
+			if (start < last) {
+				continue;
+			}
+			el.append(s.slice(last, start));
 			const mark = document.createElement("mark");
-			mark.textContent = m[0];
+			mark.textContent = s.slice(start, end);
 			el.append(mark);
-			last = m.index + m[0].length;
+			last = end;
 		}
 		el.append(s.slice(last));
 	};
 
 	// excerpt returns about 160 characters around t's first word match.
-	const excerpt = (t: string, ws: string[]) => {
-		const lower = t.toLowerCase();
+	const excerpt = (t: string, ws: Word[]) => {
+		const f = fold(t, true);
 		let at = -1;
 		for (const w of ws) {
-			const i = lower.indexOf(w);
+			const i = findWord(f, w);
 			if (i >= 0 && (at < 0 || i < at)) {
 				at = i;
 			}
 		}
-		const start = Math.max(0, at - 40);
+		const start = Math.max(0, (at < 0 ? 0 : f.from[at]) - 40);
 		const end = Math.min(t.length, start + 160);
 		return (
 			(start > 0 ? "..." : "") +
@@ -457,7 +571,7 @@ if (search) {
 		fit();
 	};
 
-	const item = (e: IndexedEntry, i: number, ws: string[]) => {
+	const item = (e: IndexedEntry, i: number, ws: Word[]) => {
 		const li = document.createElement("li");
 		// goldmark omits "_" from heading IDs, keeping this ID distinct.
 		li.id = `search_result_${i}`;
@@ -516,7 +630,7 @@ if (search) {
 			return;
 		}
 		// The query changed while the index loaded.
-		if (words(input.value).join(" ") !== ws.join(" ")) {
+		if (query(words(input.value)) !== query(ws)) {
 			return;
 		}
 		const results = entries

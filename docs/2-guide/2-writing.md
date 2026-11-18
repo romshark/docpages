@@ -389,4 +389,4 @@ A price, as `$5`, starts math when a later `$` in the paragraph closes it. Write
 
 "On this page" lists the headings down to level 4. When 2 headings below level 2 share their text, as a "Flags" heading under each command, the list stops above their level so it doesn't repeat itself.
 
-The search splits each page at those headings. Press `/` or `Ctrl+K` to search. A result holds every word you type, and matches in headings come first.
+The search splits each page at those headings. Press `/` or `Ctrl+K` to search. A result holds every word that you type as the start of one of its words, so `conf` finds "configuration" but `go` doesn't find "Logo". Case and accents don't count, and matches in headings come first.
