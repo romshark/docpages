@@ -303,7 +303,7 @@ func TestWatcherRootDocs(t *testing.T) {
 	state := w.state()
 	require.Equal(t, state, change("node_modules/x/index.js", "y"))
 	require.Equal(t, state, change("examples/main.go", "package main\n\n// A.\n"))
-	state = change("1-guide/1-start.md", "# Start\n\nChanged.\n")
+	require.NotEqual(t, state, change("1-guide/1-start.md", "# Start\n\nChanged.\n"))
 
 	// The link of README.md opens examples/main.go, which counts from then on.
 	_, err := w.readSite(Options{Root: root, Dir: "."}, "")
