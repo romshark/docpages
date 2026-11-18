@@ -91,6 +91,55 @@ func TestHandler(t *testing.T) {
 	require.Contains(t, body, `<script data-url="../../_reload"`)
 }
 
+// TestHandlerFixOutsideDocs checks that a page shows again once a file outside
+// the docs directory is fixed: a missing link target, a missing source and a
+// source with a mistake.
+func TestHandlerFixOutsideDocs(t *testing.T) {
+	root := writeTestRepo(t)
+	h := Handler(Options{Root: root, Dir: "docs"})
+	write := func(name, data string) {
+		t.Helper()
+		require.NoError(t, os.WriteFile(filepath.Join(root, name), []byte(data), 0o644))
+	}
+	page := func() (int, string) { return get(t, h, "/main/guides/events") }
+
+	write("docs/2-guides/01-events.md", dedent(`
+		# Events
+
+		See [the notes](../../NOTES.md).
+	`))
+	code, body := page()
+	require.Equal(t, http.StatusInternalServerError, code)
+	require.Contains(t, body, "no file NOTES.md")
+	write("NOTES.md", "# Notes\n")
+	code, _ = page()
+	require.Equal(t, http.StatusOK, code)
+
+	write("docs/2-guides/01-events.md", dedent(`
+		---
+		source: ../../EVENTS.md
+		---
+	`))
+	code, body = page()
+	require.Equal(t, http.StatusInternalServerError, code)
+	require.Contains(t, body, "EVENTS.md")
+	write("EVENTS.md", dedent(`
+		# Events
+
+		-item
+	`))
+	code, body = page()
+	require.Equal(t, http.StatusInternalServerError, code)
+	require.Contains(t, body, "starts as a list item")
+	write("EVENTS.md", dedent(`
+		# Events
+
+		- An item
+	`))
+	code, _ = page()
+	require.Equal(t, http.StatusOK, code)
+}
+
 // TestHandlerRepository checks that non-page repository links open handler-served
 // working-tree targets and directory contents,
 // excluding hidden names and escaping symlinks.

@@ -161,7 +161,7 @@ func renderMain(args []string, stdout io.Writer, page func(Page) templ.Component
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
-	s, err := readRepo(o, served)
+	s, err := readRepo(os.DirFS(o.Root), o, served)
 	if err != nil {
 		return err
 	}

@@ -128,7 +128,7 @@ func TestReadGitReleases(t *testing.T) {
 		"docs/versions/v1.0/1-a/1-b.md": "# B fixed in v1.0\n",
 	})
 
-	s, err := readRepo(Options{Root: dir, Dir: "docs"}, false)
+	s, err := readRepo(os.DirFS(dir), Options{Root: dir, Dir: "docs"}, false)
 	require.NoError(t, err)
 	var versions []string
 	for _, e := range s.editions {

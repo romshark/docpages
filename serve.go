@@ -105,8 +105,9 @@ func Handler(o Options) http.Handler {
 type watcher struct {
 	root, dir string
 	lock      sync.Mutex
-	// sources are files outside docs that main showed at the last read:
-	// page sources and media.
+	// sources are the files and directories outside docs that the last read opened,
+	// found or not, as page sources, media and linked files.
+	// A failed read counts too, so that creating a missing file reads again.
 	sources []string
 
 	// read serializes reads. readState is the last state read, producing readFiles
@@ -129,34 +130,46 @@ func (w *watcher) files(o Options, state string) (map[string][]byte, error) {
 }
 
 // readSite reads o's site; its pages reload when file state differs from state.
+// Releases read files at their tags, which don't change.
 func (w *watcher) readSite(o Options, state string) (map[string][]byte, error) {
-	s, err := readOptions(o, true)
+	fsys := &recordFS{FS: os.DirFS(o.Root), names: make(map[string]bool)}
+	defer func() {
+		dir := path.Clean(filepath.ToSlash(o.Dir))
+		var sources []string
+		for name := range fsys.names {
+			if fs.ValidPath(name) && !inDir(name, dir) {
+				sources = append(sources, name)
+			}
+		}
+		// state hashes them in order.
+		slices.Sort(sources)
+		w.lock.Lock()
+		w.sources = sources
+		w.lock.Unlock()
+	}()
+	s, err := readOptions(fsys, o, true)
 	if err != nil {
 		return nil, err
 	}
-	// Releases read files at their tags, which don't change.
-	var sources []string
-	main := s.main()
-	for _, p := range main.pages {
-		if p.stub != "" {
-			sources = append(sources, p.file)
-		}
-	}
-	for file := range main.links.media {
-		if !inDir(file, main.dir) {
-			sources = append(sources, file)
-		}
-	}
-	w.lock.Lock()
-	w.sources = sources
-	w.lock.Unlock()
 	s.chrome.reload = state
 	return s.Files()
 }
 
-// state hashes paths, sizes, and mtimes of docs files and page sources.
-// Paths detect renames that preserve size and mtime. As the site does,
-// it excludes dot names, keeping .git out of root-level docs.
+// recordFS records the names that a read opens, found or not. It implements
+// only Open, so that Stat, ReadFile and ReadDir open their names through it.
+type recordFS struct {
+	fs.FS
+	names map[string]bool
+}
+
+func (r *recordFS) Open(name string) (fs.File, error) {
+	r.names[name] = true
+	return r.FS.Open(name)
+}
+
+// state hashes paths, sizes, and mtimes of docs files and of the files of
+// [watcher.sources]. Paths detect renames that preserve size and mtime.
+// As the site does, it excludes dot names, keeping .git out of root-level docs.
 func (w *watcher) state() string {
 	h := fnv.New64a()
 	consider := func(file string, info fs.FileInfo) {
@@ -186,7 +199,13 @@ func (w *watcher) state() string {
 	w.lock.Unlock()
 	for _, f := range sources {
 		p := filepath.Join(w.root, filepath.FromSlash(f))
-		if info, err := os.Stat(p); err == nil {
+		switch info, err := os.Stat(p); {
+		case err != nil:
+		case info.IsDir():
+			// Only its existence matters.
+			// Its mtime changes with any entry, as an editor's swap file.
+			_, _ = fmt.Fprintf(h, "%s\x00dir\x00", p)
+		default:
 			consider(p, info)
 		}
 	}
@@ -223,7 +242,7 @@ func (w *watcher) serveEvents(rw http.ResponseWriter, r *http.Request) {
 func serveRepository(o Options, rw http.ResponseWriter, r *http.Request) {
 	name := strings.TrimPrefix(r.URL.Path, "/"+repositoryPath+"/")
 	file := cmp.Or(strings.TrimSuffix(name, "/"), ".")
-	s, err := readOptions(o, true)
+	s, err := readOptions(os.DirFS(o.Root), o, true)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return

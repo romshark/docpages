@@ -108,14 +108,14 @@ var faviconNames = []string{"favicon.svg", "favicon.png", "favicon.ico"}
 // Read reads the documentation of o.Dir in o.Root and converts it.
 // Releases need the git command and the tags of the repository.
 func Read(o Options) (*Site, error) {
-	return readOptions(o, false)
+	return readOptions(os.DirFS(o.Root), o, false)
 }
 
-// readOptions is [Read], but served mode makes non-page repository links use
-// [Handler]-served files. Any docs .templ files render pages and require go,
-// and a docs module that requires a compatible docpages.
-func readOptions(o Options, served bool) (*Site, error) {
-	s, err := readRepo(o, served)
+// readOptions is [Read] of fsys, the files of o.Root, but served mode makes
+// non-page repository links use [Handler]-served files. Any docs .templ files render
+// pages and require go, and a docs module that requires a compatible docpages.
+func readOptions(fsys fs.FS, o Options, served bool) (*Site, error) {
+	s, err := readRepo(fsys, o, served)
 	if err != nil {
 		return nil, err
 	}
@@ -132,10 +132,11 @@ func readOptions(o Options, served bool) (*Site, error) {
 	return s, nil
 }
 
-// readRepo reads o's docs from disk like [readOptions] but uses [DefaultPage].
-func readRepo(o Options, served bool) (*Site, error) {
+// readRepo reads o's docs from fsys, the files of o.Root,
+// like [readOptions] but uses [DefaultPage].
+func readRepo(fsys fs.FS, o Options, served bool) (*Site, error) {
 	s, err := read(
-		os.DirFS(o.Root),
+		fsys,
 		path.Clean(filepath.ToSlash(o.Dir)),
 		func() (string, error) { return gitRemote(o.Root) },
 		gitTags{root: o.Root},

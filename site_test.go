@@ -1035,7 +1035,7 @@ func TestIcons(t *testing.T) {
 func TestDocsDirectories(t *testing.T) {
 	for _, dir := range []string{"docs", "example/cli/docs", "example/library/docs"} {
 		t.Run(dir, func(t *testing.T) {
-			s, err := readOptions(Options{Root: ".", Dir: dir}, false)
+			s, err := readOptions(os.DirFS("."), Options{Root: ".", Dir: dir}, false)
 			require.NoError(t, err)
 			require.Nil(t, s.page, "the .templ files render the pages")
 			files, err := s.Files()
