@@ -153,6 +153,10 @@ func TestResolveLink(t *testing.T) {
 			from: 1, dest: "../example/counter/",
 			want: testRepo + "/tree/main/example/counter/",
 		},
+		"directory without a slash": {
+			from: 1, dest: "../example/counter#readme",
+			want: testRepo + "/tree/main/example/counter/#readme",
+		},
 		"absolute": {
 			from: 1, dest: "https://templ.guide",
 			want: "https://templ.guide",

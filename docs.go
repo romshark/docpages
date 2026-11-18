@@ -445,13 +445,13 @@ func (s *site) resolveFile(
 		if to = s.pageOf(file); to < 0 {
 			// fstest.MapFS reports a path out of the repository as missing,
 			// os.DirFS as invalid.
-			_, err := fs.Stat(s.fsys, file)
+			info, err := fs.Stat(s.fsys, file)
 			if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrInvalid) {
 				return "", fmt.Errorf("link %q: no file %s", dest, file)
 			} else if err != nil {
 				return "", fmt.Errorf("link %q: %w", dest, err)
 			}
-			return s.fileURL(file, strings.HasSuffix(u.Path, "/"), base, u), nil
+			return s.fileURL(file, info.IsDir(), base, u), nil
 		}
 	}
 	page := ""
