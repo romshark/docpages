@@ -75,17 +75,6 @@ func (p page) base() string {
 	return "./"
 }
 
-// shows reports whether p shows file, directly or as its source.
-// A directory resolves to its README.md, as on GitHub.
-func (p page) shows(file string) bool {
-	if p.external() {
-		return false
-	}
-	readme := path.Join(file, readmeName)
-	return p.file == file || p.file == readme ||
-		p.stub != "" && (p.stub == file || p.stub == readme)
-}
-
 // maxTOCDepth is the deepest heading level that the contents of a page list.
 const maxTOCDepth = 4
 
@@ -234,7 +223,7 @@ func isAbsURL(u string) bool {
 // on GitHub but fail here.
 func convertDocs(pages []page, srcs [][]byte, s *site) ([]doc, error) {
 	p := newParser(parser.WithAutoHeadingID())
-	s.pages = pages
+	s.pages, s.pageIndex = pages, nil
 	s.ids = make([]map[string]bool, len(pages))
 	docs := make([]doc, len(pages))
 	nodes := make([]ast.Node, len(pages))
@@ -389,9 +378,12 @@ func (goldmarkIDs) Generate(value []byte, kind ast.NodeKind) []byte {
 // site holds the heading IDs that links are resolved against.
 type site struct {
 	pages []page
-	ids   []map[string]bool // The heading IDs of every page.
-	ref   string            // The Git ref of the links to the repository.
-	host  *host             // Where the repository is hosted.
+	// pageIndex maps each file that a page shows, or names as its source,
+	// to the first such page. [site.pageOf] builds it, as each link needs it.
+	pageIndex map[string]int
+	ids       []map[string]bool // The heading IDs of every page.
+	ref       string            // The Git ref of the links to the repository.
+	host      *host             // Where the repository is hosted.
 	// replaced maps each file of a release that its folder in versions/
 	// replaces to the replacing file on main. Nil for main.
 	replaced map[string]string
@@ -492,9 +484,30 @@ func repoLink(dest string) (*url.URL, bool) {
 	return u, true
 }
 
-// pageOf returns the index of the page that shows file, or -1.
+// pageOf returns the index of the first page that shows file, directly or as
+// its source, or -1. A directory resolves to its README.md, as on GitHub.
 func (s *site) pageOf(file string) int {
-	return slices.IndexFunc(s.pages, func(p page) bool { return p.shows(file) })
+	if s.pageIndex == nil {
+		s.pageIndex = make(map[string]int)
+		for i, p := range s.pages {
+			for _, f := range []string{p.file, p.stub} {
+				if _, ok := s.pageIndex[f]; !p.external() && f != "" && !ok {
+					s.pageIndex[f] = i
+				}
+			}
+		}
+	}
+	i, ok := s.pageIndex[file]
+	j, readme := s.pageIndex[path.Join(file, readmeName)]
+	switch {
+	case ok && readme:
+		return min(i, j)
+	case ok:
+		return i
+	case readme:
+		return j
+	}
+	return -1
 }
 
 // repoPath returns the repository-relative path named by p in file from.
