@@ -15,5 +15,5 @@
 		"isolatedModules": true,
 		"noEmit": true
 	},
-	"include": ["docs.ts"]
+	"include": ["docs.ts", "theme.ts"]
 }

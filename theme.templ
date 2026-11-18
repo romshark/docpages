@@ -2,98 +2,10 @@ package docpages
 
 import "github.com/romshark/morpheus/neo"
 
-// themeScript applies the [themeSwitch] or [themeSelect] choice and marks it in both.
-// Running in <head> sets it before first paint; no choice follows the system.
-//
-// <picture> selects <source> by system prefers-color-scheme, not this choice.
-// Each source's media instead states the chosen theme as an always/never
-// condition, or returns to its original media when no choice exists.
+// themeScript inlines [themeJS], which applies the [themeSwitch] or
+// [themeSelect] choice before the first paint.
 templ themeScript() {
-	<script>
-		(() => {
-			const root = document.documentElement;
-			const stored = () => {
-				try {
-					return localStorage.getItem("theme");
-				} catch {
-					return null;
-				}
-			};
-			const scheme = /\(\s*prefers-color-scheme\s*:\s*(light|dark)\s*\)/g;
-			const fit = (source) => {
-				const media = source.dataset.media ?? source.getAttribute("media") ?? "";
-				if (!media.includes("prefers-color-scheme")) {
-					return;
-				}
-				source.dataset.media = media;
-				const theme = root.dataset.theme;
-				const next = theme
-					? media.replace(scheme, (_, s) => (s === theme ? "(width >= 0)" : "(width < 0)"))
-					: media;
-				if (source.getAttribute("media") !== next) {
-					source.setAttribute("media", next);
-				}
-			};
-			const apply = (choice) => {
-				if (choice === "light" || choice === "dark") {
-					root.dataset.theme = choice;
-				} else {
-					delete root.dataset.theme;
-				}
-				const current = root.dataset.theme ?? "system";
-				for (const b of document.querySelectorAll("[data-theme-choice]")) {
-					b.setAttribute("aria-pressed", String(b.dataset.themeChoice === current));
-				}
-				// Use the attribute because the select may not be upgraded yet.
-				for (const select of document.querySelectorAll("neo-select.theme-select")) {
-					select.setAttribute("value", current);
-				}
-				for (const source of document.querySelectorAll("picture > source[media]")) {
-					fit(source);
-				}
-			};
-			const choose = (choice) => {
-				try {
-					if (choice === "system") {
-						localStorage.removeItem("theme");
-					} else {
-						localStorage.setItem("theme", choice);
-					}
-				} catch {}
-				apply(choice);
-			};
-			apply(stored());
-			// Apply choices to parser-added sources immediately so the system-theme
-			// image does not load first.
-			const parsing = new MutationObserver((records) => {
-				for (const r of records) {
-					for (const n of r.addedNodes) {
-						if (n.nodeName === "SOURCE" && n.parentNode?.nodeName === "PICTURE") {
-							fit(n);
-						}
-					}
-				}
-			});
-			if (root.dataset.theme) {
-				parsing.observe(root, { childList: true, subtree: true });
-			}
-			document.addEventListener("DOMContentLoaded", () => {
-				parsing.disconnect();
-				apply(stored());
-			});
-			document.addEventListener("click", (e) => {
-				const button = e.target.closest("[data-theme-choice]");
-				if (button) {
-					choose(button.dataset.themeChoice);
-				}
-			});
-			document.addEventListener("neo-select-change", (e) => {
-				if (e.target.matches(".theme-select")) {
-					choose(e.detail.value);
-				}
-			});
-		})();
-	</script>
+	@templ.Raw("<script>" + themeJS + "</script>")
 }
 
 // ThemeSwitch offers system, light, and dark themes as wide-screen buttons and

@@ -18,6 +18,12 @@ import (
 //go:embed static
 var static embed.FS
 
+// themeJS is the theme script, web/theme.ts minified, which [themeScript]
+// inlines in every page to set the theme before the first paint.
+//
+//go:embed static/theme.min.js
+var themeJS string
+
 // staticAssets maps version-relative asset paths to [static] files.
 // A directory includes every file. Site and Morpheus icons join under morpheus/icons,
 // the only directory <neo-icon> loads.

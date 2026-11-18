@@ -11,12 +11,8 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "github.com/romshark/morpheus/neo"
 
-// themeScript applies the [themeSwitch] or [themeSelect] choice and marks it in both.
-// Running in <head> sets it before first paint; no choice follows the system.
-//
-// <picture> selects <source> by system prefers-color-scheme, not this choice.
-// Each source's media instead states the chosen theme as an always/never
-// condition, or returns to its original media when no choice exists.
+// themeScript inlines [themeJS], which applies the [themeSwitch] or
+// [themeSelect] choice before the first paint.
 func themeScript() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -34,7 +30,7 @@ func themeScript() templ.Component {
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script>\n\t\t(() => {\n\t\t\tconst root = document.documentElement;\n\t\t\tconst stored = () => {\n\t\t\t\ttry {\n\t\t\t\t\treturn localStorage.getItem(\"theme\");\n\t\t\t\t} catch {\n\t\t\t\t\treturn null;\n\t\t\t\t}\n\t\t\t};\n\t\t\tconst scheme = /\\(\\s*prefers-color-scheme\\s*:\\s*(light|dark)\\s*\\)/g;\n\t\t\tconst fit = (source) => {\n\t\t\t\tconst media = source.dataset.media ?? source.getAttribute(\"media\") ?? \"\";\n\t\t\t\tif (!media.includes(\"prefers-color-scheme\")) {\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tsource.dataset.media = media;\n\t\t\t\tconst theme = root.dataset.theme;\n\t\t\t\tconst next = theme\n\t\t\t\t\t? media.replace(scheme, (_, s) => (s === theme ? \"(width >= 0)\" : \"(width < 0)\"))\n\t\t\t\t\t: media;\n\t\t\t\tif (source.getAttribute(\"media\") !== next) {\n\t\t\t\t\tsource.setAttribute(\"media\", next);\n\t\t\t\t}\n\t\t\t};\n\t\t\tconst apply = (choice) => {\n\t\t\t\tif (choice === \"light\" || choice === \"dark\") {\n\t\t\t\t\troot.dataset.theme = choice;\n\t\t\t\t} else {\n\t\t\t\t\tdelete root.dataset.theme;\n\t\t\t\t}\n\t\t\t\tconst current = root.dataset.theme ?? \"system\";\n\t\t\t\tfor (const b of document.querySelectorAll(\"[data-theme-choice]\")) {\n\t\t\t\t\tb.setAttribute(\"aria-pressed\", String(b.dataset.themeChoice === current));\n\t\t\t\t}\n\t\t\t\t// Use the attribute because the select may not be upgraded yet.\n\t\t\t\tfor (const select of document.querySelectorAll(\"neo-select.theme-select\")) {\n\t\t\t\t\tselect.setAttribute(\"value\", current);\n\t\t\t\t}\n\t\t\t\tfor (const source of document.querySelectorAll(\"picture > source[media]\")) {\n\t\t\t\t\tfit(source);\n\t\t\t\t}\n\t\t\t};\n\t\t\tconst choose = (choice) => {\n\t\t\t\ttry {\n\t\t\t\t\tif (choice === \"system\") {\n\t\t\t\t\t\tlocalStorage.removeItem(\"theme\");\n\t\t\t\t\t} else {\n\t\t\t\t\t\tlocalStorage.setItem(\"theme\", choice);\n\t\t\t\t\t}\n\t\t\t\t} catch {}\n\t\t\t\tapply(choice);\n\t\t\t};\n\t\t\tapply(stored());\n\t\t\t// Apply choices to parser-added sources immediately so the system-theme\n\t\t\t// image does not load first.\n\t\t\tconst parsing = new MutationObserver((records) => {\n\t\t\t\tfor (const r of records) {\n\t\t\t\t\tfor (const n of r.addedNodes) {\n\t\t\t\t\t\tif (n.nodeName === \"SOURCE\" && n.parentNode?.nodeName === \"PICTURE\") {\n\t\t\t\t\t\t\tfit(n);\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t});\n\t\t\tif (root.dataset.theme) {\n\t\t\t\tparsing.observe(root, { childList: true, subtree: true });\n\t\t\t}\n\t\t\tdocument.addEventListener(\"DOMContentLoaded\", () => {\n\t\t\t\tparsing.disconnect();\n\t\t\t\tapply(stored());\n\t\t\t});\n\t\t\tdocument.addEventListener(\"click\", (e) => {\n\t\t\t\tconst button = e.target.closest(\"[data-theme-choice]\");\n\t\t\t\tif (button) {\n\t\t\t\t\tchoose(button.dataset.themeChoice);\n\t\t\t\t}\n\t\t\t});\n\t\t\tdocument.addEventListener(\"neo-select-change\", (e) => {\n\t\t\t\tif (e.target.matches(\".theme-select\")) {\n\t\t\t\t\tchoose(e.detail.value);\n\t\t\t\t}\n\t\t\t});\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templ.Raw("<script>"+themeJS+"</script>").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -91,7 +87,7 @@ func themeSwitch() templ.Component {
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"theme-switch\" role=\"group\" aria-label=\"Theme\"><button type=\"button\" data-theme-choice=\"system\" aria-pressed=\"true\" aria-label=\"System theme\" title=\"System theme\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"theme-switch\" role=\"group\" aria-label=\"Theme\"><button type=\"button\" data-theme-choice=\"system\" aria-pressed=\"true\" aria-label=\"System theme\" title=\"System theme\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -99,7 +95,7 @@ func themeSwitch() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</button> <button type=\"button\" data-theme-choice=\"light\" aria-pressed=\"false\" aria-label=\"Light theme\" title=\"Light theme\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</button> <button type=\"button\" data-theme-choice=\"light\" aria-pressed=\"false\" aria-label=\"Light theme\" title=\"Light theme\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -107,7 +103,7 @@ func themeSwitch() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</button> <button type=\"button\" data-theme-choice=\"dark\" aria-pressed=\"false\" aria-label=\"Dark theme\" title=\"Dark theme\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</button> <button type=\"button\" data-theme-choice=\"dark\" aria-pressed=\"false\" aria-label=\"Dark theme\" title=\"Dark theme\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -115,7 +111,7 @@ func themeSwitch() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -294,14 +290,14 @@ func themeOption(choice, label string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `theme.templ`, Line: 169, Col: 9}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `theme.templ`, Line: 81, Col: 9}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
