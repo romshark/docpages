@@ -1615,6 +1615,16 @@ neo-dialog.search dialog {
   }
 }
 
+/* Read by screen readers, not shown. */
+.sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .offline-size,
 .offline-progress-text,
 .offline-unavailable {

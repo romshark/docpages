@@ -483,11 +483,28 @@ if (search) {
 		return li;
 	};
 
+	// note sets the status line, which screen readers read. A quiet note, as
+	// the number of results, is for them alone and waits until typing pauses,
+	// as a note per key would cut off the one before.
+	let noting = 0;
+	const note = (text: string, quiet = false) => {
+		clearTimeout(noting);
+		status.classList.toggle("sr-only", quiet);
+		if (!quiet) {
+			status.textContent = text;
+			return;
+		}
+		status.textContent = "";
+		noting = setTimeout(() => {
+			status.textContent = text;
+		}, 500);
+	};
+
 	const render = async () => {
 		const ws = words(input.value);
 		if (ws.length === 0) {
 			show(suggested, "Suggested pages");
-			status.textContent = "";
+			note("");
 			select(-1);
 			return;
 		}
@@ -495,7 +512,7 @@ if (search) {
 		try {
 			entries = await load();
 		} catch {
-			status.textContent = "The search index did not load. Try again.";
+			note("The search index did not load. Try again.");
 			return;
 		}
 		// The query changed while the index loaded.
@@ -509,8 +526,12 @@ if (search) {
 			.slice(0, limit)
 			.map(([, e], i) => item(e, i, ws));
 		show(results, "Results");
-		status.textContent = results.length === 0 ? "No results." : "";
-		select(results.length > 0 ? 0 : -1);
+		const n = results.length;
+		note(
+			n === 0 ? "No results." : n === 1 ? "1 result" : `${n} results`,
+			n > 0,
+		);
+		select(n > 0 ? 0 : -1);
 	};
 
 	input.addEventListener("input", render);
@@ -786,6 +807,31 @@ if (offline && "serviceWorker" in navigator && "BroadcastChannel" in window) {
 		error: "",
 	};
 
+	// say tells screen readers that a save started, completed or stopped.
+	// The progress text changes 4 times a second, too often for a live region.
+	// Clearing it first makes the same text heard again.
+	const announcer = find(offline, ".offline-status");
+	const say = (text: string) => {
+		announcer.textContent = "";
+		setTimeout(() => {
+			announcer.textContent = text;
+		}, 100);
+	};
+	// heard marks the first report, which describes the state at load and says nothing.
+	let heard = false;
+	const announce = (before: OfflineReport, after: OfflineReport) => {
+		if (before.status === "saving" && after.status === "saved") {
+			say("Saved for offline viewing");
+		} else if (
+			after.status === "saving" &&
+			!after.running &&
+			after.error !== "" &&
+			(before.running || before.error !== after.error)
+		) {
+			say(after.error);
+		}
+	};
+
 	// size formats bytes in powers of 1000, as browsers count storage.
 	const size = (bytes: number) => {
 		const units = ["B", "KB", "MB", "GB", "TB"];
@@ -999,6 +1045,10 @@ if (offline && "serviceWorker" in navigator && "BroadcastChannel" in window) {
 				return;
 			}
 			pending = false;
+			if (heard) {
+				announce(state, report);
+			}
+			heard = true;
 			state = report;
 			render();
 			keepAlive();
@@ -1028,6 +1078,7 @@ if (offline && "serviceWorker" in navigator && "BroadcastChannel" in window) {
 			error: "",
 		};
 		render();
+		say("Saving for offline viewing");
 		// Without persistence, the browser may evict the files.
 		// Firefox asks the reader, and the save doesn't wait for the answer.
 		navigator.storage?.persist?.().catch(() => {});

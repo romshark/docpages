@@ -221,7 +221,7 @@ templ Offline(p Page) {
 							HideValue: neo.Set(true),
 							AriaLabel: neo.Set("Saving for offline viewing"),
 						}, nil)
-						<p class="offline-progress-text" aria-live="polite"></p>
+						<p class="offline-progress-text"></p>
 						@neo.ButtonAttrs(neo.ButtonOpts{Size: neo.Set("sm")},
 							templ.Attributes{"class": "offline-cancel"}) {
 							Cancel
@@ -256,6 +256,8 @@ templ Offline(p Page) {
 					}
 				</div>
 			}
+			// Outside the popover, which hides its content when closed.
+			<p class="offline-status sr-only" role="status"></p>
 		</div>
 	}
 }
