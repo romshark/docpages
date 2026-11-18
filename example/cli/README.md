@@ -10,6 +10,7 @@ It uses:
 - [Icons](../../docs/2-guide/1-layout.md#icons) for the groups
 - [Callouts](../../docs/2-guide/2-writing.md#callouts)
 - A [code block with a title](../../docs/2-guide/2-writing.md#code)
+- [HTML for text](../../docs/2-guide/2-writing.md#formatting): keys in `<kbd>`, an argument underlined with `<ins>`, as man does, and a line break in a table cell with `<br>`
 
 Serve the docs from the root of the repository, reloading on changes:
 

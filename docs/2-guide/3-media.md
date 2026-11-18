@@ -145,6 +145,8 @@ Of the HTML in your Markdown, the pages keep `<img>`, `<picture>`, `<source>`, `
 
 A `<details>` with its `<summary>` stays too, with `open`: see [Details](2-writing.md#details).
 
+So do `<kbd>`, `<sup>`, `<sub>`, `<ins>` and `<br>`, without attributes: see [Formatting](2-writing.md#formatting).
+
 Other HTML, other attributes, such as `style` and `onerror`, and a `javascript:` URL fail the build, which names the file and the line. So does a `<p align="center">` around an image: write the image alone. An HTML comment passes. See [Checks](../3-reference/5-checks.md).
 
 ## In the site

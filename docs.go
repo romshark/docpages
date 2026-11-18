@@ -666,8 +666,8 @@ func plainText(n ast.Node, src []byte) string {
 	return strings.TrimSpace(b.String())
 }
 
-// writePlainText writes n to w without inline markup. Line breaks and block endings,
-// such as for list items or table cells, become spaces.
+// writePlainText writes n to w without inline markup. Line breaks, <br> included,
+// and block endings, such as for list items or table cells, become spaces.
 func writePlainText(w io.StringWriter, n ast.Node, src []byte) {
 	_ = ast.Walk(n, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
@@ -688,6 +688,10 @@ func writePlainText(w io.StringWriter, n ast.Node, src []byte) {
 		case *ast.AutoLink:
 			// An autolink holds its text in Label, not in a child.
 			_, _ = w.WriteString(n.Label.Value(src))
+		case *ast.RawHTML:
+			if isLineBreak(n.Value.Value(src)) {
+				_, _ = w.WriteString(" ")
+			}
 		}
 		return ast.WalkContinue, nil
 	})

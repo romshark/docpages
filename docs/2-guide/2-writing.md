@@ -60,6 +60,8 @@ Text formats as on GitHub:
 ```markdown
 **Bold**, *italic*, ~~struck through~~ and `code`. A URL becomes a link: https://github.com/romshark/docpages.
 
+Press <kbd>Ctrl</kbd>+<kbd>K</kbd> to search. H<sub>2</sub>O, x<sup>2</sup> and <ins>inserted</ins> text.<br>A line break.
+
 - A list
   - with a nested item
 - [x] A done task
@@ -79,6 +81,8 @@ Text formats as on GitHub:
 
 **Bold**, *italic*, ~~struck through~~ and `code`. A URL becomes a link: https://github.com/romshark/docpages.
 
+Press <kbd>Ctrl</kbd>+<kbd>K</kbd> to search. H<sub>2</sub>O, x<sup>2</sup> and <ins>inserted</ins> text.<br>A line break.
+
 - A list
   - with a nested item
 - [x] A done task
@@ -94,6 +98,8 @@ Text formats as on GitHub:
 > A quote
 
 ---
+
+Of the HTML for text, pages keep `<kbd>`, `<sup>`, `<sub>`, `<ins>` and `<br>`, without attributes. See [The HTML that pages keep](3-media.md#the-html-that-pages-keep).
 
 ## Code
 

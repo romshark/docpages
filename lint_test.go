@@ -62,6 +62,11 @@ func TestLint(t *testing.T) {
 
 			</details>
 
+			Press <kbd>Ctrl</kbd>+<kbd>K</kbd>: H<sub>2</sub>O, x<sup>2</sup>,
+			<ins>new</ins><br>and<br/>breaks.
+
+			<br>
+
 			<video controls muted><track kind="captions" src="https://example.com/c.vtt"></video>
 		`)},
 		"code language": {
@@ -88,7 +93,7 @@ func TestLint(t *testing.T) {
 
 				</div>
 
-				Press <kbd>K</kbd>.
+				Press <kbd class="key">K</kbd>.
 
 				<img src="https://example.com/a.png" class="wide">
 
@@ -101,7 +106,7 @@ func TestLint(t *testing.T) {
 			`),
 			want: []string{
 				"3: raw HTML <div>, which a page leaves out",
-				"9: raw HTML <kbd>, which a page leaves out",
+				"9: attribute class of <kbd>, which a page leaves out",
 				"11: attribute class of <img>, which a page leaves out",
 				`13: src "javascript:alert(1)" of <img>, a URL that a page leaves out`,
 				"15: attribute class of <summary>, which a page leaves out",

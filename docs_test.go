@@ -726,6 +726,44 @@ func TestDetailsErr(t *testing.T) {
 	}
 }
 
+// TestInlineElements checks that <kbd>, <sup>, <sub>, <ins> and <br> stay in
+// paragraphs, table cells, HTML blocks and <details>, and that <br> separates
+// words in the description and the search text. [TestLint] covers attributes.
+func TestInlineElements(t *testing.T) {
+	d := convert(t, dedent(`
+		# T
+
+		Press <kbd>Ctrl</kbd>+<kbd>K</kbd>: H<sub>2</sub>O, x<sup>2</sup>,
+		<ins>new</ins><br>and<br/>breaks.
+
+		| Key | Lines |
+		| --- | --- |
+		| <kbd>K</kbd> | a<br>b |
+
+		<br>
+
+		<details>
+		<summary>Press <kbd>K</kbd></summary>
+		x<sup>2</sup>
+		</details>
+	`))
+	for _, want := range []string{
+		"<p>Press <kbd>Ctrl</kbd>+<kbd>K</kbd>: H<sub>2</sub>O, x<sup>2</sup>,\n" +
+			"<ins>new</ins><br>and<br>breaks.</p>",
+		"<td><kbd>K</kbd></td>\n<td>a<br>b</td>",
+		"</table>\n<br>\n",
+		`<span class="details-title">Press <kbd>K</kbd></span>`,
+		"x<sup>2</sup></neo-elastic></details>",
+	} {
+		require.Contains(t, d.body, want)
+	}
+	require.NotContains(t, d.body, "raw HTML omitted")
+	require.Equal(t, "Press Ctrl+K: H2O, x2, new and breaks.", d.description)
+	require.Equal(t,
+		"T Press Ctrl+K: H2O, x2, new and breaks. Key Lines K a b",
+		d.search[0].Text)
+}
+
 // TestHeadingLinks checks that every heading below level 1 links to itself.
 func TestHeadingLinks(t *testing.T) {
 	body := convert(t, dedentMD(`

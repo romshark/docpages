@@ -14,6 +14,13 @@ var summaryElements = map[string]bool{
 	"code": true, "b": true, "strong": true, "i": true, "em": true,
 }
 
+// inlineElements are attribute-free HTML elements that pages keep anywhere.
+// Unlike <b> or <i>, none is a formatting element, which the HTML parser
+// reopens in the next paragraph when its end tag is missing.
+var inlineElements = map[string]bool{
+	"kbd": true, "sup": true, "sub": true, "ins": true, "br": true,
+}
+
 // detailsIcon returns a <summary>'s leading icon, which CSS rotates on open.
 // It renders once after assets.go initializes icons for <neo-icon> to inline.
 var detailsIcon = sync.OnceValue(func() string {
@@ -43,7 +50,8 @@ type collapsibles struct {
 }
 
 // write emits to b the visible part of non-media raw-HTML token tok of type tt:
-// <details>/<summary> tags, [summaryElements] content, and text within either.
+// <details>/<summary> tags, [summaryElements] content, text within either,
+// and [inlineElements].
 // It omits everything else and reports whether it wrote anything.
 func (c *collapsibles) write(
 	b *strings.Builder, tt html.TokenType, tok html.Token,
@@ -112,7 +120,8 @@ func (c *collapsibles) write(
 			b.WriteString(` open="false"`)
 		}
 		b.WriteByte('>')
-	case c.summary && summaryElements[tok.Data] && tt != html.SelfClosingTagToken:
+	case inlineElements[tok.Data],
+		c.summary && summaryElements[tok.Data] && tt != html.SelfClosingTagToken:
 		b.WriteByte('<')
 		if tt == html.EndTagToken {
 			b.WriteByte('/')
@@ -142,6 +151,15 @@ func (c *collapsibles) done() error {
 		return errors.New("<details> without </details>")
 	}
 	return nil
+}
+
+// isLineBreak reports whether raw, the HTML of an inline node, is a <br>.
+// It matches </br> too, which a browser reads as <br>.
+func isLineBreak(raw string) bool {
+	z := html.NewTokenizer(strings.NewReader(raw))
+	z.Next()
+	name, _ := z.TagName()
+	return string(name) == "br"
 }
 
 // hasAttr reports whether tok has the attribute key.

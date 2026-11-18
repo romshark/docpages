@@ -13,6 +13,7 @@ It uses:
 - [Links](../../docs/2-guide/2-writing.md#links) to headings of another page
 - A [Mermaid diagram](../../docs/2-guide/2-writing.md#diagrams)
 - A [`<details>`](../../docs/2-guide/2-writing.md#details)
+- [HTML for text](../../docs/2-guide/2-writing.md#formatting): an exponent in `<sup>` and the base of a logarithm in `<sub>`
 
 Serve the docs from the root of the repository, reloading on changes:
 

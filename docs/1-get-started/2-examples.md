@@ -15,6 +15,7 @@ It shows:
 
 - A logo, a favicon and an icon for each group
 - Callouts and a code block with a title
+- Keys in `<kbd>`, an argument underlined with `<ins>`, as man does, and a line break in a table cell with `<br>`
 - A [template](../2-guide/6-templates.md) that builds a page of its own from the parts of docpages, with a banner across the top, links in the header, the navigation right of the text and no contents column
 - The text in a window between the title line and the footer line of a man page
 - A `style.css` that sets the colors and the fonts, frames the window, shows the contents bar at every width and marks the current page in reverse video
@@ -41,6 +42,7 @@ It shows:
 - A link in the footer with an icon
 - Links to the headings of another page
 - A `<details>` that opens
+- An exponent in `<sup>` and the base of a logarithm in `<sub>`
 - 2 [releases](../2-guide/7-versions.md) from the tags with the prefix `example/library/`, v1.0 and v0.9
 - A [release folder](../2-guide/7-versions.md#fix-a-release) that adds a note to v0.9, which sends readers to v1.0
 - A [template](../2-guide/6-templates.md#releases) that adds a security banner to the pages of v0.9

@@ -26,7 +26,7 @@ A build stops at the mistakes below and names the file of each, and in Markdown 
 - A link to a heading that its page lacks.
 - An image or a video whose file doesn't exist, and an image of a release note outside the folder of the release.
 - A code block in a language that [Chroma doesn't highlight](https://github.com/alecthomas/chroma#supported-languages). A block without a language and a `mermaid` block pass.
-- Raw HTML that the page would leave out: an element other than `<img>`, `<picture>`, `<source>`, `<video>`, `<audio>`, `<track>`, `<details>` and `<summary>`, an attribute other than [those that pages keep](../2-guide/3-media.md#the-html-that-pages-keep), a `javascript:` URL and text outside a `<details>`. A comment passes, which GitHub hides too.
+- Raw HTML that the page would leave out: an element other than `<img>`, `<picture>`, `<source>`, `<video>`, `<audio>`, `<track>`, `<kbd>`, `<sup>`, `<sub>`, `<ins>`, `<br>`, `<details>` and `<summary>`, an attribute other than [those that pages keep](../2-guide/3-media.md#the-html-that-pages-keep), a `javascript:` URL and text outside a `<details>`. A comment passes, which GitHub hides too.
 - Lines that start with `|` but make no table, which needs a delimiter row as `| --- | --- |` below its first row, with as many cells.
 - A list item that CommonMark reads as text: `-item` or `1.item`, without the space after the marker, and a list that starts at another number than 1 right below a paragraph. A version as `2.x` and a year as `2019.` at the start of a line pass.
 

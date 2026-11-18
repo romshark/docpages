@@ -1075,6 +1075,22 @@ neo-dialog.search dialog {
     padding: 0.1em 0.35em;
   }
 
+  kbd {
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-block-end-width: 2px;
+    border-radius: 4px;
+    padding: 0.1em 0.4em;
+  }
+
+  /* Raised and lowered text keeps the height of its line. */
+  sup,
+  sub {
+    line-height: 0;
+  }
+
   /* Set font size on pre too; its line is at least its own line height,
      24px at the inherited 16px. */
   pre {

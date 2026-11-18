@@ -24,9 +24,6 @@ type lintError struct {
 	msg string
 }
 
-// mediaElementList names [mediaElements] for the errors.
-const mediaElementList = "<img>, <picture>, <source>, <video>, <audio> and <track>"
-
 // chromaLanguages is where Chroma lists the languages that it highlights.
 const chromaLanguages = "https://github.com/alecthomas/chroma#supported-languages"
 
@@ -47,8 +44,8 @@ var (
 // the site would omit:
 //
 //   - Code blocks in languages Chroma cannot highlight, which stay plain.
-//   - Raw HTML except [mediaElements] with [mediaAttrs] and <details> output
-//     from [collapsibles]. Comments are valid because GitHub also hides them.
+//   - Raw HTML except [mediaElements] with [mediaAttrs], and what [collapsibles] writes:
+//     <details> and [inlineElements]. Comments are valid because GitHub also hides them.
 //   - Lines beginning with "|" but lacking a table delimiter row, which stay text.
 //   - List items without marker spacing, such as -item, and ordered lists
 //     starting above 1 directly below a paragraph, which CommonMark folds into it.
@@ -97,8 +94,10 @@ func lintMarkdown(n ast.Node, src []byte) []lintError {
 	return errs
 }
 
-// shownElements names what a page shows of raw HTML, for the errors.
-const shownElements = mediaElementList + ", and <details> with its <summary>"
+// shownElements names what a page shows of raw HTML, for the errors:
+// [mediaElements], [inlineElements] and <details>.
+const shownElements = "<img>, <picture>, <source>, <video>, <audio>, <track>, " +
+	"<kbd>, <sup>, <sub>, <ins>, <br>, and <details> with its <summary>"
 
 // lintHTML returns mistakes in raw HTML at byte offset pos as c renders it,
 // plus whether <details> are ordered.
