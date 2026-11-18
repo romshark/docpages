@@ -270,7 +270,8 @@ func settingFiles(
 }
 
 // unusedFiles reports every docs file in fsys that its edition of s doesn't use:
-// not shown by a page, named by a link, or used by settings. Examples are an
+// not shown by a page, named by a link, or used by settings. It runs after the
+// pages render, when the links of templates have named their files. Examples are an
 // obsolete image or Markdown in an unpositioned directory omitted from navigation.
 // For a release, it checks the files of its folder in versions/,
 // which replace those of its tag. For root-level docs, it checks only groups

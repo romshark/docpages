@@ -9,7 +9,7 @@ A build stops at the mistakes below and names the file of each, and in Markdown 
 - A Markdown file in a group without a position, as `1-install.md`, and 2 entries of a folder with the same position.
 - 2 pages with the same URL, as `1-setup.md` and `2-setup.md`, the same file name in 2 groups of the same name, or `1-index.md` next to `README.md`.
 - A folder in `versions/` not named after a minor version, as `v1.2`, one that matches no release, and a file in `versions/` outside such a folder.
-- A file that nothing uses: no page shows it, and no link or setting names it. That catches an image that no page shows any more, and a page in a folder without a position, which the navigation would leave out. A file of a release folder counts if the release uses it. Hidden files don't count. In a docs folder at the root of the repository, only the groups count.
+- A file that nothing uses: no page shows it, and no link or setting names it. A link of a [template](../2-guide/6-templates.md) counts too. That catches an image that no page shows any more, and a page in a folder without a position, which the navigation would leave out. A file of a release folder counts if the release uses it. Hidden files don't count. In a docs folder at the root of the repository, only the groups count.
 
 ## Front matter
 

@@ -308,7 +308,10 @@ func TestReleaseErrors(t *testing.T) {
 			if tt.file != "" {
 				fsys[tt.file] = &fstest.MapFile{Data: []byte(tt.data)}
 			}
-			_, err := read(fsys, "docs", noRemote, tags, false)
+			s, err := read(fsys, "docs", noRemote, tags, false)
+			if err == nil {
+				_, err = s.Files()
+			}
 			require.ErrorContains(t, err, tt.want)
 		})
 	}

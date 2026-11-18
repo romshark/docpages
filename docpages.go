@@ -83,6 +83,10 @@ type Site struct {
 	templateGlob string
 	// options are shared by [readRepo] and the template renderer.
 	options Options
+	// fsys holds the docs, and settings the files that settings use,
+	// for [unusedFiles] after the pages render.
+	fsys     fs.FS
+	settings []string
 }
 
 // chrome is what every page of the site shows around its text.
@@ -255,11 +259,7 @@ func read(
 			return nil, fmt.Errorf("%s: note: %w", e.noteFile, err)
 		}
 	}
-	// Pages, links, and settings have now named every file the site uses.
-	settings := settingFiles(dir, c, set.Host, templates, mod)
-	if err := unusedFiles(fsys, s, settings); err != nil {
-		return nil, err
-	}
+	s.fsys, s.settings = fsys, settingFiles(dir, c, set.Host, templates, mod)
 	return s, nil
 }
 
@@ -329,8 +329,8 @@ func (s *Site) Files() (map[string][]byte, error) {
 	return files, nil
 }
 
-// renderPages returns every edition's HTML by output path.
-// If [Site.page] is nil, the .templ renderer handles them.
+// renderPages returns every edition's HTML by output path, and fails on a docs file
+// that the site doesn't use. If [Site.page] is nil, the .templ renderer handles them.
 func (s *Site) renderPages() (map[string][]byte, error) {
 	if s.page == nil {
 		return s.renderTemplates()
@@ -349,6 +349,10 @@ func (s *Site) renderPages() (map[string][]byte, error) {
 			}
 			pages[name] = b.Bytes()
 		}
+	}
+	// A template link, as to a PDF in the header, names its file as it renders.
+	if err := unusedFiles(s.fsys, s, s.settings); err != nil {
+		return nil, err
 	}
 	return pages, nil
 }

@@ -207,7 +207,8 @@ func writeTemplateRepo(t *testing.T, templates map[string]string) string {
 
 // TestTemplate checks that a renderer built from two .templ files and a Go file
 // of the docs module renders template parts and links in a static build and [Handler].
-// Go that templ generate left for a deleted .templ file doesn't count.
+// Go that templ generate left for a deleted .templ file doesn't count, and a docs
+// file that only the template links counts as used.
 func TestTemplate(t *testing.T) {
 	root := writeTemplateRepo(t, map[string]string{
 		"helper.go": dedent(`
@@ -222,6 +223,7 @@ func TestTemplate(t *testing.T) {
 					Head: head(),
 					HeaderLinks: docpages.HeaderLinks(p,
 						docpages.Link{Title: "Examples", URL: "4-more/1-examples.md", Icon: icon()},
+						docpages.Link{Title: "Cheatsheet", URL: "files/cheatsheet.pdf"},
 					),
 					FooterEnd: end(p),
 				})
@@ -244,6 +246,10 @@ func TestTemplate(t *testing.T) {
 			}
 		`),
 	})
+	// Only the template links the file, which counts as used.
+	cheatsheet := filepath.Join(root, "docs", "files", "cheatsheet.pdf")
+	require.NoError(t, os.MkdirAll(filepath.Dir(cheatsheet), 0o755))
+	require.NoError(t, os.WriteFile(cheatsheet, []byte("pdf"), 0o644))
 	o := Options{Root: root, Dir: "docs"}
 	s, err := Read(o)
 	require.NoError(t, err)
@@ -251,6 +257,7 @@ func TestTemplate(t *testing.T) {
 	require.NoError(t, err)
 	html := string(files["main/guides/events.html"])
 	for _, want := range []string{
+		`href="https://github.com/o/demo/blob/main/docs/files/cheatsheet.pdf"`,
 		`<meta name="template" content="test"></head>`,
 		`<a class="header-link icon-link" href="../more/examples">` +
 			`<svg aria-hidden="true"></svg> Examples</a>`,

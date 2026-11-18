@@ -1,11 +1,14 @@
 package docpages
 
 import (
+	"context"
+	"io"
 	"os"
 	"strings"
 	"testing"
 	"testing/fstest"
 
+	"github.com/a-h/templ"
 	"github.com/stretchr/testify/require"
 )
 
@@ -164,26 +167,43 @@ func TestLint(t *testing.T) {
 }
 
 // TestLintRepoDocs checks that the docs of docpages and the examples pass every
-// check of [Read], with the repository set in their front matter.
+// check of a build, with the repository set in their front matter.
 func TestLintRepoDocs(t *testing.T) {
 	for _, dir := range []string{"docs", "example/cli/docs", "example/library/docs"} {
 		t.Run(dir, func(t *testing.T) {
-			_, err := read(os.DirFS("."), dir, noRemote, gitTags{root: "."}, false)
+			s, err := read(os.DirFS("."), dir, noRemote, gitTags{root: "."}, false)
+			require.NoError(t, err)
+			_, err = s.Files()
 			require.NoError(t, err)
 		})
 	}
 }
 
+// buildFS builds the site of the docs directory in fsys, with pages from page
+// unless it's nil, and returns the error.
+func buildFS(fsys fstest.MapFS, page func(Page) templ.Component) error {
+	s, err := read(fsys, "docs", noRemote, nil, false)
+	if err != nil {
+		return err
+	}
+	if page != nil {
+		s.page = page
+	}
+	_, err = s.Files()
+	return err
+}
+
 // TestUnusedFiles checks that unshown docs files unnamed by links or settings fail,
 // such as obsolete images or pages in unpositioned directories,
-// while linked directory contents and group icons count as used.
+// while linked directory contents, group icons and files that only the page
+// template links count as used.
 func TestUnusedFiles(t *testing.T) {
 	file := func(s string) *fstest.MapFile { return &fstest.MapFile{Data: []byte(s)} }
 
 	fsys := testRepoFS()
 	fsys["docs/2-guides/img/old.png"] = file("old")
 	fsys["docs/guides/draft.md"] = file("# Draft\n")
-	_, err := read(fsys, "docs", noRemote, nil, false)
+	err := buildFS(fsys, nil)
 	require.EqualError(t, err, dedent(`
 		docs/2-guides/img/old.png: no page shows this file, and no link or setting names it
 		docs/guides/draft.md: no page shows this file, and no link or setting names it`))
@@ -197,6 +217,20 @@ func TestUnusedFiles(t *testing.T) {
 	fsys["docs/2-guides/files/a.txt"] = file("a")
 	fsys["docs/2-guides/files/b/c.txt"] = file("c")
 	fsys["docs/2-guides/.hidden"] = file("hidden")
-	_, err = read(fsys, "docs", noRemote, nil, false)
-	require.NoError(t, err)
+	require.NoError(t, buildFS(fsys, nil))
+
+	fsys = testRepoFS()
+	fsys["docs/files/cheatsheet.pdf"] = file("pdf")
+	require.EqualError(t, buildFS(fsys, nil), "docs/files/cheatsheet.pdf: "+
+		"no page shows this file, and no link or setting names it")
+	// As HeaderLinks does with a Link of URL "files/cheatsheet.pdf".
+	linking := func(p Page) templ.Component {
+		return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+			if _, err := p.URL("files/cheatsheet.pdf"); err != nil {
+				return err
+			}
+			return DefaultPage(p).Render(ctx, w)
+		})
+	}
+	require.NoError(t, buildFS(fsys, linking))
 }
