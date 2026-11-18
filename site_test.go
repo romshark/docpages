@@ -633,10 +633,12 @@ func TestSiteChrome(t *testing.T) {
 				`<script type="module" src="../docpages.js"></script>` +
 					`<meta name="test" content="head"></head>`,
 				`Skip to content</a><p class="test-banner">Upgrade</p> ` +
+					`<neo-autohide tolerance="32" disabled class="site-bar">` +
 					`<header class="site-header">`,
 				`<a class="logo" href="../../../" aria-label="Demo home">` +
 					`<svg class="logo-svg" role="img" aria-label="Demo" ` +
 					`xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">`,
+				`</nav></header><details class="toc-inline">`,
 				`<a class="header-link icon-link" href="../" aria-current="page">` +
 					`<svg aria-hidden="true" viewBox="0 0 16 16"><path d="M2 2"/></svg> Guide</a>`,
 				`<a class="header-link" href="../more/examples">Examples</a>`,
@@ -674,6 +676,20 @@ func TestSiteChrome(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestHeaderWithoutContents tests that [HeaderWithoutContents] puts the header
+// alone in a <div class="site-bar">, which never hides, and that
+// [ContentsBar] renders the bar where the template places it.
+func TestHeaderWithoutContents(t *testing.T) {
+	s := newTestSite(t)
+	s.page = func(p Page) templ.Component {
+		return templ.Join(HeaderWithoutContents(p), ContentsBar(p))
+	}
+	html := pageHTML(t, s, "guides/events")
+	require.Contains(t, html, `<div class="site-bar"><header class="site-header">`)
+	require.Contains(t, html, `</nav></header></div><details class="toc-inline">`)
+	require.NotContains(t, html, "<neo-autohide")
 }
 
 // TestSiteDefaults checks unset chrome: the repository name, a text logo linking

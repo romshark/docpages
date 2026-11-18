@@ -123,7 +123,9 @@ Compare a version with `==`, since `<` sorts `v0.10` before `v0.9`. `p.Versions`
 | --- | --- |
 | `Head(p)` | `<head>` with the title, the styles and the scripts, then the elements inside it, as fonts. Every page needs it. |
 | `Body(p)` | `<body>`, which the styles and the search need, with a link that skips to the text. |
-| `Header(p)` | The logo, the version menu of a site with releases, the links in it, the search, the button of [offline viewing](../3-reference/3-output.md#offline-viewing) and the theme switch. |
+| `Header(p)` | The logo, the version menu of a site with releases, the links in it, the search, the button of [offline viewing](../3-reference/3-output.md#offline-viewing) and the theme switch, then `ContentsBar(p)`. On a phone, the header and the bar hide as you scroll down. |
+| `HeaderWithoutContents(p)` | `Header(p)` without `ContentsBar(p)`, for a page that shows the bar elsewhere. On a phone, the header stays. |
+| `ContentsBar(p)` | A bar with the contents of the page on screens too narrow for `Contents(p)`. Outside `Header(p)`, it sticks at the top of the element around it. |
 | `Navigation(p)` | The navigation. |
 | `Main(p)` | The note of the version, the text and the links to the previous and the next page. |
 | `Contents(p)` | The contents of the page, beside the text on wide screens. |

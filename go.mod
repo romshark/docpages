@@ -7,7 +7,7 @@ require (
 	github.com/a-h/templ v0.3.1118
 	github.com/alecthomas/chroma/v3 v3.0.0-alpha.5
 	github.com/evanw/esbuild v0.28.2
-	github.com/romshark/morpheus v0.4.0
+	github.com/romshark/morpheus v0.6.0
 	github.com/stretchr/testify v1.12.1
 	github.com/tdewolff/parse/v2 v2.8.20
 	github.com/yuin/goldmark/v2 v2.1.16

@@ -48,6 +48,17 @@ nav?.addEventListener("click", (e) => {
 	}
 });
 
+// The header and the contents bar hide on scroll down only where the header sticks,
+// below the 59.25rem breakpoint of style.css. Header renders their
+// <neo-autohide> disabled; HeaderWithoutContents renders none.
+const siteBar = document.querySelector("neo-autohide.site-bar");
+if (siteBar) {
+	const narrow = matchMedia("(width <= 59.25rem)");
+	const autohide = () => siteBar.toggleAttribute("disabled", !narrow.matches);
+	narrow.addEventListener("change", autohide);
+	autohide();
+}
+
 // openVersion opens href in another site version, or its first page at fallback
 // when that version lacks the page, as when the page was added after release.
 const openVersion = async (href: string, fallback: string) => {
@@ -211,15 +222,17 @@ if (sections.length > 0) {
 // The bar list ends 8px above the viewport and scrolls if longer.
 // Its room changes while scrolling because the bar begins below its sticky position.
 // The bar closes after a section jump, outside click, or Escape. data-stuck
-// marks its sticky state, which CSS cannot detect in every browser.
+// marks the sticky state of the bar, or of the .site-bar that holds it,
+// which CSS cannot detect in every browser.
 const tocBar = document.querySelector<HTMLDetailsElement>(".toc-inline");
 if (tocBar) {
 	const list = find(tocBar, ".toc");
+	const sticky = tocBar.closest<HTMLElement>(".site-bar") ?? tocBar;
 	const stick = () => {
-		const top = Number.parseFloat(getComputedStyle(tocBar).top);
+		const top = Number.parseFloat(getComputedStyle(sticky).top);
 		tocBar.toggleAttribute(
 			"data-stuck",
-			tocBar.getBoundingClientRect().top < top + 1,
+			sticky.getBoundingClientRect().top < top + 1,
 		);
 	};
 	addEventListener("scroll", stick, { passive: true });

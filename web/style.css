@@ -75,14 +75,6 @@ a {
   }
 }
 
-/* Page icons fill <neo-icon>, which defaults to text size. The server places
-   the SVG there until Morpheus moves it into the shadow root. */
-neo-icon > svg {
-  display: block;
-  inline-size: 100%;
-  block-size: 100%;
-}
-
 /* A link whose leading icon inherits the text color and size. */
 .icon-link {
   display: flex;
@@ -100,12 +92,9 @@ neo-icon > svg {
 
 /* ── Header ──────────────────────────────────────── */
 
-/* The sticky docs header derives its offset from --header-pad, --logo-size,
-   and --header-row-gap. */
+/* --header-pad, --logo-size, and --header-row-gap are set on .site-bar,
+   which derives its sticky offset from them. */
 .site-header {
-  --header-pad: 1.25rem;
-  --logo-size: 3rem;
-  --header-row-gap: 1rem;
   /* Shared height for version, search, theme, and Menu controls. */
   --control-height: 2rem;
   display: flex;
@@ -176,9 +165,6 @@ neo-icon > svg {
   }
 
   @media (width <= 640px) {
-    --header-pad: 1rem;
-    --logo-size: 2.25rem;
-    --header-row-gap: 0.5rem;
     column-gap: 0.75rem;
     padding-inline: 1.25rem;
 
@@ -210,14 +196,8 @@ neo-icon > svg {
       flex-basis: 100%;
     }
 
-    /* On docs pages, row two follows Menu. The header sticks with row one above
-       the viewport, leaving row two visible. */
+    /* On docs pages, row two follows Menu, and .site-bar sticks. */
     .docs-page & {
-      position: sticky;
-      inset-block-start: calc(
-        0.5rem - var(--header-pad) - var(--logo-size) - var(--header-row-gap)
-      );
-      z-index: 2;
       padding-block-end: 0.5rem;
       background: var(--bg);
 
@@ -251,6 +231,38 @@ neo-icon > svg {
     .header-repository {
       display: none;
     }
+  }
+}
+
+/* The header and .toc-inline of Header in a <neo-autohide>, or the header alone
+   of HeaderWithoutContents in a <div>. Where the header uses 2 rows, it sticks
+   with row one above the viewport, leaving the navigation row and the bar in view,
+   and docs.ts lets the <neo-autohide> hide on scroll down. Wider, the header is
+   1 row of --logo-size and sticks above the viewport, leaving the bar alone in view. */
+.site-bar {
+  --header-pad: 1.25rem;
+  --logo-size: 3rem;
+  --header-row-gap: 1rem;
+  position: sticky;
+  inset-block-start: calc(-2 * var(--header-pad) - var(--logo-size));
+  z-index: 2;
+  /* The space beside the bar passes clicks to the navigation column. */
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+
+  @media (width <= 640px) {
+    --header-pad: 1rem;
+    --logo-size: 2.25rem;
+    --header-row-gap: 0.5rem;
+  }
+
+  @media (width <= 59.25rem) {
+    inset-block-start: calc(
+      0.5rem - var(--header-pad) - var(--logo-size) - var(--header-row-gap)
+    );
   }
 }
 
@@ -388,6 +400,15 @@ neo-icon > svg {
    contents, 3rem gaps, and 1.5rem side padding. */
 .docs-page {
   --max-w: 85rem;
+  /* .toc-inline lines up with the text column of .docs. */
+  --docs-pad: 1.5rem;
+  --docs-gap: 3rem;
+  --docs-nav-width: 15rem;
+
+  @media (width <= 900px) {
+    --docs-pad: 1.25rem;
+    --docs-gap: 0px;
+  }
 }
 
 /* Disable smooth scrolling here: a specification heading jump can span
@@ -411,7 +432,7 @@ html:has(.docs-page) {
     }
   }
 
-  /* The header is not sticky; the bar also has 0.5rem above. */
+  /* Only the bar is in view, with 0.5rem above its summary too. */
   @media (59.25rem < width < 75rem) {
     &:has(.toc-inline) {
       scroll-padding-block-start: calc(var(--toc-summary) + 1rem);
@@ -421,23 +442,18 @@ html:has(.docs-page) {
 
 .docs {
   display: flex;
-  gap: 3rem;
+  gap: var(--docs-gap);
   inline-size: 100%;
   max-width: var(--max-w);
   margin-inline: auto;
-  padding-inline: 1.5rem;
+  padding-inline: var(--docs-pad);
   /* Navigation padding follows how far .docs has entered view. */
   view-timeline: --docs block;
-
-  @media (width <= 900px) {
-    gap: 0;
-    padding-inline: 1.25rem;
-  }
 }
 
 /* Morpheus <neo-sidebar> is a sticky column above 56.25rem and an overlay below. */
 .docs-nav {
-  --neo-sidebar-width: 15rem;
+  --neo-sidebar-width: var(--docs-nav-width);
   font-size: 0.875rem;
 
   &:not(:state(overlay)) {
@@ -445,6 +461,13 @@ html:has(.docs-page) {
     inset-block-start: 0;
     block-size: 100dvh;
     border-color: transparent;
+
+    /* The column starts beside the contents bar of .site-bar, not below it. */
+    @media (width < 75rem) {
+      .docs-page:has(.site-bar > .toc-inline) & {
+        margin-block-start: calc(-1 * (var(--toc-summary) + 1rem));
+      }
+    }
 
     /* Aligns the navigation with the logo above it. */
     > [data-neo-sidebar-content] {
@@ -560,10 +583,10 @@ html:has(.docs-page) {
   font-weight: 600;
 }
 
-/* On screens too narrow for a contents column, use a bar that sticks below the
-   header, or at the top when the header does not stick, and opens over text.
-   It covers text beneath it with 0.5rem around its summary. docs.ts keeps the
-   list in the viewport and sets data-stuck while the bar sticks. */
+/* On screens too narrow for a contents column, a bar opens the contents over the text.
+   It covers text beneath it with 0.5rem around its summary. docs.ts keeps the list in
+   the viewport and sets data-stuck while the bar sticks.
+   Outside .site-bar, the bar sticks at the top of its parent. */
 .toc-inline {
   display: none;
   position: sticky;
@@ -578,11 +601,33 @@ html:has(.docs-page) {
     display: block;
   }
 
-  /* The header ends 0.5rem below its navigation. */
+  /* The header covers the 0.5rem above the summary. */
   @media (width <= 59.25rem) {
-    inset-block-start: var(--header-stuck);
-    margin-block-start: 1rem;
-    padding-block-start: 0;
+    inset-block-start: calc(var(--header-stuck) - 0.5rem);
+  }
+
+  /* .site-bar sticks with the bar in line with the text column. */
+  .site-bar > & {
+    /* The start of .docs on a page wider than --max-w. */
+    --docs-start: max(0px, (100% - var(--max-w)) / 2);
+    /* The containing block of the list. */
+    position: relative;
+    inset-block-start: auto;
+    margin-block-start: 0;
+    margin-inline: calc(var(--docs-start) + var(--docs-pad));
+
+    /* Right of the navigation column. */
+    @media (width > 59.25rem) {
+      margin-inline-start: calc(
+        var(--docs-start) + var(--docs-pad) + var(--docs-nav-width) +
+          var(--docs-gap)
+      );
+    }
+
+    /* The header ends 0.5rem below its navigation. */
+    @media (width <= 59.25rem) {
+      padding-block-start: 0;
+    }
   }
 
   summary {

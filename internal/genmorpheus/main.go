@@ -17,8 +17,8 @@ const module = "github.com/romshark/morpheus"
 
 // components are page-rendered Morpheus components; "morpheus bundle" adds dependencies.
 var components = []string{
-	"aura", "button", "checkbox", "clipcopy", "dialog", "elastic", "popover", "progress",
-	"select", "sidebar", "tooltip",
+	"aura", "autohide", "button", "checkbox", "clipcopy", "dialog", "elastic", "popover",
+	"progress", "select", "sidebar", "tooltip",
 }
 
 // icons are Morpheus icons shown by icons.templ or loaded by page components,

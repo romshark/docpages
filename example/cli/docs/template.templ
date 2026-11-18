@@ -8,15 +8,15 @@ import (
 
 // DocpagesMain builds its own page from built-in parts: a banner across the top,
 // the text in a terminal window between man-page title and footer lines,
-// and the navigation to its right. Without [docpages.Contents], the contents
-// bar of [docpages.Main] lists the sections, which style.css shows at every width.
+// and the navigation to its right. Without [docpages.Contents], the window
+// holds [docpages.ContentsBar], which style.css shows at every width.
 templ DocpagesMain(p docpages.Page) {
 	<!DOCTYPE html>
 	<html lang="en">
 		@docpages.Head(p)
 		@docpages.Body(p) {
 			@banner(p)
-			@docpages.Header(p) {
+			@docpages.HeaderWithoutContents(p) {
 				@docpages.HeaderLinks(p,
 					docpages.Link{Title: "Docs", URL: "README.md"},
 					docpages.Link{Title: "Options", URL: "2-reference/1-options.md"},
@@ -25,6 +25,7 @@ templ DocpagesMain(p docpages.Page) {
 			<div class="docs">
 				<div class="docs-column terminal">
 					@manLine(p, "man-title", manName(p), "User Commands")
+					@docpages.ContentsBar(p)
 					@docpages.Main(p)
 					@manLine(p, "man-footer", p.Site+" "+p.Version, p.Title)
 				</div>

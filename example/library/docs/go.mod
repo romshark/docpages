@@ -9,7 +9,7 @@ require (
 	github.com/dlclark/regexp2/v2 v2.13.0 // indirect
 	github.com/evanw/esbuild v0.28.2 // indirect
 	github.com/romshark/docpages v0.0.0-00010101000000-000000000000 // indirect
-	github.com/romshark/morpheus v0.4.0 // indirect
+	github.com/romshark/morpheus v0.6.0 // indirect
 	github.com/tdewolff/parse/v2 v2.8.20 // indirect
 	github.com/yuin/goldmark/v2 v2.1.16 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect

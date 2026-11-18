@@ -92,8 +92,37 @@ templ Body(p Page) {
 }
 
 // Header renders the site logo, version menu, [Navigation] button, child links,
-// repository, search, and theme controls.
+// repository, search, and theme controls, then [ContentsBar].
+//
+// One <neo-autohide> holds the header and the bar. On narrow screens it sticks
+// with the navigation row and the bar in view, and hides on scroll down;
+// docs.ts enables the hiding there, which leaves it off without scripts.
+// On wider screens the bar sticks alone.
 templ Header(p Page) {
+	// A tolerance over 1 line of text, 27.2px, keeps the bar hidden when the
+	// reader scrolls back to reread a line.
+	@neo.AutohideAttrs(neo.AutohideOpts{Disabled: neo.Set(true), Tolerance: neo.Set(32)},
+		templ.Attributes{"class": "site-bar"}) {
+		@siteHeader(p) {
+			{ children... }
+		}
+		@ContentsBar(p)
+	}
+}
+
+// HeaderWithoutContents is [Header] without [ContentsBar], for a page that
+// shows the bar elsewhere. On narrow screens the header sticks but doesn't hide,
+// as the bar elsewhere can't hide with it.
+templ HeaderWithoutContents(p Page) {
+	<div class="site-bar">
+		@siteHeader(p) {
+			{ children... }
+		}
+	</div>
+}
+
+// siteHeader renders the <header> of [Header], with children in its navigation.
+templ siteHeader(p Page) {
 	<header class="site-header">
 		<div class="brand">
 			<a class="logo" href={ p.Home } aria-label={ p.Site + " home" }>
@@ -120,6 +149,24 @@ templ Header(p Page) {
 			@ThemeSwitch()
 		</nav>
 	</header>
+}
+
+// ContentsBar opens the contents of p over the text on screens too narrow for
+// [Contents], and renders nothing when there are none. It shows the page title
+// until docs.ts replaces it with the current section title. Outside [Header]
+// it sticks at the top of its parent, below the header on narrow screens.
+templ ContentsBar(p Page) {
+	if len(p.Contents) > 0 {
+		<details class="toc-inline">
+			<summary>
+				<span class="toc-inline-current">
+					{ p.Heading }
+				</span>
+				@icon("chevron-down")
+			</summary>
+			@docsContents(p.Contents)
+		</details>
+	}
 }
 
 // Offline renders the button that saves p's version for offline viewing,
@@ -156,7 +203,8 @@ templ Offline(p Page) {
 						@offlineOption(offlinePages, "Pages")
 						@offlineOption(offlineImages, "Images")
 						@offlineOption(offlineVideos, "Videos and audio")
-						@neo.ButtonAttrs(neo.ButtonOpts{Size: neo.Set("sm"), Disabled: neo.Set(true)},
+						@neo.ButtonAttrs(
+							neo.ButtonOpts{Size: neo.Set("sm"), Disabled: neo.Set(true)},
 							templ.Attributes{"class": "offline-apply"}) {
 							Apply
 						}
@@ -218,7 +266,11 @@ templ offlineOption(group, label string) {
 		</label>
 		<span class="offline-too-big" hidden>
 			@neo.Tooltip(neo.TooltipOpts{Placement: neo.Set(neo.PlacementTop)}) {
-				<button type="button" class="offline-info" aria-label={ label + " don't fit" }>
+				<button
+					type="button"
+					class="offline-info"
+					aria-label={ label + " don't fit" }
+				>
 					@icon("info")
 				</button>
 				<span { neo.TooltipContent()... }></span>
@@ -253,25 +305,11 @@ templ Navigation(p Page) {
 	}
 }
 
-// Main renders <main>: the version note, narrow-screen contents, page text, and
-// previous/next links.
+// Main renders <main>: the version note, page text, and previous/next links.
 templ Main(p Page) {
 	<main class="docs-main" id="main-content" tabindex="-1">
 		if p.Note != "" {
 			@versionNote(p.Note)
-		}
-		// On narrow screens, a bar sticks below the header and opens over text.
-		// It shows the page title until docs.ts replaces it with the current section title.
-		if len(p.Contents) > 0 {
-			<details class="toc-inline">
-				<summary>
-					<span class="toc-inline-current">
-						{ p.Heading }
-					</span>
-					@icon("chevron-down")
-				</summary>
-				@docsContents(p.Contents)
-			</details>
 		}
 		@pageLinks(p)
 		<article class="docs-content">
@@ -307,8 +345,8 @@ templ Main(p Page) {
 	</main>
 }
 
-// Contents lists sections beside the text on wide screens;
-// it renders nothing when there are none.
+// Contents lists sections beside the text on wide screens, and [ContentsBar] on
+// narrower ones; it renders nothing when there are none.
 templ Contents(p Page) {
 	if len(p.Contents) > 0 {
 		<aside class="docs-toc" aria-labelledby="docs-toc-title">
@@ -417,10 +455,11 @@ templ VersionSelect(p Page) {
 			PopoverFitContent: neo.Set(true),
 		}, templ.Attributes{"class": "version-select"}) {
 			for _, l := range p.Versions {
-				@neo.OptionAttrs(neo.OptionOpts{Value: neo.Set(l.Version)}, templ.Attributes{
-					"data-href":     l.Href,
-					"data-fallback": l.Fallback,
-				}) {
+				@neo.OptionAttrs(neo.OptionOpts{Value: neo.Set(l.Version)},
+					templ.Attributes{
+						"data-href":     l.Href,
+						"data-fallback": l.Fallback,
+					}) {
 					{ l.Version }
 				}
 			}
