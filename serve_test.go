@@ -270,6 +270,49 @@ func TestHandlerEvents(t *testing.T) {
 	require.NotEqual(t, first, next())
 }
 
+// TestWatcherRootDocs checks that the state of docs at the repository root
+// covers the files at the root and the groups, but not the rest of the
+// repository, as node_modules, until a read opens a file there.
+func TestWatcherRootDocs(t *testing.T) {
+	root := t.TempDir()
+	writeTestFiles(t, root, map[string]string{
+		"README.md": dedent(`
+			---
+			repository: https://github.com/o/r
+			---
+
+			# Home
+
+			See [the example](examples/main.go).
+		`),
+		"1-guide/1-start.md":      "# Start\n",
+		"node_modules/x/index.js": "x",
+		"examples/main.go":        "package main\n",
+	})
+	w := &watcher{root: root, dir: "."}
+	// change writes data to file name with a later mtime, which a coarse
+	// filesystem clock would otherwise keep, and returns the new state.
+	change := func(name, data string) string {
+		t.Helper()
+		p := filepath.Join(root, filepath.FromSlash(name))
+		require.NoError(t, os.WriteFile(p, []byte(data), 0o644))
+		future := time.Now().Add(time.Hour)
+		require.NoError(t, os.Chtimes(p, future, future))
+		return w.state()
+	}
+	state := w.state()
+	require.Equal(t, state, change("node_modules/x/index.js", "y"))
+	require.Equal(t, state, change("examples/main.go", "package main\n\n// A.\n"))
+	state = change("1-guide/1-start.md", "# Start\n\nChanged.\n")
+
+	// The link of README.md opens examples/main.go, which counts from then on.
+	_, err := w.readSite(Options{Root: root, Dir: "."}, "")
+	require.NoError(t, err)
+	require.Equal(t, []string{"examples/main.go"}, w.sources)
+	state = w.state()
+	require.NotEqual(t, state, change("examples/main.go", "package main\n\n// B.\n"))
+}
+
 // TestWatcherState checks that renames, such as page reordering, change state
 // while hidden-file changes, such as .git under root-level docs, do not.
 func TestWatcherState(t *testing.T) {

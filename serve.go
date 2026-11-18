@@ -116,6 +116,25 @@ type watcher struct {
 	readState string
 	readFiles map[string][]byte
 	readErr   error
+
+	// poll shares the state of [watcher.recent] among the event streams of
+	// the open tabs, computed at polledAt.
+	poll        sync.Mutex
+	polledAt    time.Time
+	polledState string
+}
+
+// walked reports whether [watcher.state] walks file, a path from the
+// repository root, of docs directory dir. Docs at the repository root take
+// only the files at the root, the groups and versions/, so the walk leaves
+// out the rest of the repository, as node_modules. [watcher.sources] holds
+// the files that the site reads there.
+func walked(file, dir string) bool {
+	if dir != "." {
+		return inDir(file, dir)
+	}
+	top, _, nested := strings.Cut(file, "/")
+	return !nested || top == versionsDir || orderPrefix.MatchString(top)
 }
 
 // files returns o's site at file state state, rereading unless it was read last.
@@ -137,7 +156,7 @@ func (w *watcher) readSite(o Options, state string) (map[string][]byte, error) {
 		dir := path.Clean(filepath.ToSlash(o.Dir))
 		var sources []string
 		for name := range fsys.names {
-			if fs.ValidPath(name) && !inDir(name, dir) {
+			if fs.ValidPath(name) && !walked(name, dir) {
 				sources = append(sources, name)
 			}
 		}
@@ -167,8 +186,8 @@ func (r *recordFS) Open(name string) (fs.File, error) {
 	return r.FS.Open(name)
 }
 
-// state hashes paths, sizes, and mtimes of docs files and of the files of
-// [watcher.sources]. Paths detect renames that preserve size and mtime.
+// state hashes paths, sizes, and mtimes of docs files that [walked] covers and
+// of the files of [watcher.sources]. Paths detect renames that preserve size and mtime.
 // As the site does, it excludes dot names, keeping .git out of root-level docs.
 func (w *watcher) state() string {
 	h := fnv.New64a()
@@ -176,6 +195,7 @@ func (w *watcher) state() string {
 		_, _ = fmt.Fprintf(h, "%s\x00%d\x00%d\x00",
 			file, info.Size(), info.ModTime().UnixNano())
 	}
+	dir := path.Clean(filepath.ToSlash(w.dir))
 	start := filepath.Join(w.root, w.dir)
 	_ = filepath.WalkDir(start, func(p string, d fs.DirEntry, err error) error {
 		switch {
@@ -187,6 +207,10 @@ func (w *watcher) state() string {
 			}
 			return nil
 		case d.IsDir():
+			rel, err := filepath.Rel(w.root, p)
+			if p != start && err == nil && !walked(filepath.ToSlash(rel)+"/", dir) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if info, err := d.Info(); err == nil {
@@ -212,6 +236,18 @@ func (w *watcher) state() string {
 	return fmt.Sprintf("%x", h.Sum64())
 }
 
+// recent returns the state, which it computes at most twice per [pollInterval]
+// for all event streams, as each open tab polls it. Twice keeps 1 tab, whose ticks
+// come a little under pollInterval apart, from getting the state of its own last tick.
+func (w *watcher) recent() string {
+	w.poll.Lock()
+	defer w.poll.Unlock()
+	if now := time.Now(); now.Sub(w.polledAt) >= pollInterval/2 {
+		w.polledState, w.polledAt = w.state(), now
+	}
+	return w.polledState
+}
+
 // serveEvents sends file state initially and after each change until the request ends.
 func (w *watcher) serveEvents(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "text/event-stream")
@@ -220,7 +256,7 @@ func (w *watcher) serveEvents(rw http.ResponseWriter, r *http.Request) {
 	defer t.Stop()
 	last := ""
 	for {
-		if s := w.state(); s != last {
+		if s := w.recent(); s != last {
 			last = s
 			if _, err := fmt.Fprintf(rw, "data: %s\n\n", s); err != nil {
 				return
