@@ -1,23 +1,27 @@
 # CLAUDE.md
 
-For the kit's technical design decisions and rules, see [DESIGN.md](DESIGN.md). This file holds operational rules for working in the repo.
+This file holds operational rules for working in the repo. The user documentation is in [docs/](docs/README.md), and the docs-directory layout is in the package doc of [docpages.go](docpages.go).
 
 ## Repository Structure
 
-- `web/lib`: TypeScript sources for the actual custom elements.
-- `web/site`: miscellaneous TypeScrit and CSS for the demo site.
-- `neo`: the Templ wrapper for the custom elements.
-- `datastar`: same as `/neo` but specifically for Datastar + Templ.
-- `main.go`: the `morpheus` command, which builds a bundle of chosen components.
-- `internal/bundle`: the bundle graph, the per-version sources and the build, shared by `main.go`, `internal/cmd/gen` and `internal/site`.
-- `internal/href`: links for the static site generator.
-- `internal/cmd`: helper scripts in Go.
-- `internal/site`: the source for the static site generator.
-- `dst`: ignored, it's what gets built from `/internal/site` by `internal/cmd/gen`.
+- `*.go`, `*.templ` at the root: the `docpages` package, which renders a docs directory as a static site. `docs.templ` holds the built-in page layout.
+- `cmd/docpages`: the `docpages` command. `-o` writes a site, `-serve` previews one.
+- `web`: TypeScript and CSS of the page (`docs.ts`, `style.css`) and the service worker (`sw/sw.ts`), which esbuild compiles into `static/`.
+- `static`: files embedded in every site. `static/icons` holds the icons that Morpheus lacks. `static/*.min.*` and `static/morpheus` are generated.
+- `internal/genmorpheus`: writes the Morpheus bundle to `static/morpheus`.
+- `docs`: the docpages documentation, itself a docpages site with its own Go module for `template.templ`.
+- `example/cli`, `example/library`: example sites, deployed under `example/` of the docs site. `example/library` builds releases from its tags with the prefix `example/library/`.
+- `testdata`: images for the image-size tests.
+- `site`: ignored, the output of `go run ./cmd/docpages -o site docs`.
 
 ## Build
 
-Don't run `templ generate`, `go build`, or `pnpm build.ts` by hand. Watch mode (`make watch` / templier) is running in another terminal: it rebuilds on save and, on any `web/` TypeScript or CSS change, runs Biome lint and `tsc` (`pnpm check-all`), failing on a lint or type error. When the watcher is off, run `pnpm check-all` in `web/` to verify, and `pnpm lint-apply` / `pnpm format` to autofix.
+Generated files are committed, because `go install` and `go get` don't run `go generate`. CI fails when they are stale. After a change to a `.templ` file, `web/` or the Morpheus version in `go.mod`, run `make gen` (`go generate ./...`) and commit the output. Don't edit `*_templ.go`, `static/*.min.*` or `static/morpheus` by hand.
+
+- `go test ./...` runs the tests. Some tests build `example/library` from its Git tags, which needs a full clone.
+- `make fmt` formats Go with gofumpt. CI checks the format and `go mod tidy -diff`.
+- `make check` runs Biome and `tsc` on `web/`, as CI does. `pnpm -C web run lint-apply` and `pnpm -C web run format` autofix.
+- `go run ./cmd/docpages -serve 127.0.0.1:7340 docs` previews the docs and reloads on changes.
 
 
 # Writing
@@ -143,15 +147,15 @@ for _, it := range items {
 
 ### Git commits
 
-Follow [Conventional Commits 1.0](https://www.conventionalcommits.org/en/v1.0.0/): `<type>[optional scope]: <description>` (e.g. `feat(switch): …`, `fix: …`, `chore: …`).
+Follow [Conventional Commits 1.0](https://www.conventionalcommits.org/en/v1.0.0/): `<type>[optional scope]: <description>` (e.g. `feat: ...`, `fix: ...`, `chore(deps): ...`).
 
-- Title (first line) 50 characters max, sentence case (capitalize the first word), no trailing period, imperative mood: it completes "If applied, this commit will …". Use `fix: Revalidate min bundles`, not `Revalidated` (past) or `Revalidates` (present).
+- Title (first line) 50 characters max, sentence case (capitalize the first word), no trailing period, imperative mood: it completes "If applied, this commit will ...". Use `fix: Escape page URLs`, not `Escaped` (past) or `Escapes` (present).
 - Body wraps at 72 characters per line. State the non-obvious _why_, never paraphrase the _what_. Describe the current state in present tense and the fix in imperative, not past: `Focus leaves the open dialog. Trap it in the panel`, not `Focus left the open dialog and was trapped`.
-- Reserve `fix`/`feat` for the shippable kit (`web/lib`, `neo`/`datastar` wrappers). The demo/doc site (`web/site`, `internal/site`, landing) uses `docs`; tooling (`internal/cmd`) uses `chore`.
+- Reserve `fix`/`feat` for what users get: the `docpages` package, `cmd/docpages`, `web` and `static`. `docs`, `example` and `README.md` use `docs`; tooling (`internal/genmorpheus`, `Makefile`, CI) uses `chore`; test-only changes use `test`. GoReleaser writes the release notes from the commit titles and leaves out `docs:`, `test:` and `chore:` ([.goreleaser.yaml](.goreleaser.yaml)).
 
-### Changelog
+### Releases
 
-Record each user-visible change to the shippable kit under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md), in the same commit. The `changelog` skill holds the entry rules and the release steps.
+There is no changelog file. A release is a `vX.Y.Z` tag on main, and pushing it runs GoReleaser ([release.yml](.github/workflows/release.yml)).
 
 ### Comment style
 
@@ -166,16 +170,13 @@ If a reader could infer the comment from the code itself, remove it as it adds n
 An exported Go or Templ symbol takes a doc comment that opens with its name, per Go convention:
 
 ```
-// Combobox renders <neo-combobox> ...
-templ Combobox(opts ComboboxOpts) { ... }
+// Layout is the built-in page with template parts.
+templ Layout(p Page, parts Parts) { ... }
 ```
 
-When a comment names another symbol, write it as a `[Name]` doc link, not `neo.Name` or unlinked text; a same-package link takes the bare name (`[RadioGroup]`, `[Option]`). Keep runnable example code (`@neo.Foo(neo.FooOpts{…})`) literal and tab-indented so godoc renders it as a code block, not a link.
+When a comment names another symbol, write it as a doc link, not unlinked text: `[Layout]` in the same package, `[neo.Select]` for an imported one. Keep runnable example code literal and tab-indented so godoc renders it as a code block, not a link.
 
 ```
-// Radio renders <neo-radio>, a child of [RadioGroup]:
-//
-//	@neo.Radio(neo.RadioOpts{Value: neo.Set("a")}) { A }
+// DefaultPage is [Layout] with a "Docs" header link to the first page,
+// used when docs have no template.templ.
 ```
-
-An `SomethingAttrs` wrapper carries only the back-reference `// SomethingAttrs is [Something] with an extra attribute set.`; the component's full doc lives once on the high-level `Something` templ.
