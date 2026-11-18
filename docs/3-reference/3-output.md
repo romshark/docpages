@@ -35,6 +35,7 @@ The header of every page has a button that saves the version for offline viewing
 `sw.js`, the service worker of the version, keeps the files in the cache of the browser and serves them when the network fails. The browser registers it only when a reader saves the version, and drops it when the reader removes the saved files, so a reader who never saves loads the site without it. The page fetches `offline.json` after it has loaded. `offline.json` lists the files of each group. Both hold an ID of the build, so a new build, as a new patch tag or a new docpages, makes the browser save the same groups again. It downloads only the files that changed, and keeps the saved files of the old build, which it serves offline, until the new ones are complete. A page that loads online checks for a new `sw.js`, and a new worker takes over at once.
 
 - A download that a closed tab stopped goes on when the reader opens a page of the version again.
+- A download that a missing file or full storage stops shows why and waits for the reader to apply again or cancel. One that the network stops goes on when a page loads or the network returns, and otherwise after a wait that doubles from 20 s up to 5 min.
 - A service worker needs HTTPS, or `localhost`. GitHub Pages serves HTTPS.
 - `-offline=false` builds the site without offline viewing. A reader who saved a version of an earlier build loses the saved files on the next visit.
 - All GitHub Pages sites of an account share 1 origin, and so 1 share of the storage of the browser.

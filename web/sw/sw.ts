@@ -20,12 +20,14 @@ interface OfflineIndex {
 
 // The state of the save survives a restarted worker. groups are the groups to hold,
 // kept those complete before the save, which Cancel restores,
-// and status is "saving" or "saved".
+// and status is "saving" or "saved". error stops a save that a retry wouldn't
+// complete, until a new save, Cancel or a new build.
 interface SaveState {
 	groups: string[];
 	kept: string[];
 	build: string;
 	status: "saving" | "saved";
+	error?: string;
 }
 
 const scope = self.registration.scope;
@@ -72,7 +74,7 @@ const report = async () => {
 		status: state?.status ?? "none",
 		groups: state?.groups ?? [],
 		running: saving !== null,
-		error: failure,
+		error: state?.error ?? failure,
 		...progress,
 	});
 };
@@ -115,7 +117,12 @@ self.addEventListener("activate", (e) => {
 			} else if (state.build !== build) {
 				// The files of the old build stay until those of this one are saved.
 				// Offline, pages come from them meanwhile.
-				await writeState({ ...state, build, kept: [], status: "saving" });
+				await writeState({
+					groups: state.groups,
+					kept: [],
+					build,
+					status: "saving",
+				});
 				resume();
 			}
 			await report();
@@ -126,7 +133,7 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("message", (e) => {
 	switch (e.data?.type) {
 		case "status":
-			e.waitUntil(serial(status));
+			e.waitUntil(serial(() => status(true)));
 			break;
 		case "save":
 			e.waitUntil(serial(() => start(e.data.groups)));
@@ -143,17 +150,22 @@ self.addEventListener("message", (e) => {
 		case "keepalive":
 			// Pages send this during a save, as an idle worker stops after about
 			// 30 s and 1 event keeps it up at most 5 min.
-			// It also resumes a stopped save.
+			// It also resumes a stopped save, after the backoff.
 			e.waitUntil(
-				Promise.race([serial(status).then(() => saving), sleep(25_000)]),
+				Promise.race([
+					serial(() => status(false)).then(() => saving),
+					sleep(25_000),
+				]),
 			);
 			break;
 	}
 });
 
-// status reports the state and resumes a stopped save. Evicted files, as
-// Safari evicts after 7 days without a visit, turn the state back to saving.
-const status = async () => {
+// status reports the state and resumes a save that a retry may complete:
+// now, as when a page loads or the network returns, or after the backoff.
+// Evicted files, as Safari evicts after 7 days without a visit, turn the
+// state back to saving.
+const status = async (now: boolean) => {
 	const state = await readState();
 	if (state?.status === "saved") {
 		const kept = await completeGroups(state.groups);
@@ -161,11 +173,45 @@ const status = async () => {
 			await writeState({ ...state, kept, status: "saving" });
 		}
 	}
-	if ((await readState())?.status === "saving") {
+	const next = await readState();
+	if (
+		next?.status === "saving" &&
+		!next.error &&
+		(now || Date.now() >= retryAt)
+	) {
 		resume();
 	}
 	await report();
 };
+
+// A save that a network error stopped waits 20 s before a keepalive resumes it,
+// twice that after each further error, up to 5 min.
+let retries = 0;
+let retryAt = 0;
+const backOff = () => {
+	retryAt = Date.now() + Math.min(20_000 * 2 ** retries, 300_000);
+	retries++;
+};
+
+// StatusError is a response of url with a status other than 2xx.
+class StatusError extends Error {
+	constructor(
+		url: string,
+		readonly status: number,
+	) {
+		super(`${url}: ${status}`);
+	}
+}
+
+// permanent reports whether err stops a save that a retry wouldn't complete:
+// a full storage, or a response of 4xx other than a timeout or a rate limit.
+const permanent = (err: unknown) =>
+	(err instanceof DOMException && err.name === "QuotaExceededError") ||
+	(err instanceof StatusError &&
+		err.status >= 400 &&
+		err.status < 500 &&
+		err.status !== 408 &&
+		err.status !== 429);
 
 // keptGroups returns the groups that Cancel restores in state.
 const keptGroups = (state: SaveState | null) =>
@@ -178,6 +224,8 @@ const start = async (groups: string[]) => {
 	const kept = keptGroups(await readState());
 	await writeState({ groups, kept, build, status: "saving" });
 	failure = "";
+	retries = 0;
+	retryAt = 0;
 	resume();
 	await report();
 };
@@ -380,7 +428,7 @@ const save = async () => {
 		}
 		const response = await fetch(indexURL, { cache: "no-store", signal });
 		if (!response.ok) {
-			throw new Error(`offline.json: ${response.status}`);
+			throw new StatusError("offline.json", response.status);
 		}
 		const index = (await response.clone().json()) as OfflineIndex;
 		if (index.build !== build) {
@@ -419,9 +467,17 @@ const save = async () => {
 		await prune(index, state.groups);
 		await writeState({ ...state, kept: state.groups, build, status: "saved" });
 		await deleteOldCaches();
+		retries = 0;
 	} catch (err) {
-		if (signal.reason !== stopped) {
-			failure = `Stopped: ${err instanceof Error ? err.message : err}`;
+		if (signal.reason === stopped) {
+			return;
+		}
+		failure = `Stopped: ${err instanceof Error ? err.message : err}`;
+		const now = await readState();
+		if (permanent(err) && now?.status === "saving") {
+			await writeState({ ...now, error: failure });
+		} else {
+			backOff();
 		}
 	}
 };
@@ -430,7 +486,7 @@ const save = async () => {
 const fetchInto = async (cache: Cache, f: OfflineFile, signal: AbortSignal) => {
 	const response = await fetch(f.url, { cache: "no-cache", signal });
 	if (!response.ok || !response.body) {
-		throw new Error(`${f.url}: ${response.status}`);
+		throw new StatusError(f.url, response.status);
 	}
 	let got = 0;
 	const body = response.body.pipeThrough(
