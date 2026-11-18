@@ -158,7 +158,7 @@ The [Go reference](https://pkg.go.dev/github.com/romshark/docpages) lists every 
 
 A build with `.templ` files needs the [go command](https://go.dev/doc/install), and fails without it. docpages builds a renderer in the docs module and renders the pages with it. The Go of your files and of the renderer stays in a folder of the temporary directory, so the build writes nothing to the docs folder. The first build takes a while, and later builds use the Go build cache. `-serve` builds again when you change a `.templ` or `.go` file, and shows a mistake in the page.
 
-Your files can import the packages of the docs module and of the modules it requires. A `.go` file next to the `.templ` files is `package docs` too, as with a function that the templates call.
+Your files can import the packages of the docs module and of the modules it requires. A `.go` file next to the `.templ` files is `package docs` too, as with a function that the templates call. A package in a subfolder can hold `.templ` files as well. The build needs the `_templ.go` files that `templ generate` writes for them, as docpages generates Go only for the `.templ` files of the docs folder.
 
 The renderer uses the running docpages, not the version that `go.mod` requires. The running docpages must be compatible with that version, which means the same major version and no older. Below v1, the minor version must be the same too. Otherwise the build fails and names the command that runs the required version:
 

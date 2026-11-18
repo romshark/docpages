@@ -30,6 +30,11 @@ type docsModule struct {
 	local bool
 	// goFiles are the module's .go files from the repository root.
 	goFiles []string
+	// templFiles are the module's .templ files from the repository root, and the
+	// _templ.txt files that templ generate writes beside them. The renderer
+	// build reads the .go files and generates Go only for the .templ files of
+	// the docs directory.
+	templFiles []string
 }
 
 // readModule returns the module of docs directory dir in fsys.
@@ -86,8 +91,11 @@ func readModule(fsys fs.FS, dir string) (*docsModule, error) {
 			}
 			return nil
 		}
-		if path.Ext(name) == ".go" {
+		switch {
+		case path.Ext(name) == ".go":
 			m.goFiles = append(m.goFiles, p)
+		case path.Ext(name) == ".templ", strings.HasSuffix(name, "_templ.txt"):
+			m.templFiles = append(m.templFiles, p)
 		}
 		return nil
 	})
@@ -97,9 +105,11 @@ func readModule(fsys fs.FS, dir string) (*docsModule, error) {
 	return m, nil
 }
 
-// files returns m's go.mod, go.sum and .go files from the repository root.
+// files returns m's go.mod, go.sum, .go, .templ and _templ.txt files from the
+// repository root.
 func (m *docsModule) files() []string {
 	r := append([]string{m.file}, m.goFiles...)
+	r = append(r, m.templFiles...)
 	if len(m.goSum) > 0 {
 		r = append(r, path.Join(path.Dir(m.file), "go.sum"))
 	}

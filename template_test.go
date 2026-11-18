@@ -84,6 +84,22 @@ func TestReadTemplates(t *testing.T) {
 				"docs/lib/lib_test.go": "package lib\n",
 			},
 		},
+		"package of .templ files": {
+			files: map[string]string{
+				"docs/main.templ":  main,
+				"docs/icons.templ": icons,
+				"docs/go.mod":      templateGoMod,
+				"docs/ui/button.templ": dedent(`
+					package ui
+
+					templ Button() {
+						<button></button>
+					}
+				`),
+				"docs/ui/button_templ.go":  "package ui\n",
+				"docs/ui/button_templ.txt": "x",
+			},
+		},
 		"no go.mod": {
 			files: map[string]string{"docs/main.templ": main},
 			want: "docs: the .templ files need a Go module that requires " +
