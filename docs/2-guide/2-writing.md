@@ -216,7 +216,7 @@ GitHub alerts become callouts, each kind with its own color and title:
 > A build first deletes what the last build wrote in `site/`:
 >
 > - The version folders, as `main/` and `v1.2/`
-> - `index.html` and `llms.txt`
+> - `index.html`, `llms.txt`, `sitemap.xml` and `404.html`
 >
 > Keep **files of your own** out of these. See [Deploy](9-deploy.md#build-in-ci).
 
@@ -237,7 +237,7 @@ GitHub alerts become callouts, each kind with its own color and title:
 > A build first deletes what the last build wrote in `site/`:
 >
 > - The version folders, as `main/` and `v1.2/`
-> - `index.html` and `llms.txt`
+> - `index.html`, `llms.txt`, `sitemap.xml` and `404.html`
 >
 > Keep **files of your own** out of these. See [Deploy](9-deploy.md#build-in-ci).
 

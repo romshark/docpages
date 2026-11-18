@@ -1729,6 +1729,11 @@ neo-dialog.search dialog {
   }
 }
 
+.docs-index-text {
+  margin-block-start: 1rem;
+  color: var(--text-muted);
+}
+
 @keyframes docs-index-in {
   from {
     opacity: 0;

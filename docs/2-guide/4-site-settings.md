@@ -7,6 +7,7 @@ The front matter of `docs/README.md` sets up the whole site:
 name: My Project
 home: ../
 repository: https://github.com/me/project
+address: https://me.github.io/project/
 ---
 ```
 
@@ -27,3 +28,9 @@ The links of the header and the footer belong to a [template](6-templates.md).
 Put `logo.svg` in the docs folder to show it in place of the name. The logo leads to the first page, or to `home`: a URL relative to the output folder, as `../` for a landing page above the docs.
 
 `favicon.svg`, `favicon.png` or `favicon.ico` becomes the icon of the browser tab.
+
+## Address
+
+`address` is the URL of the output folder once deployed, as `https://me.github.io/project/`. With it, the build writes `sitemap.xml` and `404.html` into the output folder, and the canonical link and the `og:url` of each page are absolute. Without it, the canonical links are relative, and the build writes neither file.
+
+Search engines read `sitemap.xml` once you submit it, as in Google Search Console. GitHub Pages shows `404.html` for a page that doesn't exist, if the output folder is the root of the site. Below a [landing page](9-deploy.md#below-a-landing-page), the 404 page of the landing page applies.

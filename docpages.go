@@ -91,9 +91,11 @@ type Site struct {
 
 // chrome is what every page of the site shows around its text.
 type chrome struct {
-	name    string
-	logo    string // SVG markup of logo.svg, empty without one.
-	home    string // URL that the logo leads to, relative to the output directory.
+	name string
+	logo string // SVG markup of logo.svg, empty without one.
+	home string // URL that the logo leads to, relative to the output directory.
+	// address is [frontMatter].Address, ending in "/", or empty.
+	address string
 	host    *host
 	favicon string // Name of the icon of the browser tab, empty without one.
 	style   bool   // Whether the docs directory holds a style.css.
@@ -177,6 +179,9 @@ func read(
 	c := chrome{name: set.Name, home: set.Home}
 	if c.name == "" {
 		c.name = path.Base(repoURL)
+	}
+	if c.address, err = siteAddress(set.Address); err != nil {
+		return nil, fmt.Errorf("%s: %w", path.Join(dir, readmeName), err)
 	}
 	if c.host, err = readHost(fsys, dir, repoURL, set.Host); err != nil {
 		return nil, fmt.Errorf("%s: host: %w", path.Join(dir, readmeName), err)
@@ -296,6 +301,16 @@ func (s *Site) Files() (map[string][]byte, error) {
 		"index.html": index.Bytes(),
 		"llms.txt":   versionsLlmsTxt(s.editions, s.chrome.name, s.Description()),
 	}
+	if s.chrome.address != "" {
+		files["sitemap.xml"] = s.sitemapXML()
+		var notFound bytes.Buffer
+		err := notFoundPage(s.chrome.address, s.defaultEdition().outDir(), &s.chrome).
+			Render(context.Background(), &notFound)
+		if err != nil {
+			return nil, err
+		}
+		files["404.html"] = notFound.Bytes()
+	}
 	for _, e := range s.editions {
 		dir := e.outDir()
 		files[dir+"llms.txt"] = llmsTxt(s.chrome.name, e.pages, e.groups, e.docs)
@@ -372,6 +387,13 @@ func (s *Site) renderError(name string, err error) error {
 	return fmt.Errorf("%s: %w", s.templateGlob, err)
 }
 
+// rootFiles are the files that a build writes at the root of the output directory.
+// sitemap.xml and 404.html need the setting address, and a build without it
+// removes them too, as a stale 404.html would link the old address.
+var rootFiles = map[string]bool{
+	"index.html": true, "llms.txt": true, "sitemap.xml": true, "404.html": true,
+}
+
 // Write writes the site to out. It first removes prior generated files,
 // including edition directories, so deleted docs leave no stale pages.
 func (s *Site) Write(out string) error {
@@ -386,7 +408,7 @@ func (s *Site) Write(out string) error {
 	for _, e := range entries {
 		name := e.Name()
 		edition := e.IsDir() && (name == MainVersion || featureVersion.MatchString(name))
-		if edition || !e.IsDir() && (name == "index.html" || name == "llms.txt") {
+		if edition || !e.IsDir() && rootFiles[name] {
 			if err := os.RemoveAll(filepath.Join(out, name)); err != nil {
 				return err
 			}
@@ -435,6 +457,7 @@ func (s *Site) pageView(e *edition, i int) Page {
 		Next:        next,
 		Suggested:   suggestions(e.pages, e.groups, i),
 		Indexed:     !e.isMain() || s.latest() == nil,
+		Canonical:   s.canonical(e, i),
 		site:        s,
 		edition:     e,
 		index:       i,

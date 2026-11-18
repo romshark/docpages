@@ -10,7 +10,7 @@ Build on every push to `main`:
 go run github.com/romshark/docpages/cmd/docpages@latest -o site docs
 ```
 
-1 build writes every version, so nothing needs to carry over between builds. A build first deletes what the last one wrote in `site/`: the version folders, `index.html` and `llms.txt`. It leaves other files alone.
+1 build writes every version, so nothing needs to carry over between builds. A build first deletes what the last one wrote in `site/`: the version folders, `index.html`, `llms.txt`, `sitemap.xml` and `404.html`. It leaves other files alone.
 
 The build reads [releases](7-versions.md) from the Git tags. `actions/checkout` of GitHub Actions fetches 1 commit and no tags by default. Fetch all of them:
 

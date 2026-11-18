@@ -30,5 +30,6 @@ Only in `docs/README.md`:
 | `repository` | URL | Your repository. Default: the URL of the Git remote `origin`. |
 | `host` | Map | Where the repository is hosted: `name`, `icon`, `file` and `dir`. See [Repository host](../2-guide/8-repository-host.md). |
 | `releases` | Map | The releases from Git tags: `from`, the oldest version that the site shows, as `v1.2`, and the optional `prefix` of the tags, as `api/`. None without it. See [Versions](../2-guide/7-versions.md). |
+| `address` | URL | The URL of the deployed output folder, as `https://me.github.io/project/`. Adds `sitemap.xml` and `404.html`, and makes canonical links absolute. See [Address](../2-guide/4-site-settings.md#address). |
 
 The links of the header and the footer belong to a [template](../2-guide/6-templates.md).

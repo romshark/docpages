@@ -51,6 +51,11 @@ type Page struct {
 	Suggested []Suggestion
 	// Indexed reports whether search engines may index the page.
 	Indexed bool
+	// Canonical is the URL of the page that search engines show for this one:
+	// the same page in the latest release, if it has it, or this page.
+	// Empty for a page that search engines don't index. Absolute with
+	// the setting address, relative without it.
+	Canonical string
 
 	site    *Site
 	edition *edition

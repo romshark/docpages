@@ -1,6 +1,7 @@
 ---
 name: docpages
 repository: https://github.com/romshark/docpages
+address: https://romshark.github.io/docpages/
 suggested: true
 ---
 

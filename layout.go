@@ -50,6 +50,10 @@ type frontMatter struct {
 	Host *hostSettings `yaml:"host"`
 	// Releases selects the tags that are releases; nil means no releases.
 	Releases *releasesSettings `yaml:"releases"`
+	// Address is the URL that the output directory deploys to,
+	// as https://o.github.io/r/. It makes canonical links and og:url absolute,
+	// and adds sitemap.xml and 404.html, which need absolute URLs.
+	Address string `yaml:"address"`
 }
 
 // releasesSettings selects the release tags: those of feature version From, as
@@ -253,7 +257,7 @@ func (l *layout) add(r readPageResult) {
 // hasSettings reports whether fm sets a setting of the site.
 func (fm frontMatter) hasSettings() bool {
 	return fm.Name != "" || fm.Home != "" || fm.Repository != "" || fm.Host != nil ||
-		fm.Releases != nil
+		fm.Releases != nil || fm.Address != ""
 }
 
 // orderedEntry is a group directory or a page file with its position.

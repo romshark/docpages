@@ -49,8 +49,9 @@ templ Layout(p Page, parts Parts) {
 	</html>
 }
 
-// Head renders a page's <head>: title, description, favicon, site styles and
-// scripts, then children so their styles win the cascade.
+// Head renders a page's <head>: title, description, canonical link, Open Graph
+// tags for link previews, favicon, site styles and scripts, then children so
+// their styles win the cascade.
 templ Head(p Page) {
 	<head>
 		<meta charset="utf-8"/>
@@ -59,6 +60,19 @@ templ Head(p Page) {
 		<meta name="description" content={ p.Description }/>
 		if !p.Indexed {
 			<meta name="robots" content="noindex"/>
+		}
+		if p.Canonical != "" {
+			<link rel="canonical" href={ p.Canonical }/>
+		}
+		<meta property="og:type" content="website"/>
+		<meta property="og:site_name" content={ p.Site }/>
+		<meta property="og:title" content={ p.Title }/>
+		if p.Description != "" {
+			<meta property="og:description" content={ p.Description }/>
+		}
+		// og:url must be absolute.
+		if p.site.chrome.address != "" && p.Canonical != "" {
+			<meta property="og:url" content={ p.Canonical }/>
 		}
 		@favicon(p.Root, p.site.chrome.favicon)
 		<link rel="alternate" type="text/markdown" href={ p.Markdown }/>
@@ -645,6 +659,40 @@ templ docsIndex(dir string, c *chrome) {
 					{ c.name }
 				}
 			</a>
+		</body>
+	</html>
+}
+
+// notFoundPage is 404.html, which GitHub Pages serves for a missing page at any depth
+// below address, the URL of the output directory, so its links are absolute. It leads
+// to the docs, and shows the colors of dir, the directory of the default version.
+templ notFoundPage(address, dir string, c *chrome) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="color-scheme" content="light dark"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<meta name="robots" content="noindex"/>
+			<title>Page not found - { c.name }</title>
+			@favicon(address+dir, c.favicon)
+			@themeScript()
+			<link rel="stylesheet" href={ address + dir + "docpages.css" }/>
+			if c.style {
+				<link rel="stylesheet" href={ address + dir + "style.css" }/>
+			}
+		</head>
+		<body class="docs-index">
+			<a class="docs-index-link" href={ address }>
+				if c.logo != "" {
+					@templ.Raw(c.logo)
+				} else {
+					{ c.name }
+				}
+			</a>
+			<p class="docs-index-text">
+				This page doesn't exist. <a href={ address }>Open the documentation</a>.
+			</p>
 		</body>
 	</html>
 }

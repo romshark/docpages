@@ -4,6 +4,8 @@
 site/
   index.html          redirects to the latest release, or to main
   llms.txt            links the llms.txt of each version
+  sitemap.xml         the pages for search engines, with address
+  404.html            the page of a missing URL, with address
   main/
     index.html        the first page
     index.md          its Markdown copy
@@ -27,6 +29,8 @@ site/
 Every page links its Markdown copy as "Raw Markdown". The links in a copy lead to the other copies.
 
 `llms.txt` follows the format of [llmstxt.org](https://llmstxt.org).
+
+Every page has a canonical link to the page that search engines show for it: the same page of the latest release, or the page itself if the latest release lacks it. The pages of `main` have none and carry `noindex` while the site has releases. Every page has the Open Graph tags `og:title`, `og:description`, `og:site_name` and `og:type` for link previews, and `og:url` with [`address`](../2-guide/4-site-settings.md#address).
 
 ## Offline viewing
 

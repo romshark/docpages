@@ -58,7 +58,7 @@ Each build writes every version:
 
 The version menu lists the releases, newest first, then `main`. Picking a version opens the same page in that version, or the first page of that version if it lacks the page. Header and footer links stay in the version you're reading.
 
-While the site has releases, search engines skip the pages of `main`, so search results lead to released docs.
+While the site has releases, search engines skip the pages of `main`, so search results lead to released docs. A page of an older release names the same page of the latest release as its canonical page, so search results show the latest one. A page that the latest release lacks stays its own.
 
 The build fails on a folder in `versions/` that matches no release, on a file in a release folder that no page of the release shows or links, and on site settings in the `README.md` of a release folder.
 

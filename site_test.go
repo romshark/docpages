@@ -937,6 +937,8 @@ func TestWrite(t *testing.T) {
 		"v0.9/index.html",
 		"main/old.html",
 		"index.html",
+		"sitemap.xml",
+		"404.html",
 		"landing.html",
 	} {
 		p := filepath.Join(out, filepath.FromSlash(name))
@@ -944,7 +946,8 @@ func TestWrite(t *testing.T) {
 		require.NoError(t, os.WriteFile(p, []byte("old"), 0o644))
 	}
 	require.NoError(t, newTestSite(t).Write(out))
-	for _, name := range []string{"v0.9", "main/old.html"} {
+	// Without the setting address, the build writes no sitemap.xml and 404.html.
+	for _, name := range []string{"v0.9", "main/old.html", "sitemap.xml", "404.html"} {
 		_, err := os.Stat(filepath.Join(out, name))
 		require.ErrorIs(t, err, fs.ErrNotExist, name)
 	}
