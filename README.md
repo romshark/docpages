@@ -19,10 +19,13 @@ go run github.com/romshark/docpages/cmd/docpages@latest -serve 127.0.0.1:7340 do
 | Relative `.md` links | Yes | With a render hook | Yes | Yes | With a plugin | Yes | Yes | Yes |
 | Versions\* | Yes | No | Yes | With a plugin | With a plugin | With mike | With mike | No |
 | Search | Yes | With a theme | Algolia or a plugin | Yes | Yes | Yes | Yes | Yes |
+| Offline\*\* | Yes | With a module | With a plugin | With a plugin | With a plugin | No | No | No |
 | Plugins | Not yet 🚧 | Yes | Yes | Yes | Yes | Yes | Built-in only | Yes |
 | Templates | [templ](https://templ.guide) | Go templates | React components | Vue components | Astro components | Jinja | Jinja | Handlebars |
 
 \* Versions are the docs at each release tag, with a menu that switches between them.
+
+\*\* Offline is a copy of the site that a service worker keeps in the browser, to read without a network. MkDocs, Zensical and mdBook can instead build the site as files to open from disk.
 
 ## Documentation
 

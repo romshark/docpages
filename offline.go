@@ -54,6 +54,10 @@ type offlineFile struct {
 	// URL is relative to the version root, without .html, as pages request it.
 	URL  string `json:"url"`
 	Size int    `json:"size"`
+	// Hash identifies the content, so that sw.js of a new build copies an
+	// unchanged file from the saved one. A media copy has none, as its URL
+	// holds one.
+	Hash string `json:"hash,omitempty"`
 }
 
 // offlineFiles returns offline.json and sw.js for version files,
@@ -68,14 +72,16 @@ func offlineFiles(files map[string][]byte, worker []byte) (index, sw []byte, err
 	}
 	for _, name := range slices.Sorted(maps.Keys(files)) {
 		data := files[name]
-		_, _ = fmt.Fprintf(h, "%s\x00%d\x00", name, len(data))
+		f := offlineFile{URL: offlineURL(name), Size: len(data)}
 		// A media copy's name holds a content hash,
 		// so hashing the content again would only slow -serve.
 		if !isMediaCopy(name) {
-			h.Write(data)
+			sum := sha256.Sum256(data)
+			f.Hash = hex.EncodeToString(sum[:8])
 		}
+		_, _ = fmt.Fprintf(h, "%s\x00%d\x00%s\x00", name, len(data), f.Hash)
 		g := groups[offlineGroupOf(name)]
-		g.Files = append(g.Files, offlineFile{URL: offlineURL(name), Size: len(data)})
+		g.Files = append(g.Files, f)
 		g.Size += len(data)
 	}
 	idx := offlineIndex{Build: hex.EncodeToString(h.Sum(nil)[:8])}

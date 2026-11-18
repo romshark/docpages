@@ -1,6 +1,7 @@
 // Service worker of 1 docs version. It caches the offline.json groups that
 // the reader picks and serves them offline. docpages prepends `const build`,
-// so a new build installs a new worker, which replaces the old files.
+// so a new build installs a new worker, which saves the files of the new build
+// and deletes those of the old one only then.
 
 declare const self: ServiceWorkerGlobalScope;
 declare const build: string;
@@ -9,6 +10,8 @@ declare const build: string;
 interface OfflineFile {
 	url: string;
 	size: number;
+	// The content, which a media copy holds in its URL instead.
+	hash?: string;
 }
 interface OfflineIndex {
 	build: string;
@@ -106,13 +109,12 @@ self.addEventListener("activate", (e) => {
 			// Navigation requests start while the worker boots.
 			await self.registration.navigationPreload?.enable();
 			await self.clients.claim();
-			for (const name of await caches.keys()) {
-				if (name.startsWith(`${prefix}files `) && name !== filesCache) {
-					await caches.delete(name);
-				}
-			}
 			const state = await readState();
-			if (state && state.build !== build) {
+			if (!state) {
+				await deleteOldCaches();
+			} else if (state.build !== build) {
+				// The files of the old build stay until those of this one are saved.
+				// Offline, pages come from them meanwhile.
 				await writeState({ ...state, build, kept: [], status: "saving" });
 				resume();
 			}
@@ -265,6 +267,80 @@ const key = (url: string) => {
 	return scope + path.map((s) => encodeURIComponent(decode(s))).join("/");
 };
 
+// oldCaches returns the names of the files caches of other builds.
+const oldCaches = async () =>
+	(await caches.keys()).filter(
+		(name) => name.startsWith(`${prefix}files `) && name !== filesCache,
+	);
+
+const deleteOldCaches = async () => {
+	for (const name of await oldCaches()) {
+		await caches.delete(name);
+	}
+};
+
+// cached returns the saved response for url, of this build,
+// or of an older one while this build's save is incomplete.
+const cached = async (url: string) => {
+	for (const name of [filesCache, ...(await oldCaches())]) {
+		const r = await caches.match(url, { cacheName: name, ignoreVary: true });
+		if (r) {
+			return r;
+		}
+	}
+	return undefined;
+};
+
+// moveUnchanged moves into cache the files of groups in index that an older build
+// saved with the same content, and the files of the CDN, whose URLs name their versions.
+// Moving, not copying, keeps the storage that 2 builds take at about
+// that of 1. The old files that remain serve offline reads until the save completes.
+const moveUnchanged = async (
+	cache: Cache,
+	index: OfflineIndex,
+	groups: string[],
+) => {
+	const have = new Set((await cache.keys()).map((r) => r.url));
+	const move = async (old: Cache, url: string) => {
+		const r = await old.match(url);
+		if (r && !have.has(url)) {
+			await cache.put(url, r);
+			have.add(url);
+		}
+		await old.delete(url);
+	};
+	for (const name of await oldCaches()) {
+		const old = await caches.open(name);
+		const hashes = new Map<string, string>();
+		const oldIndex = await old.match(indexURL);
+		if (oldIndex) {
+			const listed = (await oldIndex.json()) as OfflineIndex;
+			for (const f of files(
+				listed,
+				listed.groups.map((g) => g.name),
+			)) {
+				if (f.hash) {
+					hashes.set(key(f.url), f.hash);
+				}
+			}
+		}
+		for (const f of files(index, groups)) {
+			const url = key(f.url);
+			const same = f.hash
+				? hashes.get(url) === f.hash
+				: mediaCopy.test(url.slice(scope.length));
+			if (same) {
+				await move(old, url);
+			}
+		}
+		for (const r of await old.keys()) {
+			if (cdn.some((p) => r.url.startsWith(p))) {
+				await move(old, r.url);
+			}
+		}
+	}
+};
+
 // completeGroups returns the groups whose files are all cached.
 const completeGroups = async (groups: string[]) => {
 	const index = await caches.match(indexURL, { cacheName: filesCache });
@@ -316,6 +392,7 @@ const save = async () => {
 		}
 		const cache = await caches.open(filesCache);
 		await cache.put(indexURL, response);
+		await moveUnchanged(cache, index, state.groups);
 		const have = new Set((await cache.keys()).map((r) => r.url));
 		const missing: OfflineFile[] = [];
 		for (const f of files(index, state.groups)) {
@@ -341,6 +418,7 @@ const save = async () => {
 		// Unchecked groups go only now, so that Cancel keeps them.
 		await prune(index, state.groups);
 		await writeState({ ...state, kept: state.groups, build, status: "saved" });
+		await deleteOldCaches();
 	} catch (err) {
 		if (signal.reason !== stopped) {
 			failure = `Stopped: ${err instanceof Error ? err.message : err}`;
@@ -399,10 +477,8 @@ const serve = async (
 	preload: Promise<Response | undefined>,
 ) => {
 	const url = key(request.url);
-	const cached = () =>
-		caches.match(url, { cacheName: filesCache, ignoreVary: true });
 	if (mediaCopy.test(url.slice(scope.length))) {
-		const response = await cached();
+		const response = await cached(url);
 		if (response) {
 			return ranged(request, response);
 		}
@@ -410,7 +486,7 @@ const serve = async (
 	try {
 		return (await preload) ?? (await fetch(request));
 	} catch (err) {
-		const response = await cached();
+		const response = await cached(url);
 		if (response) {
 			return ranged(request, response);
 		}
@@ -422,9 +498,9 @@ const serveCDN = async (request: Request) => {
 	if (!(await readState())) {
 		return fetch(request);
 	}
-	const cached = await caches.match(request.url, { cacheName: filesCache });
-	if (cached) {
-		return cached;
+	const saved = await cached(request.url);
+	if (saved) {
+		return saved;
 	}
 	const response = await fetch(request);
 	if (response.ok) {

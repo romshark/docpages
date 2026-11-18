@@ -1,6 +1,8 @@
 package docpages
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -9,10 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestOfflineFiles checks the groups, URLs and sizes of offline.json,
-// and that the build and sw.js change with the files and the worker,
-// but not with the content of a media copy.
-// media/codecs.html is a page of a docs group named media.
+// TestOfflineFiles checks the groups, URLs, sizes and content hashes of offline.json,
+// and that the build and sw.js change with the files and the worker, but not with the
+// content of a media copy. media/codecs.html is a page of a docs group named media.
 func TestOfflineFiles(t *testing.T) {
 	files := map[string][]byte{
 		"index.html":                       []byte("home"),
@@ -28,6 +29,10 @@ func TestOfflineFiles(t *testing.T) {
 		"morpheus/morpheus.min.js":         []byte("js"),
 		"morpheus/icons/search.svg":        []byte("<svg/>"),
 	}
+	hash := func(name string) string {
+		sum := sha256.Sum256(files[name])
+		return hex.EncodeToString(sum[:8])
+	}
 	index, sw, err := offlineFiles(files, []byte("worker();\n"))
 	require.NoError(t, err)
 	var got offlineIndex
@@ -36,15 +41,51 @@ func TestOfflineFiles(t *testing.T) {
 	require.Equal(t, "const build = \""+got.Build+"\";\nworker();\n", string(sw))
 	require.Equal(t, []offlineGroup{
 		{Name: "pages", Size: 45, Files: []offlineFile{
-			{URL: "./", Size: 4},
-			{URL: "guides/", Size: 6},
-			{URL: "guides/events", Size: 6},
-			{URL: "guides/events.md", Size: 8},
-			{URL: "guides/first%20steps", Size: 5},
-			{URL: "media/codecs", Size: 6},
-			{URL: "morpheus/icons/search.svg", Size: 6},
-			{URL: "morpheus/morpheus.min.js", Size: 2},
-			{URL: "search.json", Size: 2},
+			{
+				URL:  "./",
+				Size: 4,
+				Hash: hash("index.html"),
+			},
+			{
+				URL:  "guides/",
+				Size: 6,
+				Hash: hash("guides/index.html"),
+			},
+			{
+				URL:  "guides/events",
+				Size: 6,
+				Hash: hash("guides/events.html"),
+			},
+			{
+				URL:  "guides/events.md",
+				Size: 8,
+				Hash: hash("guides/events.md"),
+			},
+			{
+				URL:  "guides/first%20steps",
+				Size: 5,
+				Hash: hash("guides/first steps.html"),
+			},
+			{
+				URL:  "media/codecs",
+				Size: 6,
+				Hash: hash("media/codecs.html"),
+			},
+			{
+				URL:  "morpheus/icons/search.svg",
+				Size: 6,
+				Hash: hash("morpheus/icons/search.svg"),
+			},
+			{
+				URL:  "morpheus/morpheus.min.js",
+				Size: 2,
+				Hash: hash("morpheus/morpheus.min.js"),
+			},
+			{
+				URL:  "search.json",
+				Size: 2,
+				Hash: hash("search.json"),
+			},
 		}},
 		{Name: "images", Size: 10, Files: []offlineFile{
 			{URL: "media/0a1b2c3d4e5f6a7b/shot.webp", Size: 10},
@@ -81,6 +122,9 @@ func TestOfflineFiles(t *testing.T) {
 	var next offlineIndex
 	require.NoError(t, json.Unmarshal(changed, &next))
 	require.NotEqual(t, got.Build, next.Build)
+	// The other files keep their hashes, for sw.js to copy.
+	require.Equal(t, got.Groups[0].Files[0], next.Groups[0].Files[0])
+	require.NotEqual(t, got.Groups[0].Files[5].Hash, next.Groups[0].Files[5].Hash)
 }
 
 // TestIsMediaCopy checks that only media/<16 hex digits>/<file> is a media copy,
@@ -126,8 +170,8 @@ func TestSiteOfflineFiles(t *testing.T) {
 	}
 }
 
-// TestNoOffline checks that [Options].NoOffline omits offline viewing in a
-// build and in [Handler].
+// TestNoOffline checks that [Options].NoOffline omits
+// offline viewing in a build and in [Handler].
 func TestNoOffline(t *testing.T) {
 	s, err := read(testRepoFS(), "docs", noRemote, nil, false)
 	require.NoError(t, err)
@@ -147,8 +191,8 @@ func TestNoOffline(t *testing.T) {
 	require.NotContains(t, body, `class="offline"`)
 }
 
-// TestHandlerOffline checks that [Handler] serves sw.js, the button and an
-// offline.json of the assets it serves.
+// TestHandlerOffline checks that [Handler] serves sw.js,
+// the button and an offline.json of the assets it serves.
 func TestHandlerOffline(t *testing.T) {
 	h := Handler(Options{Root: writeTestRepo(t), Dir: "docs"})
 	code, body := get(t, h, "/main/sw.js")
@@ -163,9 +207,10 @@ func TestHandlerOffline(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(body), &index))
 	js, err := static.ReadFile("static/docs.min.js")
 	require.NoError(t, err)
+	sum := sha256.Sum256(js)
 	require.Contains(t,
 		index.Groups[0].Files,
-		offlineFile{URL: "docpages.js", Size: len(js)})
+		offlineFile{URL: "docpages.js", Size: len(js), Hash: hex.EncodeToString(sum[:8])})
 }
 
 // TestOfflineControl checks that the button starts hidden,
