@@ -170,18 +170,23 @@ func TestSiteOfflineFiles(t *testing.T) {
 	}
 }
 
-// TestNoOffline checks that [Options].NoOffline omits
-// offline viewing in a build and in [Handler].
+// TestNoOffline checks that [Options].NoOffline omits offline viewing in a
+// build and in [Handler], and marks the pages, for docs.ts to remove the worker
+// of an earlier build. Without it, pages carry no mark.
 func TestNoOffline(t *testing.T) {
+	const mark = `data-version="main" data-offline="false">`
 	s, err := read(testRepoFS(), "docs", noRemote, nil, false)
 	require.NoError(t, err)
 	s.page = testPage
+	require.NotContains(t, pageHTML(t, s, "guides/events"), `data-offline="`)
 	s.options.NoOffline = true
 	files, err := s.Files()
 	require.NoError(t, err)
 	require.NotContains(t, files, "main/sw.js")
 	require.NotContains(t, files, "main/offline.json")
-	require.NotContains(t, pageHTML(t, s, "guides/events"), `class="offline"`)
+	html := pageHTML(t, s, "guides/events")
+	require.NotContains(t, html, `class="offline"`)
+	require.Contains(t, html, mark)
 
 	h := Handler(Options{Root: writeTestRepo(t), Dir: "docs", NoOffline: true})
 	code, _ := get(t, h, "/main/sw.js")
@@ -189,6 +194,7 @@ func TestNoOffline(t *testing.T) {
 	code, body := get(t, h, "/main/guides/events")
 	require.Equal(t, http.StatusOK, code)
 	require.NotContains(t, body, `class="offline"`)
+	require.Contains(t, body, mark)
 }
 
 // TestHandlerOffline checks that [Handler] serves sw.js,

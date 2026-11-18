@@ -80,11 +80,17 @@ templ Head(p Page) {
 
 // Body renders children in <body>. Styles use its class, search its root,
 // and style.css its version. A skip link to <main> comes first.
+// With [Options].NoOffline, data-offline="false" makes docs.ts remove the
+// worker and saved files of an earlier build. A page without [Offline] alone
+// keeps them, as a template may leave it out of some pages.
 templ Body(p Page) {
 	<body
 		class="docs-page"
 		data-site-root={ p.Root }
 		data-version={ p.Version }
+		if p.site != nil && p.site.options.NoOffline {
+			data-offline="false"
+		}
 	>
 		@skipLink()
 		{ children... }

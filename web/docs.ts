@@ -1158,9 +1158,13 @@ if (offline && "serviceWorker" in navigator && "BroadcastChannel" in window) {
 		}
 	});
 	addEventListener("offline", render);
-} else if ("serviceWorker" in navigator) {
-	// Without the control, as with -offline=false, remove the worker and files
-	// of an earlier build.
+} else if (
+	document.body.dataset.offline === "false" &&
+	"serviceWorker" in navigator
+) {
+	// A build with -offline=false removes the worker and files of an earlier build.
+	// A page without the control alone keeps them, as a template may
+	// leave the control out of some pages.
 	navigator.serviceWorker.getRegistration(root.href).then((r) => {
 		if (r?.scope === root.href) {
 			r.unregister();
