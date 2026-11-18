@@ -557,7 +557,10 @@ if (search) {
 	});
 	list.addEventListener("click", (e) => {
 		const a = e.target instanceof Element ? e.target.closest("a") : null;
-		if (a) {
+		// A modified click, as Cmd- or Ctrl-click for a new tab, stays the
+		// browser's, and the dialog stays open for the next result.
+		const modified = e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
+		if (a && e.button === 0 && !modified) {
 			e.preventDefault();
 			go(a);
 		}
