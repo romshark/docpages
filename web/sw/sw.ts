@@ -329,11 +329,16 @@ const deleteOldCaches = async () => {
 
 // cached returns the saved response for url, of this build,
 // or of an older one while this build's save is incomplete.
+// A page URL with .html, as a bookmark of main/index.html,
+// matches the page as offline.json names it, as main/.
 const cached = async (url: string) => {
-	for (const name of [filesCache, ...(await oldCaches())]) {
-		const r = await caches.match(url, { cacheName: name, ignoreVary: true });
-		if (r) {
-			return r;
+	const page = url.replace(/(^|\/)index\.html$|\.html$/, "$1");
+	for (const u of page === url ? [url] : [url, page]) {
+		for (const name of [filesCache, ...(await oldCaches())]) {
+			const r = await caches.match(u, { cacheName: name, ignoreVary: true });
+			if (r) {
+				return r;
+			}
 		}
 	}
 	return undefined;
@@ -525,8 +530,14 @@ self.addEventListener("fetch", (e) => {
 	}
 });
 
+// networkWait is how long a request waits for the network before the saved
+// copy answers it. A connection that hangs would keep the reader waiting for minutes.
+const networkWait = 3000;
+
 // serve answers from the network, so online readers get the deployed files,
 // and from the cache offline, except media copies, which the cache answers first.
+// The cache also answers a 5xx response and a network slower than networkWait.
+// Without a saved copy, the network answers, however long it takes.
 // preload is the navigation preload response, or undefined.
 const serve = async (
 	request: Request,
@@ -539,15 +550,21 @@ const serve = async (
 			return ranged(request, response);
 		}
 	}
-	try {
-		return (await preload) ?? (await fetch(request));
-	} catch (err) {
-		const response = await cached(url);
-		if (response) {
-			return ranged(request, response);
-		}
-		throw err;
+	const network = (async () => (await preload) ?? (await fetch(request)))();
+	// The cache may answer first, which would leave a network error unhandled.
+	network.catch(() => {});
+	const first = await Promise.race([
+		network.catch(() => null),
+		sleep(networkWait).then(() => null),
+	]);
+	if (first && first.status < 500) {
+		return first;
 	}
+	const response = await cached(url);
+	if (response) {
+		return ranged(request, response);
+	}
+	return network;
 };
 
 const serveCDN = async (request: Request) => {
