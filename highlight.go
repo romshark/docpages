@@ -23,17 +23,17 @@ var codeFormatter = chromahtml.New(
 	chromahtml.PreventSurroundingPre(true),
 )
 
-// codeTitle finds a title in a code-block info string such as
-// ```go title="app/app.go". GitHub uses its first word as the language and
-// ignores the rest.
+// codeTitle finds a title in a code-block info string such as ```go title="app/app.go".
+// GitHub uses its first word as the language and ignores the rest.
 var codeTitle = regexp.MustCompile(`\btitle="([^"]*)"`)
 
 // codeBlocks returns one page's code-block renderer. It shows optional titles
 // above blocks, adds copy buttons, and uses Chroma when the info-string language
-// has a lexer. docs.ts draws mermaid blocks as diagrams, as GitHub does.
+// has a lexer. docs.ts draws mermaid blocks as diagrams and typesets math
+// blocks, as GitHub does.
 //
-// It is a decorator because goldmark applies extension renderers, including
-// CommonMark, after option renderers. Per-page block numbering supplies copy IDs,
+// It's a decorator because goldmark applies extension renderers, including CommonMark,
+// after option renderers. Per-page block numbering supplies copy IDs,
 // so one renderer cannot span pages.
 func codeBlocks() func(goldhtml.NodeRenderer) goldhtml.NodeRenderer {
 	n := 0
@@ -45,9 +45,14 @@ func codeBlocks() func(goldhtml.NodeRenderer) goldhtml.NodeRenderer {
 				return ast.WalkContinue, nil
 			}
 			b := node.(*ast.CodeBlock)
-			if lang, _ := b.Language(source); lang == "mermaid" {
+			switch lang, _ := b.Language(source); lang {
+			case "mermaid":
 				_, err := io.WriteString(w, `<pre class="mermaid">`+
 					html.EscapeString(b.Value.Str(source))+"</pre>\n")
+				return ast.WalkSkipChildren, err
+			case mathLanguage:
+				_, err := io.WriteString(w, `<div class="math-display">`+
+					html.EscapeString(b.Value.Str(source))+"</div>\n")
 				return ast.WalkSkipChildren, err
 			}
 			n++

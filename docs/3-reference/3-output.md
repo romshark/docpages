@@ -39,4 +39,4 @@ The header of every page has a button that saves the version for offline viewing
 - `-offline=false` builds the site without offline viewing. A reader who saved a version of an earlier build loses the saved files on the next visit.
 - All GitHub Pages sites of an account share 1 origin, and so 1 share of the storage of the browser.
 - Safari deletes the saved files after 7 days of use without a visit to the site, unless the reader added it to the Home Screen.
-- Pages load Mermaid from a CDN. A saved version keeps the files of Mermaid that its pages loaded online.
+- Pages load Mermaid and KaTeX from a CDN. A saved version keeps the files of each that its pages loaded online.

@@ -26,8 +26,8 @@ interface SaveState {
 }
 
 const scope = self.registration.scope;
-// GitHub Pages sites of 1 account share an origin. The scope keeps their
-// caches apart.
+// GitHub Pages sites of 1 account share an origin.
+// The scope keeps their caches apart.
 const prefix = `docpages ${scope} `;
 const filesCache = `${prefix}files ${build}`;
 const stateCache = `${prefix}state`;
@@ -36,8 +36,11 @@ const indexURL = new URL("offline.json", scope).href;
 // Media copies hold a content hash in their names, so they never change.
 // The pages of a docs group named media lie in media/ too, without the hash.
 const mediaCopy = /^media\/[0-9a-f]{16}\/[^/]+$/;
-// Pages load Mermaid from this CDN. A saved version caches what they load.
-const mermaid = "https://cdn.jsdelivr.net/npm/mermaid@";
+// Pages load Mermaid and KaTeX from this CDN. A saved version caches what they load.
+const cdn = [
+	"https://cdn.jsdelivr.net/npm/mermaid@",
+	"https://cdn.jsdelivr.net/npm/katex@",
+];
 // docs.ts listens on this channel.
 const channel = new BroadcastChannel(prefix);
 
@@ -252,9 +255,8 @@ const decode = (s: string) => {
 };
 
 // key returns the cache key of url in scope, without query and fragment,
-// and with each path segment escaped 1 way.
-// offline.json escapes ' and (, which page links and the browser leave as they are.
-// Servers decode either form.
+// and with each path segment escaped 1 way. offline.json escapes ' and (,
+// which page links and the browser leave as they are. Servers decode either form.
 const key = (url: string) => {
 	const u = new URL(url, scope);
 	u.search = "";
@@ -277,7 +279,7 @@ const completeGroups = async (groups: string[]) => {
 	);
 };
 
-// prune deletes the files outside groups, but keeps offline.json and Mermaid.
+// prune deletes the files outside groups, but keeps offline.json and the CDN.
 const prune = async (index: OfflineIndex, groups: string[]) => {
 	const cache = await caches.open(filesCache);
 	const wanted = new Set(files(index, groups).map((f) => key(f.url)));
@@ -384,8 +386,8 @@ self.addEventListener("fetch", (e) => {
 	}
 	if (request.url.startsWith(scope)) {
 		e.respondWith(serve(request, e.preloadResponse));
-	} else if (request.url.startsWith(mermaid)) {
-		e.respondWith(serveMermaid(request));
+	} else if (cdn.some((p) => request.url.startsWith(p))) {
+		e.respondWith(serveCDN(request));
 	}
 });
 
@@ -416,7 +418,7 @@ const serve = async (
 	}
 };
 
-const serveMermaid = async (request: Request) => {
+const serveCDN = async (request: Request) => {
 	if (!(await readState())) {
 		return fetch(request);
 	}

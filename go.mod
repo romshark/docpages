@@ -10,6 +10,7 @@ require (
 	github.com/romshark/morpheus v0.6.0
 	github.com/stretchr/testify v1.12.1
 	github.com/tdewolff/parse/v2 v2.8.20
+	github.com/yuin/goldmark-emoji v1.0.6
 	github.com/yuin/goldmark/v2 v2.1.16
 	go.yaml.in/yaml/v3 v3.0.6
 	golang.org/x/mod v0.43.0

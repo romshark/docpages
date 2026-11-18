@@ -342,8 +342,7 @@ func convertDocs(pages []page, srcs [][]byte, s *site) ([]doc, error) {
 		d.search = searchEntries(*d, nodes[i], src)
 		// The <details> of the page span the nodes of raw HTML, inline and blocks.
 		details := &collapsibles{}
-		r := html.New(
-			html.WithExtensions(extension.NewGFMHTMLRenderer()),
+		r := newRenderer(
 			html.WithNodeRendererDecorator(ast.KindCodeBlock, codeBlocks()),
 			html.WithNodeRendererDecorator(ast.KindHeading, headingLinks),
 			html.WithNodeRendererDecorator(ast.KindBlockquote, callouts),
@@ -555,10 +554,25 @@ type edit struct {
 	text string
 }
 
-// newParser returns a GitHub Flavored Markdown parser with opts. Parsing pages
-// and notes alike keeps links and raw HTML in the same places.
+// newParser returns a parser of GitHub Flavored Markdown, footnotes, emoji
+// shortcodes and math, with opts. Parsing pages and notes alike keeps links and
+// raw HTML in the same places.
 func newParser(opts ...parser.Option) parser.Parser {
-	return parser.New(append(opts, parser.WithExtensions(extension.NewGFMParser()))...)
+	return parser.New(append(opts, parser.WithExtensions(
+		extension.NewGFMParser(),
+		extension.NewFootnoteParser(),
+		emojiExtension{},
+		mathExtension{},
+	))...)
+}
+
+// newRenderer returns a renderer of what [newParser] parses, with opts.
+func newRenderer(opts ...html.Option) html.Renderer {
+	return html.New(append(opts, html.WithExtensions(
+		extension.NewGFMHTMLRenderer(),
+		extension.NewFootnoteHTMLRenderer(),
+		mathExtension{},
+	))...)
 }
 
 // refs are Markdown nodes that name other files: links, images, and inline or
@@ -692,6 +706,8 @@ func writePlainText(w io.StringWriter, n ast.Node, src []byte) {
 			if isLineBreak(n.Value.Value(src)) {
 				_, _ = w.WriteString(" ")
 			}
+		case *mathNode:
+			_, _ = w.WriteString(n.tex)
 		}
 		return ast.WalkContinue, nil
 	})

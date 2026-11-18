@@ -1214,6 +1214,28 @@ neo-dialog.search dialog {
     border-block-start: 1px solid var(--border);
   }
 
+  .footnotes {
+    margin-block-start: 2.5rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+
+    hr {
+      margin-block: 0 1rem;
+    }
+  }
+
+  /* The targets of a footnote link and of its back link. */
+  :is(sup[id^="fnref"], .footnotes li) {
+    scroll-margin-block-start: 1rem;
+  }
+
+  /* A wide formula scrolls rather than widening the page on a phone. */
+  .math-display {
+    display: block;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
   @media (width <= 640px) {
     h1 {
       font-size: 1.85rem;

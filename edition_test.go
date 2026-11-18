@@ -418,7 +418,7 @@ func TestMorpheusBundleVersion(t *testing.T) {
 
 // TestVersionNote checks edition README notes above every page, links that
 // resolve from the README.md holding the note, including links to other editions,
-// and page-version naming in the body.
+// emoji and math in a note, and page-version naming in the body.
 func TestVersionNote(t *testing.T) {
 	fsys, tags := withReleases("v1.1", "v1.1.0", "v1.2.0")
 	fsys["docs/README.md"] = &fstest.MapFile{Data: []byte(strings.Replace(testRoot,
@@ -442,7 +442,7 @@ func TestVersionNote(t *testing.T) {
 	`))}
 	fsys["docs/versions/v1.2/README.md"] = &fstest.MapFile{Data: []byte(dedent(`
 		---
-		note: "**Beta.**"
+		note: "**Beta.** :construction: $x$"
 		---
 
 		# Introduction
@@ -483,7 +483,8 @@ func TestVersionNote(t *testing.T) {
 		"latest release": {
 			version: "v1.2", path: "guides/events",
 			want: []string{
-				`<p class="version-note" role="note"><strong>Beta.</strong></p>`,
+				`<p class="version-note" role="note"><strong>Beta.</strong> 🚧 ` +
+					`<span class="math-inline">x</span></p>`,
 			},
 		},
 	} {

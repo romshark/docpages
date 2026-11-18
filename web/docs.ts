@@ -701,6 +701,40 @@ if (diagrams.length > 0) {
 		.catch((err) => console.error("loading Mermaid:", err));
 }
 
+// The part of KaTeX that this module calls.
+interface KaTeX {
+	render(tex: string, element: HTMLElement, options: object): void;
+}
+
+// The folder of KaTeX's module, its stylesheet and the fonts that the stylesheet loads.
+// A variable keeps tsc from resolving the import.
+const katexURL = "https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/";
+
+// The renderer writes math as .math-inline and .math-display elements that hold the TeX.
+// KaTeX replaces it, in the color of the text, and shows an error in place of math
+// that it can't read. Pages without math do not load KaTeX.
+const formulas = [
+	...document.querySelectorAll<HTMLElement>(".math-inline, .math-display"),
+];
+if (formulas.length > 0) {
+	const css = document.createElement("link");
+	css.rel = "stylesheet";
+	// A CORS response, unlike an opaque one, lets sw.js cache it.
+	css.crossOrigin = "anonymous";
+	css.href = `${katexURL}katex.min.css`;
+	document.head.append(css);
+	(import(`${katexURL}katex.mjs`) as Promise<{ default: KaTeX }>)
+		.then(({ default: katex }) => {
+			for (const f of formulas) {
+				katex.render(f.textContent ?? "", f, {
+					displayMode: f.classList.contains("math-display"),
+					throwOnError: false,
+				});
+			}
+		})
+		.catch((err) => console.error("loading KaTeX:", err));
+}
+
 // offline.json, as offline.go writes it.
 interface OfflineIndex {
 	build: string;
@@ -905,8 +939,8 @@ if (offline && "serviceWorker" in navigator && "BroadcastChannel" in window) {
 		return indexing;
 	};
 
-	// The worker of the version, only once the reader saves, as a worker starts
-	// before every page load in its scope.
+	// The worker of the version, only once the reader saves,
+	// as a worker starts before every page load in its scope.
 	let registration: ServiceWorkerRegistration | null = null;
 	// existing returns the registration of the version,
 	// which a page in another tab may have made after this page loaded.

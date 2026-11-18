@@ -748,10 +748,16 @@ func TestInlineElements(t *testing.T) {
 		</details>
 	`))
 	for _, want := range []string{
-		"<p>Press <kbd>Ctrl</kbd>+<kbd>K</kbd>: H<sub>2</sub>O, x<sup>2</sup>,\n" +
-			"<ins>new</ins><br>and<br>breaks.</p>",
-		"<td><kbd>K</kbd></td>\n<td>a<br>b</td>",
-		"</table>\n<br>\n",
+		dedent(`
+			<p>Press <kbd>Ctrl</kbd>+<kbd>K</kbd>: H<sub>2</sub>O, x<sup>2</sup>,
+			<ins>new</ins><br>and<br>breaks.</p>`),
+		dedent(`
+			<td><kbd>K</kbd></td>
+			<td>a<br>b</td>`),
+		dedent(`
+			</table>
+			<br>
+		`),
 		`<span class="details-title">Press <kbd>K</kbd></span>`,
 		"x<sup>2</sup></neo-elastic></details>",
 	} {
@@ -762,6 +768,43 @@ func TestInlineElements(t *testing.T) {
 	require.Equal(t,
 		"T Press Ctrl+K: H2O, x2, new and breaks. Key Lines K a b",
 		d.search[0].Text)
+}
+
+// TestFootnotes checks that each reference links to its footnote, which the end
+// of the page lists in reference order with a link back, that an unreferenced
+// footnote stays out, and that a link in a footnote resolves like any other.
+func TestFootnotes(t *testing.T) {
+	docs := convertTest(t, MainVersion, dedent(`
+		# Introduction
+
+		A[^b] and B[^a].
+
+		[^a]: Second, see [Dispatch](events.md#dispatch).
+		[^b]: First.
+		[^unused]: Unused.
+	`), dedent(`
+		# Events
+
+		## Dispatch
+	`))
+	body := docs[0].body
+	require.Contains(t, body, dedent(`
+		<p>A<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup> and `+
+		`B<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>.</p>
+		<div class="footnotes" role="doc-endnotes">
+		<hr>
+		<ol>
+		<li id="fn:1">
+		<p>First.&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+		</li>
+		<li id="fn:2">
+		<p>Second, see <a href="../docs/events#dispatch">Dispatch</a>.&#160;`+
+		`<a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+		</li>
+		</ol>
+		</div>
+	`))
+	require.NotContains(t, body, "Unused")
 }
 
 // TestHeadingLinks checks that every heading below level 1 links to itself.

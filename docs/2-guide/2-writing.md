@@ -62,6 +62,8 @@ Text formats as on GitHub:
 
 Press <kbd>Ctrl</kbd>+<kbd>K</kbd> to search. H<sub>2</sub>O, x<sup>2</sup> and <ins>inserted</ins> text.<br>A line break.
 
+An emoji by its name: :rocket: :tada: :+1:
+
 - A list
   - with a nested item
 - [x] A done task
@@ -83,6 +85,8 @@ Press <kbd>Ctrl</kbd>+<kbd>K</kbd> to search. H<sub>2</sub>O, x<sup>2</sup> and 
 
 Press <kbd>Ctrl</kbd>+<kbd>K</kbd> to search. H<sub>2</sub>O, x<sup>2</sup> and <ins>inserted</ins> text.<br>A line break.
 
+An emoji by its name: :rocket: :tada: :+1:
+
 - A list
   - with a nested item
 - [x] A done task
@@ -100,6 +104,26 @@ Press <kbd>Ctrl</kbd>+<kbd>K</kbd> to search. H<sub>2</sub>O, x<sup>2</sup> and 
 ---
 
 Of the HTML for text, pages keep `<kbd>`, `<sup>`, `<sub>`, `<ins>` and `<br>`, without attributes. See [The HTML that pages keep](3-media.md#the-html-that-pages-keep).
+
+An emoji name stays text if GitHub doesn't know it, or shows it as an image, as `:octocat:`.
+
+## Footnotes
+
+A reference, as `[^gfm]`, links to its footnote. The page lists the footnotes at its end, each with a link back:
+
+```markdown
+Pages are GitHub Flavored Markdown[^gfm], and the search[^search] splits them at their headings.
+
+[^gfm]: See the [specification](https://github.github.com/gfm/).
+[^search]: Press `/` or `Ctrl+K` to open it.
+```
+
+Pages are GitHub Flavored Markdown[^gfm], and the search[^search] splits them at their headings.
+
+[^gfm]: See the [specification](https://github.github.com/gfm/).
+[^search]: Press `/` or `Ctrl+K` to open it.
+
+The footnotes of this example are at the end of this page. A footnote that no reference names stays out.
 
 ## Code
 
@@ -327,6 +351,39 @@ config:
 flowchart LR
     A[Markdown files] --> B[docpages] --> C[Static site]
 ```
+
+## Math
+
+Math is TeX. The browser typesets it with [KaTeX](https://katex.org), which it loads from a CDN, only on pages with math.
+
+````markdown
+The area of a circle is $\pi r^2$, and $`\sqrt{2}`$ is about 1.41.
+
+$$
+\sum_{k=1}^{n} k = \frac{n(n+1)}{2}
+$$
+
+```math
+e^{i\pi} + 1 = 0
+```
+````
+
+The area of a circle is $\pi r^2$, and $`\sqrt{2}`$ is about 1.41.
+
+$$
+\sum_{k=1}^{n} k = \frac{n(n+1)}{2}
+$$
+
+```math
+e^{i\pi} + 1 = 0
+```
+
+- `$...$` holds math in a line of text. Its TeX neither starts nor ends with a space, and no digit follows the closing `$`, so `$5 and $10` stays text.
+- `` $`...`$ `` holds math too, without the rules of `$...$` on spaces and digits.
+- `$$...$$` in a paragraph shows its math on a line of its own.
+- A block between 2 lines of `$$`, and a `math` code block, show their math on lines of their own.
+
+A price, as `$5`, starts math when a later `$` in the paragraph closes it. Write `\$5` then. KaTeX shows TeX that it can't read in red, in place of the math. The build doesn't check TeX.
 
 ## Contents and search
 

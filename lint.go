@@ -69,7 +69,8 @@ func lintMarkdown(n ast.Node, src []byte) []lintError {
 		switch n := n.(type) {
 		case *ast.CodeBlock:
 			lang, _ := n.Language(src)
-			if lang != "" && lang != "mermaid" && lexers.Get(lang) == nil {
+			if lang != "" && lang != "mermaid" && lang != mathLanguage &&
+				lexers.Get(lang) == nil {
 				pos := n.Pos()
 				if !n.Info.IsOwned() && !n.Info.IsEmpty() {
 					pos = n.Info.Index().Start

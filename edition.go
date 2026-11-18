@@ -11,8 +11,6 @@ import (
 	"strings"
 
 	"github.com/yuin/goldmark/v2/ast"
-	"github.com/yuin/goldmark/v2/extension"
-	"github.com/yuin/goldmark/v2/renderer/html"
 	"github.com/yuin/goldmark/v2/text"
 )
 
@@ -129,7 +127,7 @@ func (e *edition) noteHTML(i int, editions []*edition) (string, error) {
 		return "", err
 	}
 	var b bytes.Buffer
-	r := html.New(html.WithExtensions(extension.NewGFMHTMLRenderer()))
+	r := newRenderer()
 	if err := r.Render(&b, src, doc); err != nil {
 		return "", err
 	}

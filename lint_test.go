@@ -36,6 +36,10 @@ func TestLint(t *testing.T) {
 			flowchart LR
 			~~~
 
+			~~~math
+			E = mc^2
+			~~~
+
 			<!-- A comment. -->
 
 			| A | B |
