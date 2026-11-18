@@ -811,17 +811,18 @@ func TestFootnotes(t *testing.T) {
 	require.NotContains(t, body, "Unused")
 }
 
-// TestHeadingLinks checks that every heading below level 1 links to itself.
+// TestHeadingLinks checks that every heading below level 1 links to itself,
+// with the link hidden from assistive technology and the tab order.
 func TestHeadingLinks(t *testing.T) {
 	body := convert(t, dedentMD(`
 		# Title
 
 		## The ~App~ type
 	`)).body
-	require.Contains(t, body, `<h1 id="title">Title</h1>`)
-	require.Contains(t, body, `<h2 id="the-app-type">The <code>App</code> type`+
-		`<a class="heading-link" href="#the-app-type"`+
-		` aria-label="Link to this section"></a></h2>`)
+	require.Equal(t, dedent(`
+		<h1 id="title">Title</h1>
+		<h2 id="the-app-type">The <code>App</code> type<a class="heading-link" href="#the-app-type" aria-hidden="true" tabindex="-1"></a></h2>
+	`), body)
 }
 
 // TestPlainTextAutoLinks checks that page titles, descriptions, and search text

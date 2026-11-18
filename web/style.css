@@ -1476,8 +1476,11 @@ neo-dialog.search dialog {
     content: "#";
   }
 
-  &:focus-visible,
   :hover > & {
+    opacity: 1;
+  }
+
+  @media (hover: none) {
     opacity: 1;
   }
 }

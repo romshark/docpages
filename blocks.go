@@ -13,7 +13,9 @@ import (
 )
 
 // headingLinks decorates heading renderer next, ending each heading below level 1
-// with a shareable self-link.
+// with a shareable self-link for pointer users. The link is hidden from assistive
+// technology and the tab order, as its name would become part of the heading's.
+// Moving it after the heading would break site CSS that styles the heading's box.
 func headingLinks(next goldhtml.NodeRenderer) goldhtml.NodeRenderer {
 	return renderer.NodeRendererFunc(func(
 		w io.Writer, source []byte, node ast.Node, entering bool, rc renderer.Context,
@@ -22,7 +24,7 @@ func headingLinks(next goldhtml.NodeRenderer) goldhtml.NodeRenderer {
 		if id, ok := h.Attribute("id"); ok && !entering && h.Level > 1 {
 			href := "#" + html.EscapeString(id.Value(source))
 			_, _ = io.WriteString(w, `<a class="heading-link" href="`+href+
-				`" aria-label="Link to this section"></a>`)
+				`" aria-hidden="true" tabindex="-1"></a>`)
 		}
 		return next.Render(w, source, node, entering, rc)
 	})
